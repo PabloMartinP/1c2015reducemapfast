@@ -67,8 +67,6 @@ int main(void) {
 	free(file_config);
 	_log = log_create(FILE_LOG, "Nodo", false, LOG_LEVEL_INFO);
 
-
-
 	_data = data_get(config_get_string_value(_config, CONFIG_ARCHIVO_BIN));
 	bloques_set();
 	////////////////////////
@@ -82,10 +80,12 @@ int main(void) {
 	pthread_join(p_fs, (void**) NULL);
 
 	/*
+	//settear el bloque 0
 	 void* saludo = malloc(BLOQUE_SIZE);
 	 strcpy(saludo, "ahora cambio el mensaje!");
 	 setBloque(0, saludo);
 
+	 //leo el bl0que 0
 	 void* dataget = getBloque(0);
 	 char* saludoget =(char*) malloc(strlen(saludo)+1);
 	 memcpy(saludoget, dataget, strlen(saludo)+1);
@@ -94,9 +94,9 @@ int main(void) {
 	 free_null(saludo);
 	 free_null(saludoget);
 	 free_null(dataget);
-	 */
+*/
 
-	/*
+
 	 char *d = NULL;
 	 d = getFileContent("hola");
 
@@ -104,7 +104,7 @@ int main(void) {
 	 printf("%c", d[i]);
 
 	 file_mmap_free(d, "hola");
-	 */
+////
 
 	data_destroy();
 	config_destroy(_config);
@@ -139,6 +139,7 @@ void bloques_set() {
 		_bloques[i] = (_data + (i * BLOQUE_SIZE));
 	}
 }
+
 void setBloque(int32_t numero, void* bloquedatos) {
 	log_info(_log, "Inicio setBloque(%d)", numero);
 	//printf("___\n");
@@ -165,7 +166,7 @@ void* data_get(char* filename) {
 
 	if (!file_exists(filename)) {
 		FILE* file = NULL;
-		file = fopen(filename, "w");
+		file = fopen(filename, "w+");
 		if (file == NULL) {
 			handle_error("fopen");
 		}
@@ -181,6 +182,7 @@ void* data_get(char* filename) {
 
 		fclose(file);
 	}
+
 	//el archivo ya esta creado con el size maximo
 	return file_get_mapped(filename);
 	/*

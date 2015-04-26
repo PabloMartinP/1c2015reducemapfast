@@ -22,6 +22,4 @@ void* file_get_mapped(char* filename);
 void file_mmap_free(void* mapped, char* filename);
 
 
-
-
 #endif /* UTIL_H_ */

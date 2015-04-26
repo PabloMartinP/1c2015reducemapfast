@@ -1,0 +1,8 @@
+[INFO] 15:24:23:382 Nodo/(2639:2639): Inicio setBloque(0)
+[INFO] 15:24:23:425 Nodo/(2639:2639): Fin setBloque(0)
+[INFO] 15:24:23:425 Nodo/(2639:2639): Ini getBloque(0)
+[INFO] 15:24:23:448 Nodo/(2639:2639): Fin getBloque(0)
+[INFO] 15:24:50:355 Nodo/(2702:2702): Inicio setBloque(0)
+[INFO] 15:24:50:376 Nodo/(2702:2702): Fin setBloque(0)
+[INFO] 15:24:50:379 Nodo/(2702:2702): Ini getBloque(0)
+[INFO] 15:24:50:388 Nodo/(2702:2702): Fin getBloque(0)

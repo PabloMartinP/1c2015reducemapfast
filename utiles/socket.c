@@ -10,9 +10,6 @@
 
 #include "socket.h"
 
-
-
-
 		//Mande un mensaje a un socket determinado
 		int mandarMensaje(int unSocket, int8_t tipo, int tamanio, void *buffer) {
 

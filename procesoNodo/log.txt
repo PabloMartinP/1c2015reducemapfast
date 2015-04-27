@@ -6,3 +6,5 @@
 [INFO] 15:24:50:376 Nodo/(2702:2702): Fin setBloque(0)
 [INFO] 15:24:50:379 Nodo/(2702:2702): Ini getBloque(0)
 [INFO] 15:24:50:388 Nodo/(2702:2702): Fin getBloque(0)
+[INFO] 15:16:05:62 Nodo/(5892:5892): Inicio getFileContent(hola)
+[INFO] 15:21:40:380 Nodo/(5927:5927): Inicio getFileContent(hola)

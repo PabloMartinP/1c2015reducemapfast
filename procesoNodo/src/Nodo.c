@@ -96,7 +96,7 @@ int main(void) {
 	 free_null(dataget);
 */
 
-
+/*
 	 char *d = NULL;
 	 d = getFileContent("hola");
 
@@ -104,6 +104,7 @@ int main(void) {
 	 printf("%c", d[i]);
 
 	 file_mmap_free(d, "hola");
+	 */
 ////
 
 	data_destroy();

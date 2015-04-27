@@ -155,6 +155,21 @@
 			return socketEscucha;
 		}
 
+		int aceptarNuevaConexion(int sock_fd)
+		{
+			struct sockaddr_in clientname;
+			size_t size = sizeof clientname;
+
+			int new_fd = accept(sock_fd, (struct sockaddr *) &clientname, (socklen_t *) &size);
+			if (new_fd < 0) {
+				perror("accept");
+				return -1;
+			}
+
+			return new_fd;
+		}
+
+
 
 		//Size of each chunk of data received, try changing this
 		#define CHUNK_SIZE 512

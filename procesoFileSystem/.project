@@ -3,6 +3,7 @@
 	<name>procesoFileSystem</name>
 	<comment></comment>
 	<projects>
+		<project>utiles</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

@@ -86,6 +86,7 @@ typedef struct t_paquete {
 
 		int sendAll(int s, char *buf, int *len) ;
 		int recv_timeout(int s , int timeout);
+		int aceptarNuevaConexion(int sock_fd);
 		//
 
 

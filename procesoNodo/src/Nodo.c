@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <commons/config.h>
@@ -19,7 +18,7 @@
 #define CONFIG_PUERTO_FS  "PUERTO_FS"
 #define CONFIG_IP_FS  "IP_FS"
 
-#define FILE_CONFIG "config.txt"
+#define FILE_CONFIG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/config.txt"
 #define FILE_LOG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/log.txt"
 /*
  * variables
@@ -51,7 +50,19 @@ void fs_conectar() {
 
 	//conecto al fs
 	int fs;
-	fs = quieroUnPutoSocketDeEscucha(config_get_int_value(_config, CONFIG_PUERTO_FS));
+	fs = quieroUnPutoSocketDeEscucha(
+			config_get_int_value(_config, CONFIG_PUERTO_FS));
+
+
+	char* auxC;
+	auxC = malloc(sizeof(char));
+	*auxC = 'a';
+	//handshake Orquestador-Personaje
+	if (mandarMensaje(fs, 0, sizeof(char), auxC) > 0) {
+		//if (recibirMensaje(unSocketOrq, (void**) &auxC) > 0) {
+			log_debug("Handshake contestado del Orquestador %c", *auxC);
+		}
+	}
 
 	close(fs);
 
@@ -60,14 +71,22 @@ void fs_conectar() {
 int main(void) {
 	int i;
 
+	/*
+	 * deberia tomar el getcwd y concatenarle el nombre de archivo
 	char cwd[1024];
 	getcwd(cwd, sizeof(cwd));
 	char* file_config = file_combine(cwd, FILE_CONFIG);
 	_config = config_create(file_config);
 	free(file_config);
+	_log = log_create(FILE_LOG, "Nodo", false, LOG_LEVEL_INFO);*/
+	_config = config_create(FILE_CONFIG);
 	_log = log_create(FILE_LOG, "Nodo", false, LOG_LEVEL_INFO);
 
+	//char* file_data = file_combine(cwd, config_get_string_value(_config, CONFIG_ARCHIVO_BIN));
+	//_data = data_get(file_data);
 	_data = data_get(config_get_string_value(_config, CONFIG_ARCHIVO_BIN));
+
+	//free(file_data);
 	bloques_set();
 	////////////////////////
 
@@ -80,7 +99,7 @@ int main(void) {
 	pthread_join(p_fs, (void**) NULL);
 
 	/*
-	//settear el bloque 0
+	 //settear el bloque 0
 	 void* saludo = malloc(BLOQUE_SIZE);
 	 strcpy(saludo, "ahora cambio el mensaje!");
 	 setBloque(0, saludo);
@@ -94,9 +113,9 @@ int main(void) {
 	 free_null(saludo);
 	 free_null(saludoget);
 	 free_null(dataget);
-*/
+	 */
 
-/*
+	/*
 	 char *d = NULL;
 	 d = getFileContent("hola");
 
@@ -106,7 +125,6 @@ int main(void) {
 	 file_mmap_free(d, "hola");
 	 */
 ////
-
 	data_destroy();
 	config_destroy(_config);
 

@@ -47,3 +47,4 @@
 [INFO] 17:36:31:222 FileSystem/(3729:3733): inicio thread eschca de nuevos nodos
 [INFO] 17:37:03:334 FileSystem/(3790:3793): inicio thread eschca de nuevos nodos
 [INFO] 17:53:46:249 FileSystem/(4267:4274): inicio thread eschca de nuevos nodos
+[INFO] 18:39:42:825 FileSystem/(5333:5338): inicio thread eschca de nuevos nodos

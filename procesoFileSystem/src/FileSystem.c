@@ -25,13 +25,16 @@
 #include <util.h>
 #include <pthread.h>
 
+#include "consola.h"
+
 
 #define FILE_CONFIG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/config.txt"
 #define FILE_LOG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/log.txt"
 
 typedef struct {
 	int identificador;
-	int fd;
+	char* ip;
+	uint16_t puerto;
 } t_nodo;
 
 t_log* logger;
@@ -145,6 +148,10 @@ void procesar_mensaje_nodo(int i, t_msg* msg) {
 		destroy_message(msg);
 		msg = string_message(FS_NODO_OK, "", 0);
 		enviar_mensaje(i, msg);
+
+
+
+
 		break;
 	default:
 		printf("mensaje desconocido\n");

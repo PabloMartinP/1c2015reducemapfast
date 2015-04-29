@@ -84,8 +84,7 @@ typedef struct t_paquete {
 		struct sockaddr_in especificarSocketInfo(char* direccion, int puerto);
 
 
-		int sendAll(int s, char *buf, int *len) ;
-		int recv_timeout(int s , int timeout);
+
 		int aceptarNuevaConexion(int sock_fd);
 		//
 

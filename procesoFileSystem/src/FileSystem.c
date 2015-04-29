@@ -15,6 +15,7 @@
 #include <commons/log.h>
 #include <commons/config.h>
 #include <unistd.h>
+#include <commons/collections/list.h>
 
 #include <socket.h>
 
@@ -63,6 +64,12 @@ typedef struct {
 //falta la lista de nodos
 } t_archivo;
 
+typedef struct {
+	int identificador;
+	char* ip;
+	int puerto;
+} t_nodo;
+
 e_comando getComando(char* input_user);
 
 void formatear();
@@ -72,10 +79,13 @@ void nuevosNodos();
 t_log* log;
 t_config* config;
 
+t_list* nodos;
+t_list* nodos_pendientes; //los nodos que estan disponibles pero estan agregados al fs
+
 int main(void) {
 	char comando[COMMAND_MAX_SIZE];
 
-	log = log_create(FILE_LOG, "FileSystem", false, LOG_LEVEL_INFO);
+	log = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_INFO);
 	config = config_create(FILE_CONFIG);
 
 	/*
@@ -134,7 +144,6 @@ int main(void) {
 	printf("bb world!!!!");
 	return EXIT_SUCCESS;
 }
-
 void nuevosNodos() {
 	fd_set master;
 	fd_set read_fds;
@@ -145,7 +154,6 @@ void nuevosNodos() {
 	int addrlen;
 	int i;
 	char buf[256]; // buffer para datos del cliente
-
 
 	int port = config_get_int_value(config, "PUERTO_LISTEN");
 	fdNuevoNodo = quieroUnPutoSocketDeEscucha(port);
@@ -174,75 +182,156 @@ void nuevosNodos() {
 		for (i = 0; i <= fdmax; i++) {
 			if (FD_ISSET(i, &read_fds)) { // ¡¡tenemos datos!!
 				if (i == fdNuevoNodo) {	// gestionar nuevas conexiones
-					addrlen = sizeof(remoteaddr);
-					if ((newfd = accept(fdNuevoNodo,(struct sockaddr *) &remoteaddr, &addrlen)) == -1) {
-						perror("accept");
-					} else {
-						FD_SET(newfd, &master); // añadir al conjunto maestro
-						if (newfd > fdmax) { // actualizar el máximo
-							fdmax = newfd;
-						}
-						printf("selectserver: new connection from %s on "
-								"socket %d\n", inet_ntoa(remoteaddr.sin_addr),
-								newfd);
+					newfd = accept_connection(fdNuevoNodo);
+					FD_SET(newfd, &master); // añadir al conjunto maestro
+					if (newfd > fdmax) { // actualizar el máximo
+						fdmax = newfd;
 					}
+					/*
+					 addrlen = sizeof(remoteaddr);
+					 if ((newfd = accept(fdNuevoNodo,(struct sockaddr *) &remoteaddr, &addrlen)) == -1) {
+					 perror("accept");
+					 } else {
+					 FD_SET(newfd, &master); // añadir al conjunto maestro
+					 if (newfd > fdmax) { // actualizar el máximo
+					 fdmax = newfd;
+					 }
+					 printf("selectserver: new connection from %s on "
+					 "socket %d\n", inet_ntoa(remoteaddr.sin_addr),
+					 newfd);
+					 }*/
 				} else { // gestionar datos de un cliente ya conectado
-					Header unHeader;
-					if (recibirHeader(i, &unHeader)>0) {
-						printf("type: %d, paylength: %d\n", unHeader.type, unHeader.payloadlength);
+					t_msg* msg = recibir_mensaje(i);
+					print_msg(msg);
 
+					switch (msg->header.id) {
+						case NODO_CONECTAR_CON_FS:
+							destroy_message(msg);
+							msg = string_message(FS_NODO_OK, "Bienvenido", 0);
+							enviar_mensaje(i, msg);
+							break;
+						case NODO_SALIR:
+							close(i); // ¡Hasta luego!
+							FD_CLR(i, &master); // eliminar del conjunto maestro
+							break;
+						default:
+							printf("mensaje desconocido\n");
+							break;
+					}
+
+
+
+
+
+					/*Header unHeader;
+					if (recibirHeader(i, &unHeader) > 0) {
+						printf("type: %d, paylength: %d\n", unHeader.type,
+								unHeader.payloadlength);
 
 						void* buffer = malloc(unHeader.payloadlength);
 
-						if(recibirData(i,unHeader,buffer) > 0){
-							printf("msj: %s\n", (char*)buffer);
+						if (recibirData(i, unHeader, buffer) > 0) {
+							printf("msj: %s\n", (char*) buffer);
 							char* msjOk = "ok";
 
-							if (mandarMensaje(i,2 , 3,msjOk) > 0) {
+							if (mandarMensaje(i, 2, 3, msjOk) > 0) {
 								printf("el nodo se agrego al fs");
 								//log_info(logOrquestador,"Entro Personaje: %c",*simboloRecibido);
 							}
 						}
 
-					}//fin recHeader
-					else{
+					} //fin recHeader
+					else {
 						close(i); // ¡Hasta luego!
 						FD_CLR(i, &master); // eliminar del conjunto maestro
-					}
-
-
-					/*
-					 if ((nbytes = recv(i, buf, sizeof(buf), 0)) <= 0) {
-					 // error o conexión cerrada por el cliente
-					 if (nbytes == 0) { // conexión cerrada
-					 printf("selectserver: socket %d hung up\n", i);
-					 } else {
-					 perror("recv");
-					 }
-					 close(i); // ¡Hasta luego!
-					 FD_CLR(i, &master); // eliminar del conjunto maestro
-					 } else {
-					 buf[nbytes] = '\0';
-					 printf("user: %s\n", buf);
-					 char* saludo = malloc(128);
-					 saludo = "hola\n";
-					 int bytes_enviados = strlen(saludo) + 1;
-					 if (sendAll(i, saludo, &bytes_enviados) == -1) {
-					 perror("send");
-					 }
-					 }*/
+					}*/
 					/////////////////////////////////////
-				} // Esto es ¡TAN FEO!
+				} //fin else procesar mensaje nodo ya conectado
 			}
 		}
 	}
 
 }
 
+/*
+ void nuevosNodos() {
+ fd_set master, read_fds;
+ int fdNuevoNodo, fdmax, newfd, i;
+
+ int port = config_get_int_value(config, "PUERTO_LISTEN");
+ if ((fdNuevoNodo = server_socket(port)) < 0) {
+ log_error(log,
+ "No se pudo iniciar la conexion para escuchar nuevos nodos");
+ exit(EXIT_FAILURE);
+ }
+
+ FD_ZERO(&master); // borra los conjuntos maestro y temporal
+ FD_ZERO(&read_fds);
+ FD_SET(fdNuevoNodo, &master);
+
+ fdmax = fdNuevoNodo; // por ahora el maximo
+
+ log_info(log, "inicio thread eschca de nuevos nodos");
+ // bucle principal
+ for (;;) {
+ read_fds = master; // cópialo
+ if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
+ perror("select");
+ exit(1);
+ }
+
+ // explorar conexiones existentes en busca de datos que leer
+ for (i = 0; i <= fdmax; i++) {
+ if (FD_ISSET(i, &read_fds)) { // ¡¡tenemos datos!!
+ if (i == fdNuevoNodo) {	// gestionar nuevas conexiones
+ if ((newfd = accept_connection(i)) < 0) {
+ log_error(log, "No se pudo aceptar la nueva conexion");
+ exit(EXIT_FAILURE);
+ }
+
+ FD_SET(newfd, &master); // añadir al conjunto maestro
+ if (newfd > fdmax) { // actualizar el máximo
+ fdmax = newfd;
+ }
+ log_info(log, "Nuevo nodo conectado");
+ }
+ } else { // gestionar datos de un cliente ya conectado
+ t_msg* msg=NULL;
+ if ((msg = recibir_mensaje(i)) == NULL) {
+ //ASUMO QUE EL CLIENTE SE DESCONECTO
+ //log_error(log, "No pudo recibir el mensaje");
+ close(i); // ¡Hasta luego!
+ FD_CLR(i, &master); // eliminar del conjunto maestro
+ //exit(EXIT_FAILURE);
+ }
+
+ procesar_mensaje_nodo(i, msg);
+
+ }
+ } //fin for en busca de nuevas conexion
+ } //fin for();
+ }
+ */
+void procesar_mensaje_nodo(int i, t_msg* msg) {
+	switch (msg->header.id) {
+	case NODO_CONECTAR_CON_FS:
+		//envio un mensaje de confirmacion
+		msg = id_message(FS_NODO_OK);
+		if ((enviar_mensaje(i, msg)) < 0) {
+			log_error(log, "No pudo enviar el mensaje");
+			exit(EXIT_FAILURE);
+		}
+
+		break;
+	default:
+		break;
+	}
+}
+
 e_comando getComando(char* input_user) {
 	char* comando;
 
-	//obtener el nombre del comando que ingreso el user
+//obtener el nombre del comando que ingreso el user
 	comando = string_split(input_user, " ")[0];
 
 	if (string_equals_ignore_case(comando, "agregarnodo\n"))
@@ -267,7 +356,7 @@ void directorio_crear(char* comando) {
 	strcpy(dir.nombre, "un directorio");
 	dir.padre = 0;
 
-	//fwrite(&dir, sizeof(t_directorio), 1, file);
+//fwrite(&dir, sizeof(t_directorio), 1, file);
 	fprintf(file, "hayque grabar el directorio");
 
 	fclose(file);

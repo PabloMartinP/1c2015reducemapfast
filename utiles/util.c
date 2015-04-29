@@ -166,6 +166,23 @@ int accept_connection(int sock_fd) {
 	return new_fd;
 }
 
+int accept_connection_and_get_ip(int sock_fd, char **ip) {
+	struct sockaddr_in clientname;
+	size_t size = sizeof clientname;
+
+	int new_fd = accept(sock_fd, (struct sockaddr *) &clientname,
+			(socklen_t *) &size);
+	if (new_fd < 0) {
+		perror("accept");
+		return -1;
+	}
+
+	if (*ip!=NULL)
+		*ip = inet_ntoa(clientname.sin_addr);
+
+	return new_fd;
+}
+
 t_msg *id_message(t_msg_id id) {
 
 	t_msg *new = malloc(sizeof *new);

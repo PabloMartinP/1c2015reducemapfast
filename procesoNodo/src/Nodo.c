@@ -127,10 +127,12 @@ void conectar_con_fs() {
 
 		print_msg(msg);
 		if (msg->header.id == FS_NODO_OK) {
-			printf("Conectado con FS OK!!!");
+			printf("Conectado con FS OK!!!\n");
 
 			destroy_message(msg);
-			//msg = id_message(NODO_SALIR);
+			//msg =
+
+
 			msg = string_message(NODO_SALIR, "OK", 0);
 			enviar_mensaje(fs, msg);
 			printf("mensaje de desconexion enviado\n");
@@ -170,7 +172,6 @@ void inicializar() {
 
 	//free(file_data);
 	bloques_set();
-
 }
 
 /*

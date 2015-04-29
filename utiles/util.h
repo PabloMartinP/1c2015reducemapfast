@@ -82,7 +82,13 @@ typedef enum {
 } t_msg_id;
 
 
+
 /****************** ESTRUCTURAS DE DATOS. ******************/
+
+/*typedef struct {
+	char* ip;
+	uint16_t port;
+}t_client_id;*/
 
 typedef struct {
 	t_msg_id id;
@@ -123,6 +129,7 @@ int client_socket(char* ip, uint16_t port);
  * Acepta la conexion de un socket.
  */
 int accept_connection(int sock_fd);
+int accept_connection_and_get_ip(int sock_fd, char **ip);
 
 /*
  * Recibe un t_msg a partir de un socket determinado.

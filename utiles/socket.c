@@ -142,7 +142,7 @@
 
 			int socketEscucha = solicitarSocketAlSO();
 			//Se pasa la dirección 0.0.0.0 porque es el equivalente en string de INADDR_ANY
-			struct sockaddr_in socketInfo = especificarSocketInfo ("0.0.0.0", puerto);
+			struct sockaddr_in socketInfo = especificarSocketInfo ("127.0.0.1", puerto);
 
 			// Vincular el socket con una direccion de red almacenada en 'socketInfo'.
 			if (bind(socketEscucha, (struct sockaddr*) &socketInfo, sizeof(socketInfo))

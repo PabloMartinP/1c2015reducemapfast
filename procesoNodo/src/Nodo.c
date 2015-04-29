@@ -41,44 +41,23 @@ void setBloque(int32_t numero, void* bloque);
 //void setBloque(int32_t numero, char* bloque);
 void bloques_set();
 void* getFileContent(char* filename);
+
+void fs_conectar();
 /*
  * main
  */
-
-void fs_conectar() {
-	printf("conectado al FS \n");
-
-	//conecto al fs
-	int fs;
-	fs = quieroUnPutoSocketDeEscucha(
-			config_get_int_value(_config, CONFIG_PUERTO_FS));
-
-
-	char* auxC;
-	auxC = malloc(sizeof(char));
-	*auxC = 'a';
-	//handshake Orquestador-Personaje
-	if (mandarMensaje(fs, 0, sizeof(char), auxC) > 0) {
-		//if (recibirMensaje(unSocketOrq, (void**) &auxC) > 0) {
-			log_debug("Handshake contestado del Orquestador %c", *auxC);
-		}
-	}
-
-	close(fs);
-
-}
 
 int main(void) {
 	int i;
 
 	/*
 	 * deberia tomar el getcwd y concatenarle el nombre de archivo
-	char cwd[1024];
-	getcwd(cwd, sizeof(cwd));
-	char* file_config = file_combine(cwd, FILE_CONFIG);
-	_config = config_create(file_config);
-	free(file_config);
-	_log = log_create(FILE_LOG, "Nodo", false, LOG_LEVEL_INFO);*/
+	 char cwd[1024];
+	 getcwd(cwd, sizeof(cwd));
+	 char* file_config = file_combine(cwd, FILE_CONFIG);
+	 _config = config_create(file_config);
+	 free(file_config);
+	 _log = log_create(FILE_LOG, "Nodo", false, LOG_LEVEL_INFO);*/
 	_config = config_create(FILE_CONFIG);
 	_log = log_create(FILE_LOG, "Nodo", false, LOG_LEVEL_INFO);
 
@@ -128,10 +107,35 @@ int main(void) {
 	data_destroy();
 	config_destroy(_config);
 
-	printf("fin ok");
+	printf("fin ok\n");
 	//while (true);
 	return EXIT_SUCCESS;
 }
+
+void fs_conectar() {
+	printf("conectado al FS \n");
+
+	//conecto al fs
+	int fs;
+	fs = quieroUnPutoSocketAndando(
+			config_get_string_value(_config, CONFIG_IP_FS),
+			config_get_int_value(_config, CONFIG_PUERTO_FS));
+
+	char* auxC;
+	int len = strlen("hola") + 1;
+	auxC = malloc(len);
+	strcpy(auxC, "hola");
+	//handshake Orquestador-Personaje
+	if (mandarMensaje(fs, 1, len, auxC) > 0) {
+		if (recibirMensaje(fs, (void**) &auxC) > 0) {
+			printf("Handshake contestado %s\n", auxC);
+			//log_debug("Handshake contestado del Orquestador %c", *auxC);
+		}
+	}
+	close(fs);
+
+}
+
 /*
  * devuelve un puntero con el archivo mapeado
  */
@@ -139,7 +143,7 @@ void* getFileContent(char* filename) {
 	log_info(_log, "Inicio getFileContent(%s)", filename);
 	void* content = NULL;
 
-	//creo el espacio para almacenar el archivo
+//creo el espacio para almacenar el archivo
 	char* path = file_combine(config_get_string_value(_config, CONFIG_DIR_TEMP),
 			filename);
 	content = malloc(file_get_size(path));
@@ -161,8 +165,8 @@ void bloques_set() {
 
 void setBloque(int32_t numero, void* bloquedatos) {
 	log_info(_log, "Inicio setBloque(%d)", numero);
-	//printf("___\n");
-	//printf("%p\n", bloques[numero]);
+//printf("___\n");
+//printf("%p\n", bloques[numero]);
 	memcpy(_bloques[numero], bloquedatos, BLOQUE_SIZE);
 
 	log_info(_log, "Fin setBloque(%d)", numero);
@@ -174,7 +178,7 @@ void* getBloque(int32_t numero) {
 	log_info(_log, "Ini getBloque(%d)", numero);
 	void* bloque = NULL;
 	bloque = malloc(BLOQUE_SIZE);
-	//memcpy(bloque,&(data[numero*BLOQUE_SIZE]), BLOQUE_SIZE);
+//memcpy(bloque,&(data[numero*BLOQUE_SIZE]), BLOQUE_SIZE);
 	memcpy(bloque, _bloques[numero], BLOQUE_SIZE);
 	log_info(_log, "Fin getBloque(%d)", numero);
 	return bloque;
@@ -202,33 +206,12 @@ void* data_get(char* filename) {
 		fclose(file);
 	}
 
-	//el archivo ya esta creado con el size maximo
+//el archivo ya esta creado con el size maximo
 	return file_get_mapped(filename);
-	/*
-	 void* mapped=NULL;
-	 struct stat st;
-	 int fd=0;
-	 fd = open(filename, O_RDWR);
-	 if(fd==-1){
-	 handle_error("open");
-	 }
-
-	 stat(filename, &st);
-	 //printf("%ld\n", st.st_size);
-	 int size = st.st_size;
-
-	 mapped = mmap(NULL, size, PROT_WRITE, MAP_SHARED, fd, 0);
-	 close(fd);
-
-	 if(mapped==MAP_FAILED){
-	 handle_error("mmap");
-	 }
-
-	 return mapped;
-	 */
 }
 
 void data_destroy() {
 	munmap(_data, DATA_SIZE);
-	//mapped = NULL;
+//mapped = NULL;
 }
+

@@ -177,8 +177,7 @@ int accept_connection_and_get_ip(int sock_fd, char **ip) {
 		return -1;
 	}
 
-	if (*ip!=NULL)
-		*ip = inet_ntoa(clientname.sin_addr);
+	*ip = inet_ntoa(clientname.sin_addr);
 
 	return new_fd;
 }
@@ -262,7 +261,7 @@ t_msg *recibir_mensaje(int sock_fd) {
 		msg->argv = malloc(msg->header.argc * sizeof(uint32_t));
 
 		if (recv(sock_fd, msg->argv, msg->header.argc * sizeof(uint32_t),
-				MSG_WAITALL) <= 0) {
+		MSG_WAITALL) <= 0) {
 			free(msg->argv);
 			free(msg);
 			return NULL;
@@ -506,6 +505,12 @@ char *id_string(t_msg_id id) {
 		break;
 	case NODO_SALIR:
 		buf = strdup("NODO_SALIR");
+		break;
+	case FS_NODO_QUIEN_SOS:
+		buf = strdup("FS_NODO_QUIEN_SOS");
+		break;
+	case RTA_FS_NODO_QUIEN_SOS:
+		buf = strdup("RTA_FS_NODO_QUIEN_SOS");
 		break;
 	default:
 		buf = string_from_format("%d, <AGREGAR A LA LISTA>", id);

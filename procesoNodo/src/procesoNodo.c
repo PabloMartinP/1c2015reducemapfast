@@ -12,13 +12,9 @@
 #include <fcntl.h>
 #include <commons/log.h>
 #include <pthread.h>
+#include "config_nodo.h"
 
 //#include "socket.h"
-
-#define CONFIG_ARCHIVO_BIN  "ARCHIVO_BIN"
-#define CONFIG_DIR_TEMP  "DIR_TEMP"
-#define CONFIG_PUERTO_FS  "PUERTO_FS"
-#define CONFIG_IP_FS  "IP_FS"
 
 #define FILE_CONFIG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/config.txt"
 #define FILE_LOG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/log.txt"
@@ -31,7 +27,6 @@ int BLOQUE_SIZE = 1024 * 1024 * 20; //20mb
 
 void* _bloques[50];
 void* _data = NULL;
-t_config* config = NULL;
 t_log* logger = NULL;
 /*
  * declaraciones
@@ -48,6 +43,7 @@ void inicializar();
 void finalizar();
 
 void conectar_con_fs();
+
 /*
  * main
  */
@@ -102,47 +98,46 @@ void conectar_con_fs() {
 	log_trace(logger, "conectado al FS ... ");
 
 	int fs;
-	int port = config_get_int_value(config, CONFIG_PUERTO_FS);
-	char* ip = config_get_string_value(config, CONFIG_IP_FS);
 
-	if ((fs = client_socket(ip, port)) > 0) {
+	if ((fs = client_socket(NODO_IP_FS(), NODO_PORT_FS())) > 0) {
 		printf("Conectado\n");
 		//t_msg* msg= id_message(NODO_CONECTAR_CON_FS);
 		t_msg* msg = NULL;
 		char* saludo = strdup("hola soy el NodoA");
 		msg = string_message(NODO_CONECTAR_CON_FS, saludo, 0);
-		printf("enviar mensaje\n");
+		printf("enviavndo mensaje al fs\n");
 		if (enviar_mensaje(fs, msg) < 0) {
 			puts("ERROR: Se ha perdido la conexión con el fs.");
 			exit(EXIT_FAILURE);
 		}
-
 		destroy_message(msg);
 
-		printf("recibir mensaje\n");
+		printf("recibiendo respueta\n");
 		if ((msg = recibir_mensaje(fs)) == NULL) {
-			puts("ERROR: Se ha perdido la conexión con el fs.");
+			puts("ERROR: Se ha perdido la conexión con el fs.\n");
 			exit(EXIT_FAILURE);
 		}
 
 		print_msg(msg);
-		if (msg->header.id == FS_NODO_OK) {
-			printf("Conectado con FS OK!!!\n");
+		if (msg->header.id == FS_NODO_QUIEN_SOS) {
+			printf("el fs me pregunta quien soy, le digo mi ip y port\n");
 
 			destroy_message(msg);
-			//msg =
+			//le paso el ip, el puerto y si es nuevo o no
+			msg = string_message(RTA_FS_NODO_QUIEN_SOS, NODO_IP(), 2,NODO_PORT(), NODO_NUEVO());
 
+			if((enviar_mensaje(fs, msg))<0){
+				printf("No se pudo responder a %s", id_message(FS_NODO_QUIEN_SOS) );
+				exit(EXIT_FAILURE);
+			}
 
-			msg = string_message(NODO_SALIR, "OK", 0);
-			enviar_mensaje(fs, msg);
-			printf("mensaje de desconexion enviado\n");
+			printf("mensaje de ip y puerto enviado\n");
 			destroy_message(msg);
 		} else
 			printf("No se pudo conectar con el fs");
 
 		close(fs);
-	}
-	else	{
+	} else {
 		printf("No pudo iniciar la escucha al fs\n");
 	}
 
@@ -154,21 +149,20 @@ void finalizar() {
 	printf("fin ok\n");
 	//while (true);
 }
+
 void inicializar() {
 	/*
 	 * deberia tomar el getcwd y concatenarle el nombre de archivo
 	 char cwd[1024];
 	 getcwd(cwd, sizeof(cwd));
 	 char* file_config = file_combine(cwd, FILE_CONFIG);
-	 _config = config_create(file_config);
-	 free(file_config);
-	 _log = log_create(FILE_LOG, "Nodo", false, LOG_LEVEL_INFO);*/
+	 */
 	config = config_create(FILE_CONFIG);
 	logger = log_create(FILE_LOG, "Nodo", true, LOG_LEVEL_INFO);
 
 	//char* file_data = file_combine(cwd, config_get_string_value(_config, CONFIG_ARCHIVO_BIN));
 	//_data = data_get(file_data);
-	_data = data_get(config_get_string_value(config, CONFIG_ARCHIVO_BIN));
+	_data = data_get(NODO_ARCHIVOBIN());
 
 	//free(file_data);
 	bloques_set();
@@ -182,8 +176,7 @@ void* getFileContent(char* filename) {
 	void* content = NULL;
 
 //creo el espacio para almacenar el archivo
-	char* path = file_combine(config_get_string_value(config, CONFIG_DIR_TEMP),
-			filename);
+	char* path = file_combine(NODO_DIRTEMP(), filename);
 	content = malloc(file_get_size(path));
 
 	content = file_get_mapped(path);

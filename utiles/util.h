@@ -77,8 +77,8 @@ typedef enum {
 	NODO_CONECTAR_CON_FS,//verifica que el nodo se conecte con el fs
 	FS_NODO_OK, //el fs le contesta que ya esta conectado
 	NODO_SALIR, //el nodo avisa que se desconecta
-
-
+	FS_NODO_QUIEN_SOS, //el fs le pregunta al nodo que le diga su ip y puerto
+	RTA_FS_NODO_QUIEN_SOS //devuelve la ip y el port del nodo al fs
 } t_msg_id;
 
 

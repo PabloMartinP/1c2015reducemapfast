@@ -23,58 +23,71 @@
 #include <util.h>
 #include "consola.h"
 #include <nodo.h>
-
+#include "fileSystem.h"
 
 #define FILE_CONFIG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/config.txt"
 #define FILE_LOG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/log.txt"
 
-
 t_log* logger;
 t_config* config;
-
-t_list* nodos;
+t_fileSystem fs;
 t_list* nodos_nuevos; //los nodos que estan disponibles pero estan agregados al fs
-
 
 void nuevosNodos();
 void procesar_mensaje_nodo(int i, t_msg* msg);
 void inicializar();
-void fin();
-void nodo_agregar_al_fs();
+void finalizar();
+void agregar_nodo_al_fs();
+void iniciar_server_nodos_nuevos();
 
 int main(void) {
 
 	inicializar();
 
+	iniciar_server_nodos_nuevos();
+
 	iniciar_consola();
 
+	finalizar();
 	return EXIT_SUCCESS;
 }
 
-void nodo_destroy(t_nodo* nodo){
-	free_null(nodo->ip);
-
+void iniciar_server_nodos_nuevos() {
+	/*
+	 * ABRO UN THREAD EL SERVER PARA QUE SE CONECTEN NODOS
+	 */
+	pthread_t th_nuevosNodos;
+	pthread_attr_t tattr;
+	int ret;
+	ret = pthread_attr_init(&tattr);
+	ret = pthread_attr_setdetachstate(&tattr,PTHREAD_CREATE_DETACHED);
+	ret = pthread_create(&th_nuevosNodos, &tattr, (void*)nuevosNodos, NULL);
+	pthread_attr_destroy(&tattr);
+	//espera a que termine el nodo: bloquea
+	//pthread_join(th_nuevosNodos, NULL);
+	//pthread_detach(th_nuevosNodos);
 }
 
-void nodo_agregar_al_fs(int id_nodo){
+void agregar_nodo_al_fs(int id_nodo) {
 	//busco el id_nodo en la lista de nodos_nuevos
-	bool buscar_nodo_nuevo_por_id(t_nodo* nodo){
+	bool buscar_nodo_nuevo_por_id(t_nodo* nodo) {
 		return nodo->identificador == id_nodo;
 	}
 	//busco el nodo
 	t_nodo* nodo;
-	if((nodo = list_find(nodos_nuevos, (void*)buscar_nodo_nuevo_por_id)) == NULL){
+	if ((nodo = list_find(nodos_nuevos, (void*) buscar_nodo_nuevo_por_id))	== NULL) {
 		printf("El nodo ingresado no existe: %d\n", id_nodo);
 		return;
 	}
 
 	//loborro de la lista de nodos nuevos
-	list_remove_by_condition(nodos_nuevos, (void*)buscar_nodo_nuevo_por_id);
-
+	list_remove_by_condition(nodos_nuevos, (void*) buscar_nodo_nuevo_por_id);
 
 	//lo paso a la lista de nodos activos del fs
-	list_add(nodos, nodo);
+	fs_addNodo(&fs, nodo);
+
 	log_info(logger, "El nodo %d fue agregado al fs. %s:%d", nodo->identificador, nodo->ip, nodo->puerto);
+
 
 
 }
@@ -86,14 +99,16 @@ void iniciar_consola() {
 	while (!fin) {
 		fgets(comando, COMMAND_MAX_SIZE, stdin);
 
-		 char** input_user= string_split(comando, " ");
+
+		char** input_user = string_split(comando, " ");
+
 
 		switch (getComando(input_user[0])) {
 		case NODO_AGREGAR:
 			printf("comando ingresado: agregar nodo\n");
 			int id_nodo = atoi(input_user[1]);
 
-			nodo_agregar_al_fs(id_nodo);
+			agregar_nodo_al_fs(id_nodo);
 
 			//
 			break;
@@ -118,13 +133,25 @@ void iniciar_consola() {
 			break;
 		}
 
+		//free(*input_user);
+		int i=0;
+		while(input_user[i]!=NULL){
+			free(input_user[i]);
+			i++;
+		}
+		free(input_user);
+
+
 	}
 }
 
-void fin() {
+void finalizar() {
+
+	fs_destroy(&fs);
+
 	log_destroy(logger);
 	config_destroy(config);
-	printf("bb world!!!!");
+	printf("bb world!!!!\n");
 
 }
 
@@ -132,21 +159,12 @@ void inicializar() {
 	logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_INFO);
 	config = config_create(FILE_CONFIG);
 
-	/*
-	 * ABRO UN THREAD EL SERVER PARA QUE SE CONECTEN NODOS
-	 */
 
-	pthread_t th_nuevosNodos;
-	if (pthread_create(&th_nuevosNodos, NULL, (void*) nuevosNodos, NULL) != 0) {
-		perror("pthread_create - th_nuevosNodos");
-		exit(1);
-	}
-	//espera a que termine el nodo: bloquea
-	//pthread_join(th_nuevosNodos, NULL);
-	//pthread_detach(th_nuevosNodos);
+	fs_create(&fs);
 
-	nodos = list_create();
+	//para guardar los nodos recien conectados
 	nodos_nuevos = list_create();
+
 }
 
 void nuevosNodos() {
@@ -154,10 +172,10 @@ void nuevosNodos() {
 	int fdNuevoNodo, fdmax, newfd;
 	int i;
 
-	if((fdNuevoNodo = server_socket(config_get_int_value(config, "PUERTO_LISTEN")))<0){
+	if ((fdNuevoNodo = server_socket(
+			config_get_int_value(config, "PUERTO_LISTEN"))) < 0) {
 		handle_error("error al iniciar  server");
 	}
-
 
 	FD_ZERO(&master); // borra los conjuntos maestro y temporal
 	FD_ZERO(&read_fds);
@@ -206,9 +224,6 @@ void nuevosNodos() {
 
 }
 
-
-
-
 void procesar_mensaje_nodo(int i, t_msg* msg) {
 	//leer el msg recibido
 	//print_msg(msg);
@@ -221,15 +236,16 @@ void procesar_mensaje_nodo(int i, t_msg* msg) {
 		destroy_message(msg);
 		msg = recibir_mensaje(i);
 		//print_msg(msg);
-		t_nodo* nodo= nodo_new(msg->stream, (uint16_t)msg->argv[0], (bool)msg->argv[1]);//0 puerto, 1 si es nuevo o no
+		t_nodo* nodo = nodo_new(msg->stream, (uint16_t) msg->argv[0],
+				(bool) msg->argv[1]); //0 puerto, 1 si es nuevo o no
 		//le asigno un nombre
 		nodo->identificador = get_id_nodo_nuevo();
 
 		//agrego el nodo a la lista de nodos nuevos
-		list_add(nodos_nuevos, (void*)nodo);
+		list_add(nodos_nuevos, (void*) nodo);
 
-		log_info(logger, "se conecto el nodo %d,  %s:%d | %s",nodo->identificador, nodo->ip, nodo->puerto, nodo_isNew(nodo) );
-
+		log_info(logger, "se conecto el nodo %d,  %s:%d | %s",
+				nodo->identificador, nodo->ip, nodo->puerto, nodo_isNew(nodo));
 
 		break;
 	default:

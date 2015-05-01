@@ -17,6 +17,12 @@ int get_id_nodo_nuevo(){
 char* nodo_isNew(t_nodo* nodo){
 	return (nodo->isNew) ? "Nuevo": "Viejo";
 }
+
+void nodo_destroy(t_nodo* nodo) {
+	free_null(nodo->ip);
+}
+
+
 t_nodo* nodo_new(char* ip, uint16_t port, bool isNew){
 	t_nodo* new = malloc(sizeof *new);
 
@@ -29,7 +35,10 @@ t_nodo* nodo_new(char* ip, uint16_t port, bool isNew){
 		for(i = 0;i<50;i++){
 			new->bloque[i].libre= true;
 		}
+		new->bloques_libres = CANT_BLOQUES;
 	}
+
+
 
 	return new;
 }

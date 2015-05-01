@@ -479,7 +479,9 @@ void print_msg(t_msg *msg) {
 	int i;
 	puts("\n==================================================");
 	printf("CONTENIDOS DEL MENSAJE:\n");
-	printf("- ID: %s\n", id_string(msg->header.id));
+	char* id= id_string(msg->header.id);
+	printf("- ID: %s\n", id);
+	free(id);
 
 	for (i = 0; i < msg->header.argc; i++) {
 		;

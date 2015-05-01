@@ -73,13 +73,13 @@ e_comando getComando(char* comando) {
 
 	if (string_starts_with(comando, "addnodo"))
 		return NODO_AGREGAR;
-	if (string_equals_ignore_case(comando, "eliminarnodo\n"))
+	if (string_starts_with(comando, "eliminarnodo"))
 		return NODO_ELIMINAR;
-	if (string_equals_ignore_case(comando, "mkdir\n"))
+	if (string_starts_with(comando, "mkdir"))
 		return DIRECTORIO_CREAR;
-	if (string_equals_ignore_case(comando, "formatear\n"))
+	if (string_starts_with(comando, "formatear"))
 		return FORMATEAR;
-	if (string_equals_ignore_case(comando, "salir\n"))
+	if (string_starts_with(comando, "salir"))
 		return SALIR;
 
 	return NADA;

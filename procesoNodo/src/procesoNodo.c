@@ -14,6 +14,8 @@
 #include <pthread.h>
 #include "config_nodo.h"
 
+#include <nodo.h>
+
 //#include "socket.h"
 
 #define FILE_CONFIG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/config.txt"
@@ -22,8 +24,7 @@
  * variables
  */
 
-int DATA_SIZE = 1024 * 1024 * 50; //50MB
-int BLOQUE_SIZE = 1024 * 1024 * 20; //20mb
+
 
 void* _bloques[50];
 void* _data = NULL;
@@ -87,13 +88,6 @@ int main(void) {
 }
 
 void conectar_con_fs() {
-	/*
-	 pthread_t p_fs;
-	 if (pthread_create(&p_fs, NULL, (void*) fs_conectar, NULL) != 0) {
-	 perror("pthread_create");
-	 exit(1);
-	 }
-	 pthread_join(p_fs, (void**) NULL);*/
 
 	log_trace(logger, "conectado al FS ... ");
 
@@ -103,8 +97,7 @@ void conectar_con_fs() {
 		printf("Conectado\n");
 		//t_msg* msg= id_message(NODO_CONECTAR_CON_FS);
 		t_msg* msg = NULL;
-		char* saludo = strdup("hola soy el NodoA");
-		msg = string_message(NODO_CONECTAR_CON_FS, saludo, 0);
+		msg = string_message(NODO_CONECTAR_CON_FS, "hola soy el NodoA", 0);
 		printf("enviavndo mensaje al fs\n");
 		if (enviar_mensaje(fs, msg) < 0) {
 			puts("ERROR: Se ha perdido la conexión con el fs.");
@@ -127,7 +120,7 @@ void conectar_con_fs() {
 			msg = string_message(RTA_FS_NODO_QUIEN_SOS, NODO_IP(), 2,NODO_PORT(), NODO_NUEVO());
 
 			if((enviar_mensaje(fs, msg))<0){
-				printf("No se pudo responder a %s", id_message(FS_NODO_QUIEN_SOS) );
+				printf("No se pudo responder a %s", id_string(FS_NODO_QUIEN_SOS) );
 				exit(EXIT_FAILURE);
 			}
 
@@ -145,6 +138,7 @@ void conectar_con_fs() {
 void finalizar() {
 	data_destroy();
 	config_destroy(config);
+	log_destroy(logger);
 
 	printf("fin ok\n");
 	//while (true);

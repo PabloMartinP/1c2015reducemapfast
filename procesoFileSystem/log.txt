@@ -61,3 +61,40 @@
 [INFO] 23:53:03:897 FileSystem/(5682:5689): inicio thread eschca de nuevos nodos
 [INFO] 23:53:06:924 FileSystem/(5682:5689): se conecto el nodo 1,  127.0.0.1:6000 | Nuevo
 [INFO] 23:53:37:33 FileSystem/(5682:5682): El nodo 1 fue agregado al fs. 127.0.0.1:6000
+[INFO] 21:43:38:839 FileSystem/(5751:5754): inicio thread eschca de nuevos nodos
+[INFO] 21:44:07:155 FileSystem/(5751:5754): se conecto el nodo 1,  127.0.0.1:6000 | Nuevo
+[INFO] 21:44:19:84 FileSystem/(5751:5754): se conecto el nodo 2,  127.0.0.1:6000 | Nuevo
+[INFO] 21:44:37:320 FileSystem/(5751:5754): se conecto el nodo 3,  127.0.0.1:6000 | Nuevo
+[INFO] 21:44:42:564 FileSystem/(5751:5754): se conecto el nodo 4,  127.0.0.1:6000 | Nuevo
+[INFO] 21:46:54:20 FileSystem/(5894:5895): inicio thread eschca de nuevos nodos
+[INFO] 21:47:00:568 FileSystem/(5894:5895): se conecto el nodo 1,  127.0.0.1:6000 | Nuevo
+[INFO] 21:49:12:278 FileSystem/(6001:6006): inicio thread eschca de nuevos nodos
+[INFO] 21:49:20:990 FileSystem/(6001:6006): se conecto el nodo 1,  127.0.0.1:6000 | Nuevo
+[INFO] 21:49:55:251 FileSystem/(6001:6006): se conecto el nodo 2,  127.0.0.1:6000 | Nuevo
+[INFO] 21:50:00:921 FileSystem/(6001:6006): se conecto el nodo 3,  127.0.0.1:6000 | Nuevo
+[INFO] 21:53:17:18 FileSystem/(6128:6129): inicio thread eschca de nuevos nodos
+[INFO] 21:53:22:117 FileSystem/(6128:6129): se conecto el nodo 1,  127.0.0.1:6000 | Nuevo
+[INFO] 22:35:48:22 FileSystem/(7323:7325): inicio thread eschca de nuevos nodos
+[INFO] 22:35:53:318 FileSystem/(7323:7325): se conecto el nodo 1,  127.0.0.1:6000 | Nuevo
+[INFO] 22:37:23:132 FileSystem/(7427:7428): inicio thread eschca de nuevos nodos
+[INFO] 22:37:31:644 FileSystem/(7427:7428): se conecto el nodo 1,  127.0.0.1:6000 | Nuevo
+[INFO] 22:38:19:544 FileSystem/(7474:7476): inicio thread eschca de nuevos nodos
+[INFO] 22:38:34:645 FileSystem/(7515:7522): inicio thread eschca de nuevos nodos
+[INFO] 22:39:32:176 FileSystem/(7614:7616): inicio thread eschca de nuevos nodos
+[INFO] 22:39:43:503 FileSystem/(7652:7663): inicio thread eschca de nuevos nodos
+[INFO] 22:40:48:266 FileSystem/(7767:7777): inicio thread eschca de nuevos nodos
+[INFO] 22:41:16:426 FileSystem/(7851:7856): inicio thread eschca de nuevos nodos
+[INFO] 22:42:58:372 FileSystem/(8020:8045): inicio thread eschca de nuevos nodos
+[INFO] 22:44:02:612 FileSystem/(8154:8167): inicio thread eschca de nuevos nodos
+[INFO] 22:44:39:558 FileSystem/(8215:8216): inicio thread eschca de nuevos nodos
+[INFO] 22:44:43:397 FileSystem/(8215:8216): se conecto el nodo 1,  127.0.0.1:6000 | Nuevo
+[INFO] 22:44:52:544 FileSystem/(8215:8215): El nodo 1 fue agregado al fs. 127.0.0.1:6000
+[INFO] 22:45:14:269 FileSystem/(8221:8222): inicio thread eschca de nuevos nodos
+[INFO] 22:45:36:502 FileSystem/(8224:8225): inicio thread eschca de nuevos nodos
+[INFO] 22:47:55:163 FileSystem/(8283:8284): inicio thread eschca de nuevos nodos
+[INFO] 22:48:57:199 FileSystem/(8329:8330): inicio thread eschca de nuevos nodos
+[INFO] 22:54:12:187 FileSystem/(8423:8446): inicio thread eschca de nuevos nodos
+[INFO] 22:55:11:756 FileSystem/(8560:8561): inicio thread eschca de nuevos nodos
+[INFO] 22:56:05:995 FileSystem/(8601:8602): inicio thread eschca de nuevos nodos
+[INFO] 23:15:22:655 FileSystem/(9233:9234): inicio thread eschca de nuevos nodos
+[INFO] 23:15:36:121 FileSystem/(9233:9234): se conecto el nodo 1,  127.0.0.1:6000 | Nuevo

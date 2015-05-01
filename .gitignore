@@ -32,7 +32,7 @@
 *.dSYM/
 
 procesoNodo/data.bin
-procesoNodo/log.bin
+procesoNodo/log.txt
 procesoNodo/Debug/
 
 procesoFileSystem/log.txt

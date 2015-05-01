@@ -34,6 +34,7 @@
  *
  */
 
+#define MB_EN_B  1024*1024//1mb
 #define REG_SIZE 4
 
 /* Funciones Macro */
@@ -79,16 +80,19 @@ typedef enum {
 	NODO_SALIR, //el nodo avisa que se desconecta
 	FS_NODO_QUIEN_SOS, //el fs le pregunta al nodo que le diga su ip y puerto
 	RTA_FS_NODO_QUIEN_SOS //devuelve la ip y el port del nodo al fs
+
 } t_msg_id;
 
 
 
 /****************** ESTRUCTURAS DE DATOS. ******************/
 
-/*typedef struct {
-	char* ip;
-	uint16_t port;
-}t_client_id;*/
+typedef struct {
+			int8_t type;
+			int16_t payloadlength;
+		}  __attribute__ ((__packed__)) t_header_base;
+
+
 
 typedef struct {
 	t_msg_id id;
@@ -104,6 +108,7 @@ typedef struct {
 
 
 
+
 bool file_exists(const char* filename);
 void free_null(void* data);
 char* file_combine(char* f1, char* f2);
@@ -111,7 +116,8 @@ int file_get_size(char* filename);
 void* file_get_mapped(char* filename);
 void file_mmap_free(void* mapped, char* filename);
 
-
+int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer);
+int recibir_mensaje_flujo(int unSocket, void** buffer) ;
 
 /****************** FUNCIONES SOCKET. ******************/
 

@@ -30,7 +30,9 @@ typedef enum {
 	ARCHIVO_ELIMINAR,
 	ARCHIVO_MOVER,
 	ARCHIVO_LISTAR,
-	ARCHIVO_COPIAR_MDFS_LOCAL
+	ARCHIVO_COPIAR_MDFS_LOCAL,
+	NODO_LISTAR_NO_AGREGADOS,
+	FS_INFO
 } e_comando;
 
 typedef struct {
@@ -81,6 +83,11 @@ e_comando getComando(char* comando) {
 		return FORMATEAR;
 	if (string_starts_with(comando, "salir"))
 		return SALIR;
+	if (string_starts_with(comando, "lsnodop"))
+		return NODO_LISTAR_NO_AGREGADOS;
+	if (string_starts_with(comando, "info"))
+		return FS_INFO;
+
 
 	return NADA;
 }

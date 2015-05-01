@@ -218,6 +218,38 @@ t_msg *argv_message(t_msg_id id, uint16_t count, ...) {
 	return new;
 }
 
+		//Mande un mensaje a un socket determinado usando una estructura
+		int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer) {
+			t_header_base header;
+			int auxInt;
+			//Que el tamanio lo mande
+			void* bufferAux;
+
+			header.type = tipo;
+			header.payloadlength = tamanio;
+			bufferAux=malloc(sizeof(t_header_base)+tamanio);
+			memcpy(bufferAux,&header,sizeof(t_header_base));
+			memcpy((bufferAux+(sizeof(t_header_base))),buffer,tamanio);
+			auxInt=send(unSocket, bufferAux,(sizeof(t_header_base)+tamanio), 0);
+			free(bufferAux);
+			return auxInt;
+		}
+
+				int recibir_mensaje_flujo(int unSocket, void** buffer) {
+
+					t_header_base header;
+					int auxInt;
+					if((auxInt=recv(unSocket, &header, sizeof(t_header_base), 0))>=0) {
+						*buffer = malloc (header.payloadlength);
+						if ((auxInt=recv(unSocket, *buffer, header.payloadlength, 0)) >= 0) {
+							return  auxInt;
+						}
+					}
+					return  auxInt;
+
+				}
+
+
 t_msg *string_message(t_msg_id id, char *message, uint16_t count, ...) {
 	va_list arguments;
 	va_start(arguments, count);

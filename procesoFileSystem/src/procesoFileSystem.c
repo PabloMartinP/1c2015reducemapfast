@@ -37,7 +37,7 @@ void nuevosNodos();
 void procesar_mensaje_nodo(int i, t_msg* msg);
 void inicializar();
 void finalizar();
-void agregar_nodo_al_fs();
+void agregar_nodo_al_fs(int id);
 void iniciar_server_nodos_nuevos();
 
 int main(void) {
@@ -58,10 +58,10 @@ void iniciar_server_nodos_nuevos() {
 	 */
 	pthread_t th_nuevosNodos;
 	pthread_attr_t tattr;
-	int ret;
-	ret = pthread_attr_init(&tattr);
-	ret = pthread_attr_setdetachstate(&tattr,PTHREAD_CREATE_DETACHED);
-	ret = pthread_create(&th_nuevosNodos, &tattr, (void*)nuevosNodos, NULL);
+
+	pthread_attr_init(&tattr);
+	pthread_attr_setdetachstate(&tattr,PTHREAD_CREATE_DETACHED);
+	pthread_create(&th_nuevosNodos, &tattr, (void*)nuevosNodos, NULL);
 	pthread_attr_destroy(&tattr);
 	//espera a que termine el nodo: bloquea
 	//pthread_join(th_nuevosNodos, NULL);
@@ -88,8 +88,6 @@ void agregar_nodo_al_fs(int id_nodo) {
 
 	log_info(logger, "El nodo %d fue agregado al fs. %s:%d", nodo->identificador, nodo->ip, nodo->puerto);
 
-
-
 }
 void iniciar_consola() {
 	char comando[COMMAND_MAX_SIZE];
@@ -112,6 +110,12 @@ void iniciar_consola() {
 
 			//
 			break;
+		case NODO_LISTAR_NO_AGREGADOS:
+			//printf("listar nodos no agregados al fs, falta hacerle un addNodo\n");
+			print_nodos(nodos_nuevos);
+
+			break;
+
 		case NODO_ELIMINAR:
 			printf("comando ingresado: elimnar nodo\n");
 
@@ -123,6 +127,11 @@ void iniciar_consola() {
 			break;
 		case FORMATEAR:
 			formatear();
+			break;
+		case FS_INFO:
+			//printf("Mostrar info actual del fs del fileSystem\n");
+			fs_print_info(&fs);
+
 			break;
 		case SALIR:
 			printf("comando ingresado: salir\n");
@@ -234,18 +243,28 @@ void procesar_mensaje_nodo(int i, t_msg* msg) {
 		msg = string_message(FS_NODO_QUIEN_SOS, "", 0);
 		enviar_mensaje(i, msg);
 		destroy_message(msg);
+
+		//t_nodo* nodo=NULL;
+		//recibir_mensaje_flujo(i, (void*)&nodo);
+
 		msg = recibir_mensaje(i);
 		//print_msg(msg);
 		t_nodo* nodo = nodo_new(msg->stream, (uint16_t) msg->argv[0],
-				(bool) msg->argv[1]); //0 puerto, 1 si es nuevo o no
+				(bool) msg->argv[1], msg->argv[2]); //0 puerto, 1 si es nuevo o no, 2 es la cant bloques
 		//le asigno un nombre
+
+
 		nodo->identificador = get_id_nodo_nuevo();
+
+		print_nodo(nodo);
 
 		//agrego el nodo a la lista de nodos nuevos
 		list_add(nodos_nuevos, (void*) nodo);
 
 		log_info(logger, "se conecto el nodo %d,  %s:%d | %s",
 				nodo->identificador, nodo->ip, nodo->puerto, nodo_isNew(nodo));
+
+		agregar_nodo_al_fs(nodo->identificador);
 
 		break;
 	default:

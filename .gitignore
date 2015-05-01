@@ -30,3 +30,13 @@
 
 # Debug files
 *.dSYM/
+
+procesoNodo/data.bin
+procesoNodo/log.bin
+procesoNodo/Debug/
+
+procesoFileSystem/log.txt
+procesoFileSystem/Debug/
+
+utiles/Debug/
+

@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-#include "util.h"
+#include <util.h>
 
 #include <commons/string.h>
 #include <string.h>
@@ -25,9 +25,7 @@
  */
 
 
-
-void* _bloques[50];
-void* _data = NULL;
+char* _data = NULL;
 t_log* logger = NULL;
 /*
  * declaraciones
@@ -36,28 +34,34 @@ void* data_get(char* filename);
 void data_destroy();
 void* getBloque(int32_t numero);
 void setBloque(int32_t numero, void* bloque);
-//void setBloque(int32_t numero, char* bloque);
-void bloques_set();
+
 void* getFileContent(char* filename);
 
 void inicializar();
 void finalizar();
 
 void conectar_con_fs();
-
+int NODO_CANT_BLOQUES();
 /*
  * main
  */
-
-int main(void) {
+int TAMANIO_DATA;
+int CANT_BLOQUES;
+int main(int argc, char *argv[]) {
+	//por param le tiene que llegar el tamaño del archivo data.bin
+	//por ahora hardcodeo 100mb, serian 10 bloques de 20 mb
+	TAMANIO_DATA = 1024 * 1024 * 100; //100MB
+	CANT_BLOQUES = TAMANIO_DATA / TAMANIO_BLOQUE_B;
 
 	inicializar();
 
 	conectar_con_fs();
 
+
 	/*
+	 * todo: test settear 0 bloque y leerlo
 	 //settear el bloque 0
-	 void* saludo = malloc(BLOQUE_SIZE);
+	 void* saludo = malloc(TAMANIO_BLOQUE);
 	 strcpy(saludo, "ahora cambio el mensaje!");
 	 setBloque(0, saludo);
 
@@ -72,19 +76,27 @@ int main(void) {
 	 free_null(dataget);
 	 */
 
-	/*
+
+
+	 /*
+	  * todo: TEST LEER UN ARCHIVO DE LA CARPETA /TMP
+	  * EL ARCHIVO DEBE ESTAR CREADO
+	 int i=0;
 	 char *d = NULL;
 	 d = getFileContent("hola");
-
 	 for(i=0;i<10;i++)
 	 printf("%c", d[i]);
-
 	 file_mmap_free(d, "hola");
 	 */
+
 ////
 	finalizar();
 
 	return EXIT_SUCCESS;
+}
+
+int NODO_CANT_BLOQUES(){
+	return CANT_BLOQUES;
 }
 
 void conectar_con_fs() {
@@ -116,16 +128,21 @@ void conectar_con_fs() {
 			printf("el fs me pregunta quien soy, le digo mi ip y port\n");
 
 			destroy_message(msg);
-			//le paso el ip, el puerto y si es nuevo o no
-			msg = string_message(RTA_FS_NODO_QUIEN_SOS, NODO_IP(), 2,NODO_PORT(), NODO_NUEVO());
 
+			/*
+			t_nodo* nodo = nodo_new(NODO_IP(), NODO_PORT(), NODO_NUEVO(), NODO_CANT_BLOQUES());
+			enviar_mensaje_flujo(fs, 1, sizeof(t_nodo), nodo);*/
+
+			msg = string_message(RTA_FS_NODO_QUIEN_SOS, NODO_IP(), 3,NODO_PORT(), NODO_NUEVO(), NODO_CANT_BLOQUES());
 			if((enviar_mensaje(fs, msg))<0){
 				printf("No se pudo responder a %s", id_string(FS_NODO_QUIEN_SOS) );
 				exit(EXIT_FAILURE);
 			}
+			destroy_message(msg);
+
 
 			printf("mensaje de ip y puerto enviado\n");
-			destroy_message(msg);
+
 		} else
 			printf("No se pudo conectar con el fs");
 
@@ -154,12 +171,10 @@ void inicializar() {
 	config = config_create(FILE_CONFIG);
 	logger = log_create(FILE_LOG, "Nodo", true, LOG_LEVEL_INFO);
 
-	//char* file_data = file_combine(cwd, config_get_string_value(_config, CONFIG_ARCHIVO_BIN));
-	//_data = data_get(file_data);
 	_data = data_get(NODO_ARCHIVOBIN());
 
-	//free(file_data);
-	bloques_set();
+	//guardo la posicion de cada bloque en una nueva variable para no tener que hacer el calculo de NBLOQUE*20mb ...
+	//bloques_set();
 }
 
 /*
@@ -180,19 +195,27 @@ void* getFileContent(char* filename) {
 	log_info(logger, "Fin getFileContent(%s)", filename);
 	return content;
 }
-
+/*
 void bloques_set() {
+
+	//creo el espacio para guardar las posiciones de memoria de cada
+	_bloques = malloc(CANT_BLOQUES);
+
 	int i = 0;
-	for (i = 0; i < 50; i++) {
-		_bloques[i] = (_data + (i * BLOQUE_SIZE));
+	for (i = 0; i < CANT_BLOQUES; i++) {
+		//_bloques[i] = (_data + (i * TAMANIO_BLOQUE));
+		(_bloques+i) = &i;
 	}
-}
+}*/
 
 void setBloque(int32_t numero, void* bloquedatos) {
 	log_info(logger, "Inicio setBloque(%d)", numero);
-//printf("___\n");
-//printf("%p\n", bloques[numero]);
-	memcpy(_bloques[numero], bloquedatos, BLOQUE_SIZE);
+
+	//char* b = (char*)malloc(sizeof(TAMANIO_BLOQUE));
+	//b = bloquedatos;
+
+	//memcpy((void*)(_data[numero*TAMANIO_BLOQUE]), bloquedatos, TAMANIO_BLOQUE);
+	memcpy(_data+(numero*TAMANIO_BLOQUE_B), bloquedatos, TAMANIO_BLOQUE_B);
 
 	log_info(logger, "Fin setBloque(%d)", numero);
 }
@@ -202,9 +225,9 @@ void setBloque(int32_t numero, void* bloquedatos) {
 void* getBloque(int32_t numero) {
 	log_info(logger, "Ini getBloque(%d)", numero);
 	void* bloque = NULL;
-	bloque = malloc(BLOQUE_SIZE);
-//memcpy(bloque,&(data[numero*BLOQUE_SIZE]), BLOQUE_SIZE);
-	memcpy(bloque, _bloques[numero], BLOQUE_SIZE);
+	bloque = malloc(TAMANIO_BLOQUE_B);
+	memcpy(bloque,&(_data[numero*TAMANIO_BLOQUE_B]), TAMANIO_BLOQUE_B);
+	//memcpy(bloque, _bloques[numero], TAMANIO_BLOQUE);
 	log_info(logger, "Fin getBloque(%d)", numero);
 	return bloque;
 }
@@ -222,10 +245,11 @@ void* data_get(char* filename) {
 		printf("creado\n");
 		//lo creo con el tamaño maximo
 		void* dump = NULL;
-		dump = malloc(DATA_SIZE);
+		dump = malloc(TAMANIO_DATA);
 
-		memset(dump, 0, DATA_SIZE);
-		fwrite(dump, DATA_SIZE, 1, file);
+		////grabo 0 en todo el nodo.
+		memset(dump, 0, TAMANIO_DATA);
+		fwrite(dump, TAMANIO_DATA, 1, file);
 		free_null(dump);
 
 		fclose(file);
@@ -236,7 +260,7 @@ void* data_get(char* filename) {
 }
 
 void data_destroy() {
-	munmap(_data, DATA_SIZE);
+	munmap(_data, TAMANIO_DATA);
 //mapped = NULL;
 }
 

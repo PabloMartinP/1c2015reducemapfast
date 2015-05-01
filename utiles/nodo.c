@@ -18,6 +18,17 @@ bool bloque_esta_libre(t_bloque* bloque){
 	return bloque->libre;
 }
 
+/*
+ * devuelvo un bloque libre cualquiera
+ */
+t_bloque* nodo_get_bloque_libre(t_nodo* nodo){
+	t_bloque* b;
+
+	b = list_find(nodo->bloques, (void*)bloque_esta_libre);
+
+	return b;
+}
+
 int nodo_cant_bloques_libres(t_nodo* nodo){
 	return list_count_satisfying((void*)nodo->bloques, (void*)bloque_esta_libre );
 }
@@ -72,6 +83,7 @@ t_nodo* nodo_new(char* ip, uint16_t port, bool isNew, uint16_t cant_bloques) {
 		int i;
 		for (i = 0; i < cant_bloques; i++) {
 			bloque = malloc(sizeof *bloque);
+			bloque->posicion = i;
 			bloque->libre = true;
 			list_add(new->bloques, bloque);
 		}

@@ -108,11 +108,10 @@ typedef struct {
 
 
 
-
 bool file_exists(const char* filename);
 void free_null(void* data);
 char* file_combine(char* f1, char* f2);
-int file_get_size(char* filename);
+size_t file_get_size(char* filename);
 void* file_get_mapped(char* filename);
 void file_mmap_free(void* mapped, char* filename);
 

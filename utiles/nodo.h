@@ -13,6 +13,7 @@
 #include <commons/collections/list.h>
 
 typedef struct {
+	uint32_t posicion;
 	bool libre;
 }t_bloque;
 
@@ -23,6 +24,7 @@ typedef struct {
 	bool esNuevo;
 	t_list* bloques;
 } t_nodo;
+
 
 //const int DATA_SIZE = 1024 * 1024 * 50; //50MB
 int TAMANIO_BLOQUE_MB = 20;
@@ -38,6 +40,8 @@ int get_id_nodo_nuevo();
 
 bool bloque_esta_usado(t_bloque* bloque);
 bool bloque_esta_libre(t_bloque* bloque);
+
+t_bloque* nodo_get_bloque_libre(t_nodo* nodo);
 
 int nodo_cant_bloques_libres(t_nodo* nodo);
 int nodo_cant_bloques_usados(t_nodo* nodo);

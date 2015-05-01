@@ -97,9 +97,7 @@ void iniciar_consola() {
 	while (!fin) {
 		fgets(comando, COMMAND_MAX_SIZE, stdin);
 
-
 		char** input_user = string_split(comando, " ");
-
 
 		switch (getComando(input_user[0])) {
 		case NODO_AGREGAR:
@@ -109,6 +107,16 @@ void iniciar_consola() {
 			agregar_nodo_al_fs(id_nodo);
 
 			//
+			break;
+		case ARCHIVO_COPIAR_LOCAL_MDFS:
+			printf("copiar archivo local al fs\n");
+
+			//char* archivo_local = input_user[1];
+			char* archivo_local = "/home/utnso/Escritorio/tres.txt";
+
+
+			fs_importar_archivo(&fs, archivo_local);
+
 			break;
 		case NODO_LISTAR_NO_AGREGADOS:
 			//printf("listar nodos no agregados al fs, falta hacerle un addNodo\n");

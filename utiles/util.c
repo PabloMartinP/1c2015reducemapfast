@@ -14,7 +14,9 @@
 #include "util.h"
 #include <stdlib.h>
 
-int file_get_size(char* filename) {
+
+
+size_t file_get_size(char* filename) {
 	struct stat st;
 	stat(filename, &st);
 	return st.st_size;

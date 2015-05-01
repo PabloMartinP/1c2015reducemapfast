@@ -86,7 +86,9 @@ e_comando getComando(char* comando) {
 	if (string_starts_with(comando, "lsnodop"))
 		return NODO_LISTAR_NO_AGREGADOS;
 	if (string_starts_with(comando, "info"))
-		return FS_INFO;
+			return FS_INFO;
+	if (string_starts_with(comando, "copiar"))
+			return ARCHIVO_COPIAR_LOCAL_MDFS;
 
 
 	return NADA;

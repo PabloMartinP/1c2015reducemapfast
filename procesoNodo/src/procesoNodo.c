@@ -23,7 +23,7 @@
 /*
  * variables
  */
-
+bool FIN = false;
 char* _data = NULL;
 t_log* logger = NULL;
 /*
@@ -43,6 +43,7 @@ void conectar_con_fs();
 int NODO_CANT_BLOQUES();
 void procesar_mensaje_fs(int fd, t_msg* msg);
 void iniciar_server_peticiones_fs();
+void iniciar_thread_server_peticiones_fs();
 /*
  * main
  */
@@ -51,7 +52,7 @@ int CANT_BLOQUES;
 int main(int argc, char *argv[]) {
 	//por param le tiene que llegar el tamaño del archivo data.bin
 	//por ahora hardcodeo 100mb, serian 10 bloques de 20 mb
-	TAMANIO_DATA = 1024 * 1024 * 100; //100MB
+	TAMANIO_DATA = 1024 * 1024 * 500; //100MB
 	CANT_BLOQUES = TAMANIO_DATA / TAMANIO_BLOQUE_B;
 
 	inicializar();
@@ -59,7 +60,7 @@ int main(int argc, char *argv[]) {
 	conectar_con_fs();
 
 	//inicio el server para atender las peticiones del fs
-	iniciar_server_peticiones_fs();
+	iniciar_thread_server_peticiones_fs();
 
 	//*todo: test settear 0 bloque y leerlo
 	/*
@@ -70,13 +71,13 @@ int main(int argc, char *argv[]) {
 	 */
 
 	/*
-	//leo el bl0que 0 1 2
-	char * dataget = getBloque(0);
-	printf("%s\n", dataget);
-	dataget = getBloque(1);
-	printf("%s\n", dataget);
-	dataget = getBloque(2);
-	printf("%s\n", dataget);*/
+	 //leo el bl0que 0 1 2
+	 char * dataget = getBloque(0);
+	 printf("%s\n", dataget);
+	 dataget = getBloque(1);
+	 printf("%s\n", dataget);
+	 dataget = getBloque(2);
+	 printf("%s\n", dataget);*/
 
 	/*
 	 free_null(saludo);
@@ -97,31 +98,55 @@ int main(int argc, char *argv[]) {
 
 ////
 	//bool fin = true	;
-	//while(!fin);
+	while (!FIN)
+		;
 	finalizar();
 
 	return EXIT_SUCCESS;
 }
 
+void iniciar_thread_server_peticiones_fs() {
+	pthread_t th;
+	pthread_attr_t tattr;
+
+	pthread_attr_init(&tattr);
+	pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
+	pthread_create(&th, &tattr, (void*) iniciar_server_peticiones_fs, NULL);
+	pthread_attr_destroy(&tattr);
+
+}
+
 void procesar_mensaje_fs(int fd, t_msg* msg) {
 	//print_msg(msg);
 
-	destroy_message(msg);
-	msg = string_message(NODO_HOLA, "", 0);
-	enviar_mensaje(fd, msg);
-	destroy_message(msg);
+	switch (msg->header.id) {
+	case NODO_CHAU:
+		FIN = true;
 
-	//recibo el mensaje con el bloque a grabar, y la posiocion en el arg 0
-	msg = recibir_mensaje(fd);
-	print_msg(msg);
+		break;
+	case FS_HOLA:
 
-	char* bloque = malloc(TAMANIO_BLOQUE_B);
-	memcpy(bloque, msg->stream, msg->argv[1]);	//1 es el tamaño real
-	memset(bloque + msg->argv[1], '\0', TAMANIO_BLOQUE_B - msg->argv[1]);
-	setBloque(msg->argv[0], bloque);
-	free(bloque);
+		destroy_message(msg);
+		msg = string_message(NODO_HOLA, "", 0);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
 
-	destroy_message(msg);
+		//recibo el mensaje con el bloque a grabar, y la posiocion en el arg 0
+		msg = recibir_mensaje(fd);
+		print_msg(msg);
+
+		char* bloque = malloc(TAMANIO_BLOQUE_B);
+		memcpy(bloque, msg->stream, msg->argv[1]);	//1 es el tamaño real
+		memset(bloque + msg->argv[1], '\0', TAMANIO_BLOQUE_B - msg->argv[1]);
+		setBloque(msg->argv[0], bloque);
+		free(bloque);
+
+		destroy_message(msg);
+
+		break;
+	default:
+		break;
+	}
 
 }
 void iniciar_server_peticiones_fs() {

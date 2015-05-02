@@ -6,12 +6,30 @@
  */
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <commons/collections/list.h>
 #include "util.h"
 
 #include "nodo.h"
+
+
+/*
+ * envio un mensaje de desconexion
+ */
+void nodo_mensaje_desconexion(t_nodo* nodo){
+
+	printf("Enviar msg de desconexion al nodo %d, ip:%s:%d\n", nodo->identificador, nodo->ip, nodo->puerto);
+	//me conecto al nodo
+	int fd = client_socket(nodo->ip, nodo->puerto);
+
+	t_msg* msg = string_message(NODO_CHAU, "",0);
+
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
+
+}
 
 bool bloque_esta_usado(t_bloque* bloque){
 	return !bloque->libre;
@@ -40,6 +58,10 @@ t_bloque* nodo_get_bloque_para_copiar(t_nodo* nodo){
 	t_bloque* b;
 
 	b = list_find(nodo->bloques, (void*)bloque_esta_para_copiar);
+	if(b == NULL){
+		printf("El nodo %d no tiene bloques libres\n", nodo->identificador);
+		return NULL;
+	}
 	b->requerido_para_copia = true;
 
 	return b;
@@ -60,11 +82,6 @@ void print_nodo(t_nodo* nodo){
 	printf("Id: %d, Nuevo: %d, Ip: %s, Puerto: %d\n", nodo->identificador, nodo->esNuevo, nodo->ip, nodo->puerto);
 }
 
-void print_nodos(t_list* nodos) {
-	printf("NODOS CONECTADOS AL SISTEMA ('addnodo n' para agregarlos)\n");
-	list_iterate(nodos, (void*)print_nodo);
-	printf("\n---------------------------------------------------");
-}
 
 int get_id_nodo_nuevo() {
 
@@ -81,7 +98,7 @@ char* nodo_isNew(t_nodo* nodo) {
 void nodo_destroy(t_nodo* nodo) {
 	free_null(nodo->ip);
 
-	list_destroy(nodo->bloques);
+	list_destroy_and_destroy_elements(nodo->bloques, free_null);
 }
 
 t_nodo* nodo_new(char* ip, uint16_t port, bool isNew, uint16_t cant_bloques) {

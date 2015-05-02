@@ -10,19 +10,16 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
-#include <commons/string.h>
-#include <strings.h>
 #include <commons/log.h>
 #include <commons/config.h>
-#include <unistd.h>
-
+#include <commons/collections/list.h>
 #include <pthread.h>
+#include "consola.h"
+#include "fileSystem.h"
 
 //#include <util.h>
-#include "consola.h"
-//#include <nodo.h>
-#include "fileSystem.h"
+
+
 
 #define FILE_CONFIG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/config.txt"
 #define FILE_LOG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/log.txt"
@@ -30,7 +27,6 @@
 t_log* logger;
 t_config* config;
 t_fileSystem fs;
-t_list* nodos_nuevos; //los nodos que estan disponibles pero estan agregados al fs
 
 void nuevosNodos();
 void procesar_mensaje_nodo(int i, t_msg* msg);
@@ -68,26 +64,19 @@ void iniciar_server_nodos_nuevos() {
 }
 
 void agregar_nodo_al_fs(int id_nodo) {
-	//busco el id_nodo en la lista de nodos_nuevos
-	bool buscar_nodo_nuevo_por_id(t_nodo* nodo) {
-		return nodo->identificador == id_nodo;
-	}
-	//busco el nodo
-	t_nodo* nodo;
-	if ((nodo = list_find(nodos_nuevos, (void*) buscar_nodo_nuevo_por_id))	== NULL) {
-		printf("El nodo ingresado no existe: %d\n", id_nodo);
-		return;
-	}
 
-	//loborro de la lista de nodos nuevos
-	list_remove_by_condition(nodos_nuevos, (void*) buscar_nodo_nuevo_por_id);
+	fs_agregar_nodo(&fs, id_nodo);
 
-	//lo paso a la lista de nodos activos del fs
-	fs_addNodo(&fs, nodo);
+	t_nodo* nodo = fs_buscar_nodo_por_id(&fs, id_nodo);
+	log_info(logger, "El nodo %d fue agregado al fs. %s:%d", id_nodo, nodo->ip, nodo->puerto);
 
-	log_info(logger, "El nodo %d fue agregado al fs. %s:%d", nodo->identificador, nodo->ip, nodo->puerto);
 }
 void iniciar_consola() {
+	int primer_param_int;
+	int segundo_param_int;
+	char* primer_param_char;
+	char* segundo_param_char;
+
 	char comando[COMMAND_MAX_SIZE];
 	printf("inicio consola\nIngresar comandos  \n");
 
@@ -100,9 +89,9 @@ void iniciar_consola() {
 		switch (getComando(input_user[0])) {
 		case NODO_AGREGAR:
 			printf("comando ingresado: agregar nodo\n");
-			int id_nodo = atoi(input_user[1]);
+			primer_param_int = atoi(input_user[1]);
 
-			agregar_nodo_al_fs(id_nodo);
+			agregar_nodo_al_fs(primer_param_int);
 
 			//
 			break;
@@ -110,8 +99,8 @@ void iniciar_consola() {
 			printf("copiar archivo local al fs\n");
 
 			//char* archivo_local = input_user[1];
-			char* archivo_local = "/home/utnso/Escritorio/tres.txt";
-			//char* archivo_local = "/home/utnso/Escritorio/menosde50.txt";
+			char* archivo_local = "/home/utnso/Escritorio/3registros.txt";
+			//char* archivo_local = "/home/utnso/Escritorio/dos.txt";
 
 
 			fs_importar_archivo(&fs, archivo_local);
@@ -120,21 +109,36 @@ void iniciar_consola() {
 			break;
 		case NODO_LISTAR_NO_AGREGADOS:
 			//printf("listar nodos no agregados al fs, falta hacerle un addNodo\n");
-			print_nodos(nodos_nuevos);
+			fs_print_nodos(fs.nodos_no_agregados);
 
 			break;
 
 		case NODO_ELIMINAR:
-			printf("comando ingresado: elimnar nodo\n");
+			//printf("comando ingresado: elimnar nodo\n");
+			primer_param_int = atoi(input_user[1]);
+			//elimino el nodo y vuelve a la lista de nodos_no_conectados
+			fs_eliminar_nodo(&fs, primer_param_int);
 
+			printf("el nodo %d  se ha eliminado del fs. Paso a la lista de nodos no agregados\n", primer_param_int);
+			fs_print_nodos(fs.nodos_no_agregados);
 			break;
 		case DIRECTORIO_CREAR:
 			printf("crear directorio\n");
 
-			directorio_crear(comando);
+			primer_param_char = input_user[1];//nombre
+			//segundo_param_int = atoi(input_user[2]);//padre
+			segundo_param_int = 0;
+
+			dir_crear(fs.directorios, primer_param_char, segundo_param_int);
+
+			printf("El directorio se creo.\n");
+			break;
+		case DIRECTORIO_LISTAR:
+			fs_print_dirs(&fs);
+
 			break;
 		case FORMATEAR:
-			formatear();
+			fs_formatear(&fs);
 			break;
 		case FS_INFO:
 			//printf("Mostrar info actual del fs del fileSystem\n");
@@ -143,6 +147,9 @@ void iniciar_consola() {
 			break;
 		case SALIR:
 			printf("comando ingresado: salir\n");
+
+			fs_desconectarse(&fs);
+
 			fin = true;
 			break;
 		default:
@@ -176,69 +183,15 @@ void inicializar() {
 	logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_INFO);
 	config = config_create(FILE_CONFIG);
 
-
 	fs_create(&fs);
 
 	//para guardar los nodos recien conectados
-	nodos_nuevos = list_create();
+	//nodos_nuevos = list_create();
 
 }
 
 void nuevosNodos() {
-	fd_set master, read_fds;
-	int fdNuevoNodo, fdmax, newfd;
-	int i;
-
-	if ((fdNuevoNodo = server_socket(
-			config_get_int_value(config, "PUERTO_LISTEN"))) < 0) {
-		handle_error("error al iniciar  server");
-	}
-
-	FD_ZERO(&master); // borra los conjuntos maestro y temporal
-	FD_ZERO(&read_fds);
-	FD_SET(fdNuevoNodo, &master);
-
-	fdmax = fdNuevoNodo; // por ahora el maximo
-
-	log_info(logger, "inicio thread eschca de nuevos nodos");
-	// bucle principal
-	for (;;) {
-		read_fds = master; // cópialo
-		if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
-			perror("select");
-			exit(1);
-		}
-
-		// explorar conexiones existentes en busca de datos que leer
-		for (i = 0; i <= fdmax; i++) {
-			if (FD_ISSET(i, &read_fds)) { // ¡¡tenemos datos!!
-				if (i == fdNuevoNodo) {	// gestionar nuevas conexiones
-					//char * ip;
-					//newfd = accept_connection_and_get_ip(fdNuevoNodo, &ip);
-					newfd = accept_connection(fdNuevoNodo);
-					//printf("nueva conexion desde IP: %s\n", ip);
-					FD_SET(newfd, &master); // añadir al conjunto maestro
-					if (newfd > fdmax) { // actualizar el máximo
-						fdmax = newfd;
-					}
-
-				} else { // gestionar datos de un cliente ya conectado
-					t_msg *msg = recibir_mensaje(i);
-					if (msg == NULL) {
-						/* Socket closed connection. */
-						//int status = remove_from_lists(i);
-						close(i);
-						FD_CLR(i, &master);
-					} else {
-						procesar_mensaje_nodo(i, msg);
-
-					}
-
-				} //fin else procesar mensaje nodo ya conectado
-			}
-		}
-	}
-
+	server_socket_select(config_get_int_value(config, "PUERTO_LISTEN"), (void*)procesar_mensaje_nodo);
 }
 
 void procesar_mensaje_nodo(int i, t_msg* msg) {
@@ -252,22 +205,20 @@ void procesar_mensaje_nodo(int i, t_msg* msg) {
 		enviar_mensaje(i, msg);
 		destroy_message(msg);
 
-		//t_nodo* nodo=NULL;
-		//recibir_mensaje_flujo(i, (void*)&nodo);
-
 		msg = recibir_mensaje(i);
 		//print_msg(msg);
 		t_nodo* nodo = nodo_new(msg->stream, (uint16_t) msg->argv[0],
 				(bool) msg->argv[1], msg->argv[2]); //0 puerto, 1 si es nuevo o no, 2 es la cant bloques
+
+
+
 		//le asigno un nombre
-
-
 		nodo->identificador = get_id_nodo_nuevo();
 
-		print_nodo(nodo);
+		//print_nodo(nodo);
 
 		//agrego el nodo a la lista de nodos nuevos
-		list_add(nodos_nuevos, (void*) nodo);
+		list_add(fs.nodos_no_agregados, (void*) nodo);
 
 		log_info(logger, "se conecto el nodo %d,  %s:%d | %s",
 				nodo->identificador, nodo->ip, nodo->puerto, nodo_isNew(nodo));

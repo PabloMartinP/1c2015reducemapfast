@@ -33,7 +33,7 @@ char* file_combine(char* f1, char* f2) {
 
 }
 
-void file_mmap_free(void* mapped, char* filename) {
+void file_mmap_free(char* mapped, char* filename) {
 	munmap(mapped, file_get_size(filename));
 }
 
@@ -606,6 +606,9 @@ char *id_string(t_msg_id id) {
 		break;
 	case FS_GRABAR_BLOQUE:
 		buf = strdup("FS_GRABAR_BLOQUE");
+		break;
+	case NODO_CHAU:
+		buf = strdup("NODO_CHAU");
 		break;
 	default:
 		buf = string_from_format("%d, <AGREGAR A LA LISTA>", id);

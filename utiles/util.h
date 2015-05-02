@@ -79,8 +79,10 @@ typedef enum {
 	FS_NODO_OK, //el fs le contesta que ya esta conectado
 	NODO_SALIR, //el nodo avisa que se desconecta
 	FS_NODO_QUIEN_SOS, //el fs le pregunta al nodo que le diga su ip y puerto
-	RTA_FS_NODO_QUIEN_SOS //devuelve la ip y el port del nodo al fs
-
+	RTA_FS_NODO_QUIEN_SOS, //devuelve la ip y el port del nodo al fs
+	FS_HOLA,
+	NODO_HOLA,
+	FS_GRABAR_BLOQUE
 } t_msg_id;
 
 
@@ -119,7 +121,7 @@ int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer);
 int recibir_mensaje_flujo(int unSocket, void** buffer) ;
 
 /****************** FUNCIONES SOCKET. ******************/
-
+int server_socket_select(uint16_t port, void(*procesar_mensaje)(int,t_msg*));
 /*
  * Crea, vincula y escucha un socket desde un puerto determinado.
  */

@@ -14,8 +14,6 @@
 #include "util.h"
 #include <stdlib.h>
 
-
-
 size_t file_get_size(char* filename) {
 	struct stat st;
 	stat(filename, &st);
@@ -88,7 +86,60 @@ bool file_exists(const char* filename) {
 /*
  ***************************************************
  */
+int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*)) {
+	fd_set master, read_fds;
+	int fdNuevoNodo, fdmax, newfd;
+	int i;
 
+	if ((fdNuevoNodo = server_socket(port)) < 0) {
+		handle_error("error al iniciar  server");
+	}
+
+	FD_ZERO(&master); // borra los conjuntos maestro y temporal
+	FD_ZERO(&read_fds);
+	FD_SET(fdNuevoNodo, &master);
+
+	fdmax = fdNuevoNodo; // por ahora el maximo
+
+	//log_info(logger, "inicio thread eschca de nuevos nodos");
+	// bucle principal
+	for (;;) {
+		read_fds = master; // cópialo
+		if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
+			perror("select");
+			exit(1);
+		}
+
+		// explorar conexiones existentes en busca de datos que leer
+		for (i = 0; i <= fdmax; i++) {
+			if (FD_ISSET(i, &read_fds)) { // ¡¡tenemos datos!!
+				if (i == fdNuevoNodo) {	// gestionar nuevas conexiones
+					//char * ip;
+					//newfd = accept_connection_and_get_ip(fdNuevoNodo, &ip);
+					newfd = accept_connection(fdNuevoNodo);
+					//printf("nueva conexion desde IP: %s\n", ip);
+					FD_SET(newfd, &master); // añadir al conjunto maestro
+					if (newfd > fdmax) { // actualizar el máximo
+						fdmax = newfd;
+					}
+
+				} else { // gestionar datos de un cliente ya conectado
+					t_msg *msg = recibir_mensaje(i);
+					if (msg == NULL) {
+						/* Socket closed connection. */
+						//int status = remove_from_lists(i);
+						close(i);
+						FD_CLR(i, &master);
+					} else {
+						procesar_mensaje(i, msg);
+
+					}
+
+				} //fin else procesar mensaje nodo ya conectado
+			}
+		}
+	}
+}
 int server_socket(uint16_t port) {
 	int sock_fd, optval = 1;
 	struct sockaddr_in servername;
@@ -220,37 +271,36 @@ t_msg *argv_message(t_msg_id id, uint16_t count, ...) {
 	return new;
 }
 
-		//Mande un mensaje a un socket determinado usando una estructura
-		int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer) {
-			t_header_base header;
-			int auxInt;
-			//Que el tamanio lo mande
-			void* bufferAux;
+//Mande un mensaje a un socket determinado usando una estructura
+int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer) {
+	t_header_base header;
+	int auxInt;
+	//Que el tamanio lo mande
+	void* bufferAux;
 
-			header.type = tipo;
-			header.payloadlength = tamanio;
-			bufferAux=malloc(sizeof(t_header_base)+tamanio);
-			memcpy(bufferAux,&header,sizeof(t_header_base));
-			memcpy((bufferAux+(sizeof(t_header_base))),buffer,tamanio);
-			auxInt=send(unSocket, bufferAux,(sizeof(t_header_base)+tamanio), 0);
-			free(bufferAux);
+	header.type = tipo;
+	header.payloadlength = tamanio;
+	bufferAux = malloc(sizeof(t_header_base) + tamanio);
+	memcpy(bufferAux, &header, sizeof(t_header_base));
+	memcpy((bufferAux + (sizeof(t_header_base))), buffer, tamanio);
+	auxInt = send(unSocket, bufferAux, (sizeof(t_header_base) + tamanio), 0);
+	free(bufferAux);
+	return auxInt;
+}
+
+int recibir_mensaje_flujo(int unSocket, void** buffer) {
+
+	t_header_base header;
+	int auxInt;
+	if ((auxInt = recv(unSocket, &header, sizeof(t_header_base), 0)) >= 0) {
+		*buffer = malloc(header.payloadlength);
+		if ((auxInt = recv(unSocket, *buffer, header.payloadlength, 0)) >= 0) {
 			return auxInt;
 		}
+	}
+	return auxInt;
 
-				int recibir_mensaje_flujo(int unSocket, void** buffer) {
-
-					t_header_base header;
-					int auxInt;
-					if((auxInt=recv(unSocket, &header, sizeof(t_header_base), 0))>=0) {
-						*buffer = malloc (header.payloadlength);
-						if ((auxInt=recv(unSocket, *buffer, header.payloadlength, 0)) >= 0) {
-							return  auxInt;
-						}
-					}
-					return  auxInt;
-
-				}
-
+}
 
 t_msg *string_message(t_msg_id id, char *message, uint16_t count, ...) {
 	va_list arguments;
@@ -513,7 +563,7 @@ void print_msg(t_msg *msg) {
 	int i;
 	puts("\n==================================================");
 	printf("CONTENIDOS DEL MENSAJE:\n");
-	char* id= id_string(msg->header.id);
+	char* id = id_string(msg->header.id);
 	printf("- ID: %s\n", id);
 	free(id);
 
@@ -547,6 +597,15 @@ char *id_string(t_msg_id id) {
 		break;
 	case RTA_FS_NODO_QUIEN_SOS:
 		buf = strdup("RTA_FS_NODO_QUIEN_SOS");
+		break;
+	case FS_HOLA:
+		buf = strdup("FS_HOLA");
+		break;
+	case NODO_HOLA:
+		buf = strdup("NODO_HOLA");
+		break;
+	case FS_GRABAR_BLOQUE:
+		buf = strdup("FS_GRABAR_BLOQUE");
 		break;
 	default:
 		buf = string_from_format("%d, <AGREGAR A LA LISTA>", id);

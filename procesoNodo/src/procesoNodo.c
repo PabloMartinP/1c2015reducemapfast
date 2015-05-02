@@ -24,7 +24,6 @@
  * variables
  */
 
-
 char* _data = NULL;
 t_log* logger = NULL;
 /*
@@ -33,7 +32,7 @@ t_log* logger = NULL;
 void* data_get(char* filename);
 void data_destroy();
 void* getBloque(int32_t numero);
-void setBloque(int32_t numero, void* bloque);
+void setBloque(int32_t numero, char* bloque);
 
 void* getFileContent(char* filename);
 
@@ -42,6 +41,8 @@ void finalizar();
 
 void conectar_con_fs();
 int NODO_CANT_BLOQUES();
+void procesar_mensaje_fs(int fd, t_msg* msg);
+void iniciar_server_peticiones_fs();
 /*
  * main
  */
@@ -57,30 +58,30 @@ int main(int argc, char *argv[]) {
 
 	conectar_con_fs();
 
+	//inicio el server para atender las peticiones del fs
+	iniciar_server_peticiones_fs();
 
 	/*
-	 * todo: test settear 0 bloque y leerlo
+	 //*todo: test settear 0 bloque y leerlo
 	 //settear el bloque 0
-	 void* saludo = malloc(TAMANIO_BLOQUE);
+	 void* saludo = malloc(TAMANIO_BLOQUE_B);
 	 strcpy(saludo, "ahora cambio el mensaje!");
-	 setBloque(0, saludo);
-
+	 //setBloque(0, saludo);
+	 /*
 	 //leo el bl0que 0
 	 void* dataget = getBloque(0);
 	 char* saludoget =(char*) malloc(strlen(saludo)+1);
 	 memcpy(saludoget, dataget, strlen(saludo)+1);
 	 printf("%s\n", saludoget);
-
+	 /*
 	 free_null(saludo);
 	 free_null(saludoget);
 	 free_null(dataget);
 	 */
 
-
-
-	 /*
-	  * todo: TEST LEER UN ARCHIVO DE LA CARPETA /TMP
-	  * EL ARCHIVO DEBE ESTAR CREADO
+	/*
+	 * todo: TEST LEER UN ARCHIVO DE LA CARPETA /TMP
+	 * EL ARCHIVO DEBE ESTAR CREADO
 	 int i=0;
 	 char *d = NULL;
 	 d = getFileContent("hola");
@@ -90,12 +91,41 @@ int main(int argc, char *argv[]) {
 	 */
 
 ////
+	//bool fin = true	;
+	//while(!fin);
 	finalizar();
 
 	return EXIT_SUCCESS;
 }
 
-int NODO_CANT_BLOQUES(){
+void procesar_mensaje_fs(int fd, t_msg* msg) {
+	print_msg(msg);
+
+	destroy_message(msg);
+	msg = string_message(NODO_HOLA, "", 0);
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
+
+	//recibo el mensaje con el bloque a grabar, y la posiocion en el arg 0
+	msg = recibir_mensaje(fd);
+	print_msg(msg);
+
+	char* bloque = malloc(TAMANIO_BLOQUE_B);
+	memcpy(bloque, msg->stream, msg->argv[1]);	//1 es el tamaño real
+	memset(bloque + msg->argv[1], '\0', TAMANIO_BLOQUE_B - msg->argv[1]);
+	setBloque(msg->argv[0], bloque);
+	free(bloque);
+
+	destroy_message(msg);
+
+}
+void iniciar_server_peticiones_fs() {
+	printf("Iniciado server de peticiones del FS\n");
+
+	server_socket_select(NODO_PORT(), procesar_mensaje_fs);
+}
+
+int NODO_CANT_BLOQUES() {
 	return CANT_BLOQUES;
 }
 
@@ -130,16 +160,17 @@ void conectar_con_fs() {
 			destroy_message(msg);
 
 			/*
-			t_nodo* nodo = nodo_new(NODO_IP(), NODO_PORT(), NODO_NUEVO(), NODO_CANT_BLOQUES());
-			enviar_mensaje_flujo(fs, 1, sizeof(t_nodo), nodo);*/
+			 t_nodo* nodo = nodo_new(NODO_IP(), NODO_PORT(), NODO_NUEVO(), NODO_CANT_BLOQUES());
+			 enviar_mensaje_flujo(fs, 1, sizeof(t_nodo), nodo);*/
 
-			msg = string_message(RTA_FS_NODO_QUIEN_SOS, NODO_IP(), 3,NODO_PORT(), NODO_NUEVO(), NODO_CANT_BLOQUES());
-			if((enviar_mensaje(fs, msg))<0){
-				printf("No se pudo responder a %s", id_string(FS_NODO_QUIEN_SOS) );
+			msg = string_message(RTA_FS_NODO_QUIEN_SOS, NODO_IP(), 3,
+					NODO_PORT(), NODO_NUEVO(), NODO_CANT_BLOQUES());
+			if ((enviar_mensaje(fs, msg)) < 0) {
+				printf("No se pudo responder a %s",
+						id_string(FS_NODO_QUIEN_SOS));
 				exit(EXIT_FAILURE);
 			}
 			destroy_message(msg);
-
 
 			printf("mensaje de ip y puerto enviado\n");
 
@@ -172,9 +203,6 @@ void inicializar() {
 	logger = log_create(FILE_LOG, "Nodo", true, LOG_LEVEL_INFO);
 
 	_data = data_get(NODO_ARCHIVOBIN());
-
-	//guardo la posicion de cada bloque en una nueva variable para no tener que hacer el calculo de NBLOQUE*20mb ...
-	//bloques_set();
 }
 
 /*
@@ -196,26 +224,23 @@ void* getFileContent(char* filename) {
 	return content;
 }
 /*
-void bloques_set() {
+ void bloques_set() {
 
-	//creo el espacio para guardar las posiciones de memoria de cada
-	_bloques = malloc(CANT_BLOQUES);
+ //creo el espacio para guardar las posiciones de memoria de cada
+ _bloques = malloc(CANT_BLOQUES);
 
-	int i = 0;
-	for (i = 0; i < CANT_BLOQUES; i++) {
-		//_bloques[i] = (_data + (i * TAMANIO_BLOQUE));
-		(_bloques+i) = &i;
-	}
-}*/
+ int i = 0;
+ for (i = 0; i < CANT_BLOQUES; i++) {
+ //_bloques[i] = (_data + (i * TAMANIO_BLOQUE));
+ (_bloques+i) = &i;
+ }
+ }*/
 
-void setBloque(int32_t numero, void* bloquedatos) {
+void setBloque(int32_t numero, char* bloquedatos) {
 	log_info(logger, "Inicio setBloque(%d)", numero);
 
-	//char* b = (char*)malloc(sizeof(TAMANIO_BLOQUE));
-	//b = bloquedatos;
-
 	//memcpy((void*)(_data[numero*TAMANIO_BLOQUE]), bloquedatos, TAMANIO_BLOQUE);
-	memcpy(_data+(numero*TAMANIO_BLOQUE_B), bloquedatos, TAMANIO_BLOQUE_B);
+	memcpy(_data + (numero * TAMANIO_BLOQUE_B), bloquedatos, TAMANIO_BLOQUE_B);
 
 	log_info(logger, "Fin setBloque(%d)", numero);
 }
@@ -226,7 +251,7 @@ void* getBloque(int32_t numero) {
 	log_info(logger, "Ini getBloque(%d)", numero);
 	void* bloque = NULL;
 	bloque = malloc(TAMANIO_BLOQUE_B);
-	memcpy(bloque,&(_data[numero*TAMANIO_BLOQUE_B]), TAMANIO_BLOQUE_B);
+	memcpy(bloque, &(_data[numero * TAMANIO_BLOQUE_B]), TAMANIO_BLOQUE_B);
 	//memcpy(bloque, _bloques[numero], TAMANIO_BLOQUE);
 	log_info(logger, "Fin getBloque(%d)", numero);
 	return bloque;

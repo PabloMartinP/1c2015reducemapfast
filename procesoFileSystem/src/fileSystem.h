@@ -14,7 +14,7 @@
 
 
 typedef struct {
-	int identificador;
+	t_nodo* nodo;
 	int n_bloque;
 }t_nodo_bloque;
 
@@ -43,7 +43,7 @@ int cant_registros(char** registros);
 void fs_importar_archivo(t_fileSystem* fs, char* archivo);
 void guardar_bloque(t_fileSystem* fs, char* fuente, size_t offset);
 t_nodo_bloque* fs_get_bloque_libre(t_fileSystem* fs);
-void fs_guardar_bloque(t_nodo_bloque* nb, char* bloque);
+void fs_guardar_bloque(t_nodo_bloque* nb, char* bloque, size_t tamanio_real);
 /*
  * ****************************************************************************************
  */
@@ -86,25 +86,53 @@ void fs_importar_archivo(t_fileSystem* fs, char* archivo) {
 	file_mmap_free(mapped, archivo);
 }
 
-void guardar_bloque(t_fileSystem* fs, char* fuente, size_t offset){
-	char* bloque = malloc(TAMANIO_BLOQUE_B);
-	////grabo 0 en todo el bloque.
-	memset(bloque, 0, TAMANIO_BLOQUE_B);
-	memcpy(bloque, fuente, offset);
-
+void guardar_bloque(t_fileSystem* fs, char* fuente, size_t bytes_a_copiar){
+	char* bloque = malloc(bytes_a_copiar);
+	//memset(bloque, 0, TAMANIO_BLOQUE_B);
+	memcpy(bloque, fuente, bytes_a_copiar);
 
 	//busco un bloque libre dentro de un nodo
 	t_nodo_bloque* nb = fs_get_bloque_libre(fs);
 
 	//guardo el bloque en el bloque n del nodo x
-	fs_guardar_bloque(nb, bloque);
+	fs_guardar_bloque(nb, bloque, bytes_a_copiar);
 
 
+	bool buscar_bloque(t_bloque* bloque){
+		return bloque->posicion == nb->nodo->identificador;
+	}
+	//marco al bloque del nodo como usado
+	t_bloque* bloque_usado = list_find(nb->nodo->bloques, (void*)buscar_bloque);
+	bloque_usado->libre = false;
+
+	printf("nodo %d bloque %d marcado como usado\n", nb->nodo->identificador, nb->n_bloque);
 	free_null(bloque);
 }
 
-void fs_guardar_bloque(t_nodo_bloque* nb, char* bloque){
+void fs_guardar_bloque(t_nodo_bloque* nb, char* bloque, size_t tamanio_real){
+	//me tengo que conectar con el nodo y pasarle el bloque
 
+	printf("iniciando transferencia a Ip:%s:%d bloque %d\n", nb->nodo->ip, nb->nodo->puerto, nb->n_bloque);
+	int fd = client_socket(nb->nodo->ip, nb->nodo->puerto);
+
+	t_msg* msg;
+	msg = string_message(FS_HOLA, "", 0);
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
+	msg = recibir_mensaje(fd);
+	if(msg->header.id == NODO_HOLA){
+		destroy_message(msg);
+		//le digo que grabe el blque en el nodo n
+		msg = string_message(FS_GRABAR_BLOQUE, bloque, 2, nb->n_bloque, tamanio_real);
+
+		enviar_mensaje(fd, msg);
+	}
+
+	destroy_message(msg);
+
+	close(fd);
+
+	printf("transferencia realizada OK\n");
 }
 
 /*
@@ -117,7 +145,7 @@ t_nodo_bloque* fs_get_bloque_libre(t_fileSystem* fs){
 	t_nodo* nodo = (t_nodo*)	list_get(fs->nodos, 0);//AGARRO EL DE LA POSICION 0 PORQUE SI
 	t_bloque* bloque = nodo_get_bloque_libre(nodo);
 
-	new->identificador = nodo->identificador;
+	new->nodo = nodo;
 	new->n_bloque = bloque->posicion;
 
 	return new;
@@ -231,7 +259,6 @@ void fs_create(t_fileSystem* fs) {
 
 void fs_destroy(t_fileSystem* fs) {
 	list_destroy(fs->nodos);
-//free(fs);
 }
 
 #endif /* FILESYSTEM_H_ */

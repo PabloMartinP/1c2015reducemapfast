@@ -16,13 +16,12 @@
 #include <commons/log.h>
 #include <commons/config.h>
 #include <unistd.h>
-#include <commons/collections/list.h>
 
 #include <pthread.h>
 
-#include <util.h>
+//#include <util.h>
 #include "consola.h"
-#include <nodo.h>
+//#include <nodo.h>
 #include "fileSystem.h"
 
 #define FILE_CONFIG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/config.txt"
@@ -87,7 +86,6 @@ void agregar_nodo_al_fs(int id_nodo) {
 	fs_addNodo(&fs, nodo);
 
 	log_info(logger, "El nodo %d fue agregado al fs. %s:%d", nodo->identificador, nodo->ip, nodo->puerto);
-
 }
 void iniciar_consola() {
 	char comando[COMMAND_MAX_SIZE];
@@ -113,10 +111,12 @@ void iniciar_consola() {
 
 			//char* archivo_local = input_user[1];
 			char* archivo_local = "/home/utnso/Escritorio/tres.txt";
+			//char* archivo_local = "/home/utnso/Escritorio/menosde50.txt";
 
 
 			fs_importar_archivo(&fs, archivo_local);
 
+			printf("archivo copiado----------------------------\n");
 			break;
 		case NODO_LISTAR_NO_AGREGADOS:
 			//printf("listar nodos no agregados al fs, falta hacerle un addNodo\n");

@@ -15,6 +15,7 @@
 typedef struct {
 	uint32_t posicion;
 	bool libre;
+	bool requerido_para_copia;//cuando pido el bloque para copiar pero todavia no esta confirmado el cambio, todavia sigue libre
 }t_bloque;
 
 typedef struct {

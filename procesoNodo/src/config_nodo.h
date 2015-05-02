@@ -8,6 +8,8 @@
 #ifndef CONFIG_NODO_H_
 #define CONFIG_NODO_H_
 
+#include <commons/config.h>
+
 int NODO_PORT_FS();
 char* NODO_IP_FS();
 char* NODO_ARCHIVOBIN();

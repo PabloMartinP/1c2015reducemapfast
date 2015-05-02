@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <commons/config.h>
+
 #include <sys/stat.h>
 #include <sys/mman.h>
 
@@ -61,19 +61,24 @@ int main(int argc, char *argv[]) {
 	//inicio el server para atender las peticiones del fs
 	iniciar_server_peticiones_fs();
 
+	//*todo: test settear 0 bloque y leerlo
 	/*
-	 //*todo: test settear 0 bloque y leerlo
 	 //settear el bloque 0
 	 void* saludo = malloc(TAMANIO_BLOQUE_B);
 	 strcpy(saludo, "ahora cambio el mensaje!");
 	 //setBloque(0, saludo);
-	 /*
-	 //leo el bl0que 0
-	 void* dataget = getBloque(0);
-	 char* saludoget =(char*) malloc(strlen(saludo)+1);
-	 memcpy(saludoget, dataget, strlen(saludo)+1);
-	 printf("%s\n", saludoget);
-	 /*
+	 */
+
+	/*
+	//leo el bl0que 0 1 2
+	char * dataget = getBloque(0);
+	printf("%s\n", dataget);
+	dataget = getBloque(1);
+	printf("%s\n", dataget);
+	dataget = getBloque(2);
+	printf("%s\n", dataget);*/
+
+	/*
 	 free_null(saludo);
 	 free_null(saludoget);
 	 free_null(dataget);
@@ -99,7 +104,7 @@ int main(int argc, char *argv[]) {
 }
 
 void procesar_mensaje_fs(int fd, t_msg* msg) {
-	print_msg(msg);
+	//print_msg(msg);
 
 	destroy_message(msg);
 	msg = string_message(NODO_HOLA, "", 0);

@@ -8,6 +8,14 @@
 #ifndef CONSOLA_H_
 #define CONSOLA_H_
 
+
+#include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
+#include <commons/string.h>
+
+#include <util.h>
+
 const int COMMAND_MAX_SIZE = 256;
 
 const char* FILE_DIRECTORIO = "directorio.txt";
@@ -60,14 +68,6 @@ void iniciar_consola();
  *
  */
 
-#include <stdio.h>
-#include <stdbool.h>
-#include <string.h>
-#include <commons/string.h>
-
-#include <util.h>
-#include "consola.h"
-
 
 
 e_comando getComando(char* comando) {
@@ -87,7 +87,7 @@ e_comando getComando(char* comando) {
 		return NODO_LISTAR_NO_AGREGADOS;
 	if (string_starts_with(comando, "info"))
 			return FS_INFO;
-	if (string_starts_with(comando, "copiar"))
+	if (string_starts_with(comando, "copy"))
 			return ARCHIVO_COPIAR_LOCAL_MDFS;
 
 

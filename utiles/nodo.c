@@ -20,7 +20,7 @@
  */
 void nodo_mensaje_desconexion(t_nodo* nodo){
 
-	printf("Enviar msg de desconexion al nodo %d, ip:%s:%d\n", nodo->identificador, nodo->ip, nodo->puerto);
+	printf("Enviar msg de desconexion al nodo %d, ip:%s:%d\n", nodo->id, nodo->ip, nodo->puerto);
 	//me conecto al nodo
 	int fd = client_socket(nodo->ip, nodo->puerto);
 
@@ -59,7 +59,7 @@ t_bloque* nodo_get_bloque_para_copiar(t_nodo* nodo){
 
 	b = list_find(nodo->bloques, (void*)bloque_esta_para_copiar);
 	if(b == NULL){
-		printf("El nodo %d no tiene bloques libres\n", nodo->identificador);
+		printf("El nodo %d no tiene bloques libres\n", nodo->id);
 		return NULL;
 	}
 	b->requerido_para_copia = true;
@@ -79,7 +79,7 @@ int nodo_cant_bloques(t_nodo* nodo){
 }
 
 void print_nodo(t_nodo* nodo){
-	printf("Id: %d, Nuevo: %d, Ip: %s, Puerto: %d\n", nodo->identificador, nodo->esNuevo, nodo->ip, nodo->puerto);
+	printf("Id: %d, Nuevo: %d, Ip: %s, Puerto: %d\n", nodo->id, nodo->esNuevo, nodo->ip, nodo->puerto);
 }
 
 

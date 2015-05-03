@@ -20,7 +20,7 @@ typedef struct {
 }t_bloque;
 
 typedef struct {
-	int identificador;
+	int id;
 	char* ip;
 	uint16_t puerto;
 	bool esNuevo;

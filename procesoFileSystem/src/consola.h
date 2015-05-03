@@ -19,6 +19,7 @@ const int COMMAND_MAX_SIZE = 256;
 
 
 char* FILE_ARCHIVO = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/archivos.txt";
+char* FILE_ARCHIVO_BLOQUES = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/archivos-bloques.txt";
 
 typedef enum {
 	NODO_AGREGAR,

@@ -108,7 +108,7 @@ void iniciar_consola() {
 
 
 
-			printf("archivo copiado----------------------------\n");
+			printf("archivo copiado y agregado al fs----------------------------\n");
 			break;
 		case NODO_LISTAR_NO_AGREGADOS:
 			//printf("listar nodos no agregados al fs, falta hacerle un addNodo\n");
@@ -214,7 +214,7 @@ void procesar_mensaje_nodo(int i, t_msg* msg) {
 
 
 		//le asigno un nombre
-		nodo->identificador = get_id_nodo_nuevo();
+		nodo->id = get_id_nodo_nuevo();
 
 		//print_nodo(nodo);
 
@@ -222,9 +222,9 @@ void procesar_mensaje_nodo(int i, t_msg* msg) {
 		list_add(fs.nodos_no_agregados, (void*) nodo);
 
 		log_info(logger, "se conecto el nodo %d,  %s:%d | %s",
-				nodo->identificador, nodo->ip, nodo->puerto, nodo_isNew(nodo));
+				nodo->id, nodo->ip, nodo->puerto, nodo_isNew(nodo));
 
-		agregar_nodo_al_fs(nodo->identificador);
+		agregar_nodo_al_fs(nodo->id);
 
 		break;
 	default:

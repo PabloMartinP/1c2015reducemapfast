@@ -89,6 +89,8 @@ char* file_combine(char* f1, char* f2);
 size_t file_get_size(char* filename);
 void* file_get_mapped(char* filename);
 void file_mmap_free(char* mapped, char* filename);
+float  bytes_to_kilobytes(size_t bytes);
+float bytes_to_megabytes(size_t bytes);
 
 int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer);
 int recibir_mensaje_flujo(int unSocket, void** buffer);

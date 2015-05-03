@@ -28,6 +28,7 @@ t_log* logger;
 t_config* config;
 t_fileSystem fs;
 
+void iniciar_consola();
 void nuevosNodos();
 void procesar_mensaje_nodo(int i, t_msg* msg);
 void inicializar();
@@ -69,43 +70,65 @@ void agregar_nodo_al_fs(int id_nodo) {
 
 	t_nodo* nodo = fs_buscar_nodo_por_id(&fs, id_nodo);
 	log_info(logger, "El nodo %d fue agregado al fs. %s:%d", id_nodo, nodo->ip, nodo->puerto);
-
 }
+
+
 void iniciar_consola() {
-	int primer_param_int;
-	int segundo_param_int;
-	char* primer_param_char;
-	char* segundo_param_char;
+	int nodo_id;
+	int dir_id;
+	char* archivo_nombre;
+	char* dir_nombre;
+	char* buff  ;
+
 
 	char comando[COMMAND_MAX_SIZE];
-	printf("inicio consola\nIngresar comandos  \n");
+	printf("INICIO CONSOLA\n");
 
 	bool fin = false;
 	while (!fin) {
-		fgets(comando, COMMAND_MAX_SIZE, stdin);
+		printf("INGRESAR COMANDO: ");
 
-		char** input_user = string_split(comando, " ");
+
+		leer_comando_consola(comando);
+
+		char** input_user = separar_por_espacios(comando);
 
 		switch (getComando(input_user[0])) {
+		case ARCHIVO_INFO:
+			archivo_nombre = input_user[1];
+			//primer_param_char =  "/home/utnso/Escritorio/3registros.txt";
+
+			if(file_exists(archivo_nombre))
+				fs_print_archivo(&fs, archivo_nombre);
+			else
+				printf("el archivo no existe: %s", archivo_nombre);
+
+			break;
 		case NODO_AGREGAR:
 			printf("comando ingresado: agregar nodo\n");
-			primer_param_int = atoi(input_user[1]);
+			nodo_id = atoi(input_user[1]);
 
-			agregar_nodo_al_fs(primer_param_int);
+			agregar_nodo_al_fs(nodo_id);
 
 			//
 			break;
 		case ARCHIVO_COPIAR_LOCAL_MDFS:
-			printf("copiar archivo local al fs\n");
+			//printf("copiar archivo local al fs\n");
 
-			//char* archivo_local = input_user[1];
-			char* archivo_local = "/home/utnso/Escritorio/3registros.txt";
+			archivo_nombre = input_user[1];
+
+			//char* archivo_local = "/home/utnso/Escritorio/3registros.txt";
 			//char* archivo_local = "/home/utnso/Escritorio/dos.txt";
 			//segundo_param_int = input_user[2];//es el directorio donde se va copiar
-			segundo_param_int = 0;//directorio raiz
+			dir_id = 0;//directorio raiz
 
-			fs_copiar_archivo_local_al_fs(&fs, archivo_local, segundo_param_int);
 
+			if(file_exists(archivo_nombre))
+				fs_copiar_archivo_local_al_fs(&fs, archivo_nombre, dir_id);
+			else
+				printf("el archvo no existe: %s", archivo_nombre);
+
+			//free_null(archivo_nombre);
 
 
 			printf("archivo copiado y agregado al fs----------------------------\n");
@@ -118,21 +141,19 @@ void iniciar_consola() {
 
 		case NODO_ELIMINAR:
 			//printf("comando ingresado: elimnar nodo\n");
-			primer_param_int = atoi(input_user[1]);
+			nodo_id = atoi(input_user[1]);
 			//elimino el nodo y vuelve a la lista de nodos_no_conectados
-			fs_eliminar_nodo(&fs, primer_param_int);
+			fs_eliminar_nodo(&fs, nodo_id);
 
-			printf("el nodo %d  se ha eliminado del fs. Paso a la lista de nodos no agregados\n", primer_param_int);
+			printf("el nodo %d  se ha eliminado del fs. Paso a la lista de nodos no agregados\n", nodo_id);
 			fs_print_nodos(fs.nodos_no_agregados);
 			break;
 		case DIRECTORIO_CREAR:
-			printf("crear directorio\n");
-
-			primer_param_char = input_user[1];//nombre
+			dir_nombre = input_user[1];//nombre
 			//segundo_param_int = atoi(input_user[2]);//padre
-			segundo_param_int = 0;
+			dir_id = 0;
 
-			dir_crear(fs.directorios, primer_param_char, segundo_param_int);
+			dir_crear(fs.directorios, dir_nombre, dir_id);
 
 			printf("El directorio se creo.\n");
 			break;
@@ -163,10 +184,10 @@ void iniciar_consola() {
 		//free(*input_user);
 		int i=0;
 		while(input_user[i]!=NULL){
-			free(input_user[i]);
+			free_null(input_user[i]);
 			i++;
 		}
-		free(input_user);
+		free_null(input_user);
 	}
 }
 

@@ -618,3 +618,14 @@ char *id_string(t_msg_id id) {
 	return buf;
 }
 
+
+/*
+ *
+ */
+
+float bytes_to_kilobytes(size_t bytes){
+	return bytes / (1024 + 0.0);
+}
+float bytes_to_megabytes(size_t bytes){
+	return bytes / ((1024*1024) + 0.0);
+}

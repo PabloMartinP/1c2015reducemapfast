@@ -34,13 +34,13 @@ void fs_addNodo(t_fileSystem* fs, t_nodo* nodo);
 void fs_print_info(t_fileSystem* fs);
 int fs_cant_bloques(t_fileSystem* fs);
 size_t fs_tamanio_bytes(t_fileSystem* fs);
-int fs_tamanio_megabytes(t_fileSystem* fs);
-int fs_tamanio_libre_megabytes(t_fileSystem* fs);
-int fs_tamanio_usado_megabytes(t_fileSystem* fs);
 int fs_cant_bloques_libres(t_fileSystem* fs);
 int fs_cant_bloques_usados(t_fileSystem* fs);
 int cant_bloques_necesarios(char* archivo);
 char* file_obtener_bloque(char* mapped, int n_bloque);
+
+size_t fs_tamanio_usado_bytes(t_fileSystem* fs);
+size_t fs_tamanio_libre_bytes(t_fileSystem* fs);
 
 int cant_registros(char** registros);
 t_list* fs_importar_archivo(t_fileSystem* fs, char* archivo);
@@ -60,9 +60,27 @@ void fd_leer_dirs(t_list* dirs);
 void fs_formatear(t_fileSystem* fs) ;
 void fd_leer_archivos(t_list* archivo);
 void fs_copiar_archivo_local_al_fs(t_fileSystem* fs, char* archivo, int dir_padre);
+void fs_print_archivo(t_fileSystem* fs, char* nombre);
+t_archivo* fs_buscar_archivo_por_nombre(t_list* fs, char* nombre);
 /*
  * ****************************************************************************************
  */
+t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre){
+	t_archivo* archivo=NULL;
+	bool _buscar_archivo_por_nombre(t_archivo* archivo){
+		return string_equals_ignore_case(archivo->info->nombre, nombre);
+	}
+	archivo = list_find(archivos, (void*)_buscar_archivo_por_nombre);
+	return archivo;
+}
+
+void fs_print_archivo(t_fileSystem* fs, char* nombre){
+	t_archivo* archivo=NULL;
+	archivo = fs_buscar_archivo_por_nombre(fs->archivos, nombre);
+
+	arch_print(archivo);
+
+}
 void fs_formatear(t_fileSystem* fs) {
 //FILE* file1 = fopen(FILE_DIRECTORIO, "w+");
 	dir_formatear();
@@ -395,10 +413,20 @@ int cant_bloques_necesarios(char* archivo) {
 void fs_print_info(t_fileSystem* fs) {
 	printf("INFORMACION ACTUAL DEL FS\n");
 
-	printf("Tamanio : %zd bytes\n", fs_tamanio_bytes(fs));
-	printf("Tamanio : %d MB\n", fs_tamanio_megabytes(fs));
-	printf("Tamanio libre: %d MB\n", fs_tamanio_libre_megabytes(fs));
-	printf("Tamanio usado: %d MB\n", fs_tamanio_usado_megabytes(fs));
+	size_t tam = fs_tamanio_bytes(fs);
+	size_t tam_libre = fs_tamanio_libre_bytes(fs);
+	size_t tam_usado = fs_tamanio_usado_bytes(fs);
+
+	printf("Tamanio : %zd b, %.2f kb, %.2f mb\n", tam, bytes_to_kilobytes(tam), bytes_to_megabytes(tam));
+	//printf("Tamanio : %.2f kb", bytes_to_kilobytes(fs_tamanio_bytes(fs)));
+	//printf("Tamanio : %.2f mb\n", bytes_to_megabytes(fs_tamanio_bytes(fs)));
+	//printf("Tamanio : %.2f mb\n", bytes_to_megabytes(fs_tamanio_bytes(fs)));
+	//printf("Tamanio : %d MB\n", fs_tamanio_megabytes(fs));
+	printf("Tamanio libre: %zd b, %.2f kb, %.2f mb\n", tam_libre, bytes_to_kilobytes(tam_libre), bytes_to_megabytes(tam_libre));
+	printf("Tamanio usado: %zd b, %.2f kb, %.2f mb\n", tam_usado, bytes_to_kilobytes(tam_usado), bytes_to_megabytes(tam_usado));
+
+	//printf("Tamanio libre: %d MB\n", fs_tamanio_libre_megabytes(fs));
+	//printf("Tamanio usado: %d MB\n", fs_tamanio_usado_megabytes(fs));
 
 	printf("Cant Nodos conectados: %d\n", list_size(fs->nodos));
 
@@ -411,14 +439,6 @@ void fs_print_info(t_fileSystem* fs) {
 
 int fs_cant_bloques_usados(t_fileSystem* fs) {
 	return fs_cant_bloques(fs) - fs_cant_bloques_libres(fs);
-}
-
-int fs_tamanio_usado_megabytes(t_fileSystem* fs) {
-	return fs_tamanio_megabytes(fs) - fs_tamanio_libre_megabytes(fs);
-}
-
-int fs_tamanio_libre_megabytes(t_fileSystem* fs) {
-	return fs_cant_bloques_libres(fs) * TAMANIO_BLOQUE_MB;
 }
 
 int cant_bloques_usados(t_fileSystem* fs) {
@@ -456,12 +476,16 @@ int fs_cant_bloques(t_fileSystem* fs) {
 	return size;
 }
 
-size_t fs_tamanio_bytes(t_fileSystem* fs) {
-	return fs_cant_bloques(fs) * TAMANIO_BLOQUE_B;
+size_t fs_tamanio_usado_bytes(t_fileSystem* fs){
+	return fs_cant_bloques_usados(fs) * TAMANIO_BLOQUE_B;
 }
 
-int fs_tamanio_megabytes(t_fileSystem* fs) {
-	return (fs_cant_bloques(fs) * TAMANIO_BLOQUE_B) / (MB_EN_B);
+size_t fs_tamanio_libre_bytes(t_fileSystem* fs){
+	return fs_cant_bloques_libres(fs) * TAMANIO_BLOQUE_B;
+}
+
+size_t fs_tamanio_bytes(t_fileSystem* fs) {
+	return fs_cant_bloques(fs) * TAMANIO_BLOQUE_B;
 }
 
 void fs_create(t_fileSystem* fs) {
@@ -482,8 +506,6 @@ void fd_leer_archivos(t_list* archivos){
 	t_bloque_de_datos*  bloque_de_datos;
 	t_archivo_info* info;
 	t_nodo_bloque* nodo_bloque;
-	size_t size_nodo_bloque = sizeof(t_nodo_bloque);
-	size_t size_bloque_datos = bloque_de_datos_size();
 	size_t offset=0;
 
 	char* mapFile = file_get_mapped(FILE_ARCHIVO);
@@ -524,9 +546,9 @@ void fd_leer_archivos(t_list* archivos){
 				//copio el nodo_bloque del archivo mappeado
 				//memcpy(nodo_bloque, mapBloques +(k*size_nodo_bloque+ (j*BLOQUE_CANT_COPIAS*size_nodo_bloque)) , size_nodo_bloque);
 
-				memcpy(nodo_bloque, mapBloques + offset , size_nodo_bloque);
+				memcpy(nodo_bloque, mapBloques + offset , sizeof(t_nodo_bloque));
 
-				offset+=size_nodo_bloque;
+				offset+=sizeof(t_nodo_bloque);
 
 				//agrego la copia k
 				list_add(bloque_de_datos->nodosbloque, (t_nodo_bloque*)nodo_bloque);

@@ -24,7 +24,7 @@ typedef struct { //estructura que tiene las tres copias del bloque
 
 typedef struct {
 	char nombre[128];
-	long int tamanio;
+	size_t tamanio;
 	int directorio;
 	bool estado;
 	int cant_bloques;
@@ -35,25 +35,51 @@ typedef struct {
 	t_list* bloques_de_datos; //aca guardo el nodo y el bloque a donde estan guardados los datos
 } t_archivo;
 
-size_t bloque_de_datos_size();
 void arch_agregar(t_archivo* archivo);
 t_bloque_de_datos* bloque_de_datos_create();
 t_archivo_info* arch_get_info(char* nombre, int dir_padre) ;
 void arch_formatear();
 t_archivo* arch_crear();
+void arch_print(t_archivo* archivo);
+void arch_print_info(t_archivo_info* info);
+void arch_print_bloques(t_list* bloques_de_datos);
 
 /*
  *********************************************************************
  */
 
-/*
- * devuelo el espacio del n_bloque mas tres veces el espacio de un nodo_bloque
- */
-size_t bloque_de_datos_size(){
-	t_bloque_de_datos* new = malloc(sizeof *new);
-	//return ( sizeof(t_nodo_bloque)* BLOQUE_CANT_COPIAS) + sizeof(new->n_bloque);
-	return ( sizeof(t_nodo_bloque)* 3) + sizeof(new->n_bloque);
+void arch_print(t_archivo* archivo){
+	arch_print_info(archivo->info);
+	arch_print_bloques(archivo->bloques_de_datos);
 }
+
+void arch_print_bloques(t_list* bloques_de_datos){
+
+	void print_bloque_datos(t_bloque_de_datos* bloque_datos){
+		printf(">> >> Bloque Nro: %d\n", bloque_datos->n_bloque);
+
+		int i=1;
+		void print_nodo_bloque(t_nodo_bloque* nodo_bloque){
+			printf(" >> >> >> Copia %d: nodo_id: %d, bloque-nro: %d\n", i, nodo_bloque->nodo_id, nodo_bloque->n_bloque);
+			i++;
+		}
+
+		list_iterate(bloque_datos->nodosbloque, (void*)print_nodo_bloque);
+	}
+
+	list_iterate(bloques_de_datos, (void*)print_bloque_datos);
+}
+
+void arch_print_info(t_archivo_info* info){
+	printf("Info del archivo '%s'\n", info->nombre);
+
+	printf("Tamanio : %zd b, %.2f kb, %.2f mb\n", info->tamanio, bytes_to_kilobytes(info->tamanio), bytes_to_megabytes(info->tamanio));
+
+	printf(">> Directorio padre: %d\n", info->directorio);
+	printf(">> Estado: %d\n", info->estado);
+	printf(">> Cantdidad de bloques: %d\n", info->cant_bloques);
+}
+
 
 t_archivo* arch_crear(){
 	t_archivo* new = malloc(sizeof *new);
@@ -69,7 +95,7 @@ void arch_formatear(){
 t_archivo_info* arch_get_info(char* nombre, int dir_padre) {
 	t_archivo_info* new = malloc(sizeof *new);
 	new->estado = true;
-	memset(new->nombre, ' ', 128);
+	memset(new->nombre, ' ', 128);//aca hay que guardar solo el nombre, no el path completo
 	strcpy(new->nombre, nombre);
 	new->tamanio = file_get_size(nombre);
 	new->directorio = dir_padre;

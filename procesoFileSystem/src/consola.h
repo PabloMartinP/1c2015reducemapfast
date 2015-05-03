@@ -33,7 +33,8 @@ typedef enum {
 	DIRECTORIO_ELIMINAR,
 	DIRECTORIO_MOVER,
 	DIRECTORIO_LISTAR,
-	ARCHIVO_COPIAR_LOCAL_MDFS,
+	ARCHIVO_COPIAR_LOCAL_A_MDFS,
+	ARCHIVO_COPIAR_MDFS_A_LOCAL,
 	COPIAR_RENOMBRAR,
 	ARCHIVO_ELIMINAR,
 	ARCHIVO_INFO,
@@ -67,11 +68,13 @@ e_comando getComando(char* comando) {
 	if (string_starts_with(comando, "info"))
 		return FS_INFO;
 	if (string_starts_with(comando, "copy"))
-		return ARCHIVO_COPIAR_LOCAL_MDFS;
+		return ARCHIVO_COPIAR_LOCAL_A_MDFS;
 	if (string_starts_with(comando, "lsdir"))
 		return DIRECTORIO_LISTAR;
 	if (string_starts_with(comando, "fileinfo"))
 		return ARCHIVO_INFO;
+	if (string_starts_with(comando, "lsfile"))
+		return ARCHIVO_LISTAR;
 
 	return NADA;
 }

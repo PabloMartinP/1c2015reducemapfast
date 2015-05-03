@@ -60,23 +60,49 @@ void fd_leer_dirs(t_list* dirs);
 void fs_formatear(t_fileSystem* fs) ;
 void fd_leer_archivos(t_list* archivo);
 void fs_copiar_archivo_local_al_fs(t_fileSystem* fs, char* archivo, int dir_padre);
-void fs_print_archivo(t_fileSystem* fs, char* nombre);
-t_archivo* fs_buscar_archivo_por_nombre(t_list* fs, char* nombre);
+void fs_print_archivo(t_fileSystem* fs, char* nombre, int dir_id);
+t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre, int dir_id);
+bool fs_existe_archivo(t_fileSystem* fs, char* nombre, int dir_id);
+void fs_exportar_a_fs_local(t_fileSystem* fs, char* nombre);
+bool fs_existe_dir(t_fileSystem* fs, int dir_id);
+void fs_print_archivos(t_fileSystem* fs);
 /*
  * ****************************************************************************************
  */
-t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre){
+
+void fs_print_archivos(t_fileSystem* fs){
+	printf("IMPRIMIR ARCHIVOS DEL FS ***********************\n");
+	printf("CANTIDAD DE ARCHIVOS EN EL FS: %d\n", list_size(fs->archivos));
+	printf("********************************************\n");
+
+	list_iterate(fs->archivos, (void*)arch_print);
+	printf("FIN ARCHIVOS DEL FS ***********************\n");
+}
+
+bool fs_existe_dir(t_fileSystem* fs, int dir_id){
+	return dir_buscar_por_id(fs->directorios, dir_id)!=NULL;
+}
+void fs_exportar_a_fs_local(t_fileSystem* fs, char* nombre){
+	//tengo que leer donde esta cada bloque y juntar cada uno para generar un archivo
+	//t_archivo* archivo = fs_buscar_archivo_por_nombre(nombre);
+}
+
+bool fs_existe_archivo(t_fileSystem* fs, char* nombre, int dir_id){
+	return fs_buscar_archivo_por_nombre(fs->archivos, nombre, dir_id) !=NULL;
+}
+
+t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre, int dir_id){
 	t_archivo* archivo=NULL;
 	bool _buscar_archivo_por_nombre(t_archivo* archivo){
-		return string_equals_ignore_case(archivo->info->nombre, nombre);
+		return string_equals_ignore_case(archivo->info->nombre, nombre) && archivo->info->directorio == dir_id;
 	}
 	archivo = list_find(archivos, (void*)_buscar_archivo_por_nombre);
 	return archivo;
 }
 
-void fs_print_archivo(t_fileSystem* fs, char* nombre){
+void fs_print_archivo(t_fileSystem* fs, char* nombre, int dir_id){
 	t_archivo* archivo=NULL;
-	archivo = fs_buscar_archivo_por_nombre(fs->archivos, nombre);
+	archivo = fs_buscar_archivo_por_nombre(fs->archivos, nombre, dir_id);
 
 	arch_print(archivo);
 
@@ -97,6 +123,7 @@ void fs_formatear(t_fileSystem* fs) {
 
 void fs_print_dirs(t_fileSystem* fs) {
 	printf("LISTA DE DIRECTORIOS\n");
+
 
 	list_iterate(fs->directorios, (void*) dir_print);
 
@@ -158,6 +185,9 @@ void fs_eliminar_nodo(t_fileSystem* fs, int id_nodo) {
 }
 
 void fs_copiar_archivo_local_al_fs(t_fileSystem* fs, char* nombre, int dir_padre) {
+
+
+
 	t_list* bloques_de_dato = NULL;
 	//obtengo los bloques y donde esta guardado cada copia
 	bloques_de_dato = fs_importar_archivo(fs, nombre);
@@ -176,6 +206,8 @@ void fs_copiar_archivo_local_al_fs(t_fileSystem* fs, char* nombre, int dir_padre
 
 	//finalmente agrego el archivo a la lista de archivos   DESPUES DE TANTO !!!!!!!!!!!
 	list_add(fs->archivos, archivo);
+
+	printf("el archivo se agrego con id: %d\n", archivo->info->id);
 }
 
 /*
@@ -429,6 +461,7 @@ void fs_print_info(t_fileSystem* fs) {
 	//printf("Tamanio usado: %d MB\n", fs_tamanio_usado_megabytes(fs));
 
 	printf("Cant Nodos conectados: %d\n", list_size(fs->nodos));
+	printf("Cant Nodos no agregados: %d\n", list_size(fs->nodos_no_agregados));
 
 	printf("Cant bloques: %d\n", fs_cant_bloques(fs));
 	printf("Cant bloques libres: %d\n", fs_cant_bloques_libres(fs));

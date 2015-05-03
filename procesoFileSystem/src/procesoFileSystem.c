@@ -7,7 +7,7 @@
  Description : Hello World in C, Ansi-style
  ============================================================================
  */
-
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <commons/log.h>
@@ -78,7 +78,7 @@ void iniciar_consola() {
 	int dir_id;
 	char* archivo_nombre;
 	char* dir_nombre;
-	char* buff  ;
+	//char* buff  ;
 
 
 	char comando[COMMAND_MAX_SIZE];
@@ -88,18 +88,26 @@ void iniciar_consola() {
 	while (!fin) {
 		printf("INGRESAR COMANDO: ");
 
-
 		leer_comando_consola(comando);
 
+		//separo todo en espacios ej: [copiar, archivo1, directorio0]
 		char** input_user = separar_por_espacios(comando);
 
 		switch (getComando(input_user[0])) {
-		case ARCHIVO_INFO:
+		case ARCHIVO_LISTAR:
+			fs_print_archivos(&fs);
+			break;
+		case ARCHIVO_INFO://info
+			//ej:fileinfo
 			archivo_nombre = input_user[1];
+			dir_id = atoi(input_user[2]);
+			//dir_id = 0;
 			//primer_param_char =  "/home/utnso/Escritorio/3registros.txt";
 
-			if(file_exists(archivo_nombre))
-				fs_print_archivo(&fs, archivo_nombre);
+			//printf("%s", basename(archivo_nombre));
+
+			if(fs_existe_archivo(&fs, archivo_nombre, dir_id))
+				fs_print_archivo(&fs, archivo_nombre, dir_id);
 			else
 				printf("el archivo no existe: %s", archivo_nombre);
 
@@ -110,30 +118,57 @@ void iniciar_consola() {
 
 			agregar_nodo_al_fs(nodo_id);
 
-			//
 			break;
-		case ARCHIVO_COPIAR_LOCAL_MDFS:
-			//printf("copiar archivo local al fs\n");
+
+		case ARCHIVO_COPIAR_MDFS_A_LOCAL:
+			//archivo_nombre = input_user[1];
+			archivo_nombre = input_user[1];
+			archivo_nombre = "/home/utnso/Escritorio/3registros.txt";
+			dir_id = atoi(input_user[2]);
+
+			if(fs_existe_archivo(&fs, archivo_nombre, dir_id)){
+				fs_exportar_a_fs_local(&fs, archivo_nombre);
+			}
+			else
+				printf("EL archivo no existe en el mdfs: %s\n", archivo_nombre);
+
+			break;
+		case ARCHIVO_COPIAR_LOCAL_A_MDFS:
+			//ejemplo: copy /home/utnso/Escritorio/uno.txt 1
+			//donde 1 es un directorio existente en el fs, 0 es el raiz
+
 
 			archivo_nombre = input_user[1];
 
 			//char* archivo_local = "/home/utnso/Escritorio/3registros.txt";
 			//char* archivo_local = "/home/utnso/Escritorio/dos.txt";
 			//segundo_param_int = input_user[2];//es el directorio donde se va copiar
-			dir_id = 0;//directorio raiz
+			//dir_id = 0;//directorio raiz
+			dir_id = atoi(input_user[2]);
+
+			if(file_exists(archivo_nombre)){
+				//verifico que exista en archivo en el fs y dentro de la carpeta
+				if(!fs_existe_archivo(&fs, archivo_nombre, dir_id)){
+					fs_copiar_archivo_local_al_fs(&fs, archivo_nombre, dir_id);
+					printf("archivo copiado y agregado al fs----------------------------\n");
+				}
+				else{
+					printf("el archivo [%s] con dir:%d YA EXISTE en el mdfs. lsfiles para ver los archivos \n", archivo_nombre, dir_id);
+				}
 
 
-			if(file_exists(archivo_nombre))
-				fs_copiar_archivo_local_al_fs(&fs, archivo_nombre, dir_id);
+
+
+			}
 			else
 				printf("el archvo no existe: %s", archivo_nombre);
 
 			//free_null(archivo_nombre);
 
 
-			printf("archivo copiado y agregado al fs----------------------------\n");
+
 			break;
-		case NODO_LISTAR_NO_AGREGADOS:
+		case NODO_LISTAR_NO_AGREGADOS://lsnodop
 			//printf("listar nodos no agregados al fs, falta hacerle un addNodo\n");
 			fs_print_nodos(fs.nodos_no_agregados);
 
@@ -148,28 +183,33 @@ void iniciar_consola() {
 			printf("el nodo %d  se ha eliminado del fs. Paso a la lista de nodos no agregados\n", nodo_id);
 			fs_print_nodos(fs.nodos_no_agregados);
 			break;
-		case DIRECTORIO_CREAR:
+		case DIRECTORIO_CREAR://ej: mkdir carpetauno 0
 			dir_nombre = input_user[1];//nombre
 			//segundo_param_int = atoi(input_user[2]);//padre
-			dir_id = 0;
+			dir_id = atoi(input_user[2]);//el padre
 
-			dir_crear(fs.directorios, dir_nombre, dir_id);
+			if(!fs_existe_dir(&fs, dir_id)){
+				dir_crear(fs.directorios, dir_nombre, dir_id);
+				printf("El directorio se creo.\n");
+			}
+			else
+				printf("el directorio ya existe. lsdir para ver los dirs creados\n");
 
-			printf("El directorio se creo.\n");
+
 			break;
-		case DIRECTORIO_LISTAR:
+		case DIRECTORIO_LISTAR://lsdir
 			fs_print_dirs(&fs);
 
 			break;
-		case FORMATEAR:
+		case FORMATEAR://format
 			fs_formatear(&fs);
 			break;
-		case FS_INFO:
+		case FS_INFO://info
 			//printf("Mostrar info actual del fs del fileSystem\n");
 			fs_print_info(&fs);
 
 			break;
-		case SALIR:
+		case SALIR://salir
 			printf("comando ingresado: salir\n");
 
 			fs_desconectarse(&fs);

@@ -23,6 +23,7 @@ typedef struct { //estructura que tiene las tres copias del bloque
 } t_bloque_de_datos;
 
 typedef struct {
+	int id;
 	char nombre[128];
 	size_t tamanio;
 	int directorio;
@@ -72,8 +73,8 @@ void arch_print_bloques(t_list* bloques_de_datos){
 
 void arch_print_info(t_archivo_info* info){
 	printf("Info del archivo '%s'\n", info->nombre);
-
-	printf("Tamanio : %zd b, %.2f kb, %.2f mb\n", info->tamanio, bytes_to_kilobytes(info->tamanio), bytes_to_megabytes(info->tamanio));
+	printf(">> id: %d\n", info->id);
+	printf(">> Tamanio : %zd b, %.2f kb, %.2f mb\n", info->tamanio, bytes_to_kilobytes(info->tamanio), bytes_to_megabytes(info->tamanio));
 
 	printf(">> Directorio padre: %d\n", info->directorio);
 	printf(">> Estado: %d\n", info->estado);
@@ -92,16 +93,26 @@ void arch_formatear(){
 	clean_file(FILE_ARCHIVO);
 	clean_file(FILE_ARCHIVO_BLOQUES);//aca es donde guardo la info de los bloques de cada archivo
 }
+
+
+//devuelvo un id nuevo, empezando por 0
+int arch_get_new_id(){
+	//size_t size = file_get_size(FILE_ARCHIVO);
+	return file_get_size(FILE_ARCHIVO)/ sizeof(t_archivo_info);
+}
 t_archivo_info* arch_get_info(char* nombre, int dir_padre) {
 	t_archivo_info* new = malloc(sizeof *new);
+	//el id es siempre incremental
+	new->id = arch_get_new_id();
 	new->estado = true;
+	strcpy(new->nombre, basename(nombre));
 	memset(new->nombre, ' ', 128);//aca hay que guardar solo el nombre, no el path completo
-	strcpy(new->nombre, nombre);
+	strcpy(new->nombre, basename(nombre));
+	//strcpy(new->nombre, nombre);
 	new->tamanio = file_get_size(nombre);
 	new->directorio = dir_padre;
 
 	return new;
-
 }
 
 void arch_agregar(t_archivo* archivo) {

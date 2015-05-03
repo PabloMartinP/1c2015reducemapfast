@@ -25,6 +25,17 @@ void dir_print(t_directorio* dir);
 uint16_t dir_obtenerUltimoIndex() ;
 void dir_crear(t_list* dirs, char* nombre, uint16_t padre);
 void dir_formatear();
+t_directorio* dir_buscar_por_id(t_list* dirs, int id);
+/*
+ * *********************************************************
+ */
+
+t_directorio* dir_buscar_por_id(t_list* dirs, int id){
+	bool _dir_buscar_por_id(t_directorio* dir){
+		return dir->index == id;
+	}
+	return list_find(dirs, (void*)_dir_buscar_por_id);
+}
 
 /*
  * obtengo un indice libre, si no entran mas devuelve -1;

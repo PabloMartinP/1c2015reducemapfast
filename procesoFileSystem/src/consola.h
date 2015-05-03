@@ -18,7 +18,7 @@
 const int COMMAND_MAX_SIZE = 256;
 
 
-char* FILE_ARCHIVO = "archivos.txt";
+char* FILE_ARCHIVO = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/archivos.txt";
 
 typedef enum {
 	NODO_AGREGAR,
@@ -41,17 +41,10 @@ typedef enum {
 	FS_INFO
 } e_comando;
 
-typedef struct {
-	char nombre[128];
-	long int tamanio;
-	int directorio;
-	bool estado;
-//falta la lista de nodos
-} t_archivo;
 
 e_comando getComando(char* input_user);
 
-void fs_formatear();
+
 void iniciar_consola();
 /*
  *

@@ -12,6 +12,7 @@
 
 #include "nodo.h"
 #include "directorios.h"
+#include "archivos.h"
 
 typedef struct {
 	t_nodo* nodo;
@@ -23,6 +24,7 @@ typedef struct {
 	t_list* nodos;
 	t_list* nodos_no_agregados; //son los nodos conectados pero no agregados al fs
 	t_list* directorios;
+	t_list* archivos;
 
 } t_fileSystem;
 
@@ -41,13 +43,12 @@ int fs_tamanio_libre_megabytes(t_fileSystem* fs);
 int fs_tamanio_usado_megabytes(t_fileSystem* fs);
 int fs_cant_bloques_libres(t_fileSystem* fs);
 int fs_cant_bloques_usados(t_fileSystem* fs);
-void fs_importar_archivo(t_fileSystem* fs, char* archivo);
 int cant_bloques_necesarios(char* archivo);
 char* file_obtener_bloque(char* mapped, int n_bloque);
 
 int cant_registros(char** registros);
-void fs_importar_archivo(t_fileSystem* fs, char* archivo);
-void guardar_bloque(t_fileSystem* fs, char* bloque_origen, size_t offset);
+t_list* fs_importar_archivo(t_fileSystem* fs, char* archivo);
+t_bloque_de_datos* guardar_bloque(t_fileSystem* fs, char* bloque_origen, size_t offset);
 void fs_guardar_bloque(t_nodo_bloque* nb, char* bloque, size_t tamanio_real);
 t_nodo_bloque** fs_get_tres_nodo_bloque_libres(t_fileSystem* fs);
 bool ordenar_por_mayor_cant_bloques_libres(t_nodo* uno, t_nodo* dos);
@@ -61,6 +62,8 @@ void fs_enviar_mensaje_desconexion(t_list* nodos);
 void fs_print_dirs(t_fileSystem* fs);
 void fd_leer_dirs(t_list* dirs);
 void fs_formatear(t_fileSystem* fs) ;
+void fd_leer_archivos(t_list* archivo);
+void fs_copiar_archivo_local_al_fs(t_fileSystem* fs, char* archivo, int dir_padre);
 /*
  * ****************************************************************************************
  */
@@ -111,15 +114,13 @@ void fs_agregar_nodo(t_fileSystem* fs, int id_nodo) {
 	}
 	//busco el nodo
 	t_nodo* nodo;
-	if ((nodo = list_find(fs->nodos_no_agregados,
-			(void*) buscar_nodo_nuevo_por_id)) == NULL) {
+	if ((nodo = list_find(fs->nodos_no_agregados,(void*) buscar_nodo_nuevo_por_id)) == NULL) {
 		printf("El nodo ingresado no existe: %d\n", id_nodo);
 		return;
 	}
 
 	//loborro de la lista de nodos nuevos
-	list_remove_by_condition(fs->nodos_no_agregados,
-			(void*) buscar_nodo_nuevo_por_id);
+	list_remove_by_condition(fs->nodos_no_agregados,(void*) buscar_nodo_nuevo_por_id);
 
 	//lo paso a la lista de nodos activos del fs
 	list_add(fs->nodos, nodo);
@@ -141,7 +142,32 @@ void fs_eliminar_nodo(t_fileSystem* fs, int id_nodo) {
 	list_add(fs->nodos_no_agregados, (void*) nodo);
 }
 
-void fs_importar_archivo(t_fileSystem* fs, char* archivo) {
+void fs_copiar_archivo_local_al_fs(t_fileSystem* fs, char* nombre, int dir_padre) {
+	t_list* bloques_de_dato = NULL;
+	//obtengo los bloques y donde esta guardado cada copia
+	bloques_de_dato = fs_importar_archivo(fs, nombre);
+
+	//obtengo info del archivo
+	t_archivo_info* info = arch_get_info(nombre, dir_padre);
+
+	//creo el archivo
+	t_archivo* archivo = malloc(sizeof *archivo);
+	archivo->bloques_de_datos = bloques_de_dato;
+	archivo->info = info;
+
+	//lo agrego al fs
+	arch_agregar(fs->archivos, archivo);
+}
+
+/*
+ * devuelvo una lista de los t_bloque_de_datos del archivo
+ */
+t_list* fs_importar_archivo(t_fileSystem* fs, char* archivo) {
+
+	t_list* new = list_create();
+
+
+	t_bloque_de_datos* bd =NULL;
 
 	size_t size = file_get_size(archivo);
 	printf("tamaño total en byes: %zd\n", size);
@@ -151,6 +177,7 @@ void fs_importar_archivo(t_fileSystem* fs, char* archivo) {
 
 	char* mapped = file_get_mapped(archivo);
 
+	int nro_bloque = 0;
 	//spliteo por enter
 	char** registros = string_split(mapped, "\n");
 	int c_registros = cant_registros(registros);
@@ -165,25 +192,40 @@ void fs_importar_archivo(t_fileSystem* fs, char* archivo) {
 			bytes_leidos += strlen(registros[i]) + 1;
 		} else {
 			//si supera el tamaño de bloque grabo
-			guardar_bloque(fs, mapped + offset, bytes_leidos);
+
+			bd = guardar_bloque(fs, mapped + offset, bytes_leidos);
+			bd->numero = nro_bloque;
+			nro_bloque++;
+			list_add(new, bd);
+
 			offset = bytes_leidos;
 			bytes_leidos = 0;
 		}
 	}
 	//me fijo si quedo algo sin grabar en el bloque
 	if (bytes_leidos > 0) {
-		guardar_bloque(fs, mapped + offset, bytes_leidos);
+		bd = guardar_bloque(fs, mapped + offset, bytes_leidos);
+		//setteo el nro de bloque
+		bd->numero = nro_bloque;
+		nro_bloque++;
+		//agrego el bloquededatos a la lista
+		list_add(new, bd);
+
 	}
 
 	file_mmap_free(mapped, archivo);
+
+	return new;
 }
+
+
 void bloque_marcar_como_usado(t_bloque* bloque) {
 	bloque->libre = false;
 	bloque->requerido_para_copia = true;
 }
 
-void guardar_bloque(t_fileSystem* fs, char* bloque_origen,
-		size_t bytes_a_copiar) {
+t_bloque_de_datos* guardar_bloque(t_fileSystem* fs, char* bloque_origen, size_t bytes_a_copiar) {
+	t_bloque_de_datos* new = bloque_de_datos_create();
 
 	int i;
 	t_bloque* bloque_usado;
@@ -204,15 +246,18 @@ void guardar_bloque(t_fileSystem* fs, char* bloque_origen,
 		bloque_usado = list_find(nb[i]->nodo->bloques, (void*) buscar_bloque);
 		bloque_marcar_como_usado(bloque_usado);
 
-		printf("nodo %d bloque %d marcado como usado\n",
-				nb[i]->nodo->identificador, nb[i]->n_bloque);
+		printf("nodo %d bloque %d marcado como usado\n", nb[i]->nodo->identificador, nb[i]->n_bloque);
 
-		free_null(nb[i]);
+		//agrego el bloquenodo a la lista, al final del for quedaria con las tres copias y faltaria settear el nro_bloque
+		list_add(new->nodosbloque, (void*)nb[i]);
+		//free_null(nb[i]);
 	}
 	//free(nb)
 	//hacer free de lam matriz
 
 	free_null(bloque);
+
+	return new;
 }
 
 void fs_guardar_bloque(t_nodo_bloque* nb, char* bloque, size_t tamanio_real) {
@@ -418,9 +463,30 @@ void fs_create(t_fileSystem* fs) {
 	fs->nodos_no_agregados = list_create();
 
 	fs->directorios  = list_create();
+	fs->archivos = list_create();
 
 	if(file_exists(FILE_DIRECTORIO))
 		fd_leer_dirs(fs->directorios);
+
+	if(file_exists(FILE_ARCHIVO) && file_get_size(FILE_ARCHIVO)>0)
+		fd_leer_archivos(fs->archivos);
+}
+void fd_leer_archivos(t_list* archivo){
+	char* map = file_get_mapped(FILE_ARCHIVO);
+	int cant_reg = file_get_size(FILE_ARCHIVO) / sizeof(t_archivo_info);
+
+	t_archivo_info* info;
+
+	int i;
+	for (i = 0; i < cant_reg; i++) {
+		info = malloc(sizeof *info);
+
+
+		memcpy(info, map+(i*sizeof(t_archivo_info)), sizeof(t_archivo_info));
+	}
+
+
+	file_mmap_free(map, FILE_ARCHIVO);
 }
 
 void fd_leer_dirs(t_list* dirs) {
@@ -445,6 +511,7 @@ void fs_destroy(t_fileSystem* fs) {
 	list_destroy_and_destroy_elements(fs->nodos_no_agregados,
 			(void*) nodo_destroy);
 	list_destroy(fs->directorios);
+	list_destroy(fs->archivos);
 }
 
 #endif /* FILESYSTEM_H_ */

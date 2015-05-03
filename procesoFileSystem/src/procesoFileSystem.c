@@ -101,9 +101,12 @@ void iniciar_consola() {
 			//char* archivo_local = input_user[1];
 			char* archivo_local = "/home/utnso/Escritorio/3registros.txt";
 			//char* archivo_local = "/home/utnso/Escritorio/dos.txt";
+			//segundo_param_int = input_user[2];//es el directorio donde se va copiar
+			segundo_param_int = 0;//directorio raiz
+
+			fs_copiar_archivo_local_al_fs(&fs, archivo_local, segundo_param_int);
 
 
-			fs_importar_archivo(&fs, archivo_local);
 
 			printf("archivo copiado----------------------------\n");
 			break;
@@ -164,8 +167,6 @@ void iniciar_consola() {
 			i++;
 		}
 		free(input_user);
-
-
 	}
 }
 

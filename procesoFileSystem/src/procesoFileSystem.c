@@ -75,6 +75,7 @@ void agregar_nodo_al_fs(int id_nodo) {
 
 void iniciar_consola() {
 	int nodo_id;
+	//int archivo_id;
 	int dir_id;
 	char* archivo_nombre;
 	char* dir_nombre;
@@ -86,7 +87,7 @@ void iniciar_consola() {
 
 	bool fin = false;
 	while (!fin) {
-		printf("INGRESAR COMANDO: ");
+		printf("\nINGRESAR COMANDO: ");
 
 		leer_comando_consola(comando);
 
@@ -94,7 +95,7 @@ void iniciar_consola() {
 		char** input_user = separar_por_espacios(comando);
 
 		switch (getComando(input_user[0])) {
-		case ARCHIVO_LISTAR:
+		case ARCHIVO_LISTAR://lsfile
 			fs_print_archivos(&fs);
 			break;
 		case ARCHIVO_INFO://info
@@ -102,17 +103,14 @@ void iniciar_consola() {
 			archivo_nombre = input_user[1];
 			dir_id = atoi(input_user[2]);
 			//dir_id = 0;
-			//primer_param_char =  "/home/utnso/Escritorio/3registros.txt";
-
-			//printf("%s", basename(archivo_nombre));
 
 			if(fs_existe_archivo(&fs, archivo_nombre, dir_id))
 				fs_print_archivo(&fs, archivo_nombre, dir_id);
 			else
-				printf("el archivo no existe: %s", archivo_nombre);
+				printf("el archivo no existe: %s\n", archivo_nombre);
 
 			break;
-		case NODO_AGREGAR:
+		case NODO_AGREGAR://addnodo 1
 			printf("comando ingresado: agregar nodo\n");
 			nodo_id = atoi(input_user[1]);
 
@@ -121,13 +119,15 @@ void iniciar_consola() {
 			break;
 
 		case ARCHIVO_COPIAR_MDFS_A_LOCAL:
-			//archivo_nombre = input_user[1];
-			archivo_nombre = input_user[1];
-			archivo_nombre = "/home/utnso/Escritorio/3registros.txt";
+			//ej: copytolocal 3registros.txt 0 /home/utnso/Escritorio/
+			archivo_nombre =input_user[1];
+			//archivo_nombre = "/home/utnso/Escritorio/3registros.txt";
 			dir_id = atoi(input_user[2]);
+			dir_nombre = input_user[3];
 
+			//verifico que exista el archivo en el mdfs
 			if(fs_existe_archivo(&fs, archivo_nombre, dir_id)){
-				fs_exportar_a_fs_local(&fs, archivo_nombre);
+				fs_copiar_mdfs_a_local(&fs, archivo_nombre, dir_id);
 			}
 			else
 				printf("EL archivo no existe en el mdfs: %s\n", archivo_nombre);
@@ -137,12 +137,8 @@ void iniciar_consola() {
 			//ejemplo: copy /home/utnso/Escritorio/uno.txt 1
 			//donde 1 es un directorio existente en el fs, 0 es el raiz
 
-
 			archivo_nombre = input_user[1];
 
-			//char* archivo_local = "/home/utnso/Escritorio/3registros.txt";
-			//char* archivo_local = "/home/utnso/Escritorio/dos.txt";
-			//segundo_param_int = input_user[2];//es el directorio donde se va copiar
 			//dir_id = 0;//directorio raiz
 			dir_id = atoi(input_user[2]);
 
@@ -155,17 +151,9 @@ void iniciar_consola() {
 				else{
 					printf("el archivo [%s] con dir:%d YA EXISTE en el mdfs. lsfiles para ver los archivos \n", archivo_nombre, dir_id);
 				}
-
-
-
-
 			}
 			else
-				printf("el archvo no existe: %s", archivo_nombre);
-
-			//free_null(archivo_nombre);
-
-
+				printf("el archvo no existe: %s\n", archivo_nombre);
 
 			break;
 		case NODO_LISTAR_NO_AGREGADOS://lsnodop

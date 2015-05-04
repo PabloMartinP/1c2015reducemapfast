@@ -53,27 +53,29 @@ e_comando getComando(char* input_user);
 
 e_comando getComando(char* comando) {
 
-	if (string_starts_with(comando, "addnodo"))
+	if (string_equals_ignore_case(comando, "addnodo"))
 		return NODO_AGREGAR;
-	if (string_starts_with(comando, "delnodo"))
+	if (string_equals_ignore_case(comando, "delnodo"))
 		return NODO_ELIMINAR;
-	if (string_starts_with(comando, "mkdir"))
+	if (string_equals_ignore_case(comando, "mkdir"))
 		return DIRECTORIO_CREAR;
-	if (string_starts_with(comando, "format"))
+	if (string_equals_ignore_case(comando, "format"))
 		return FORMATEAR;
-	if (string_starts_with(comando, "exit"))
+	if (string_equals_ignore_case(comando, "exit"))
 		return SALIR;
-	if (string_starts_with(comando, "lsnodop"))
+	if (string_equals_ignore_case(comando, "lsnodop"))
 		return NODO_LISTAR_NO_AGREGADOS;
-	if (string_starts_with(comando, "info"))
+	if (string_equals_ignore_case(comando, "info"))
 		return FS_INFO;
-	if (string_starts_with(comando, "copy"))
+	if (string_equals_ignore_case(comando, "copy"))
 		return ARCHIVO_COPIAR_LOCAL_A_MDFS;
-	if (string_starts_with(comando, "lsdir"))
+	if (string_equals_ignore_case(comando, "copytolocal"))
+		return ARCHIVO_COPIAR_MDFS_A_LOCAL;
+	if (string_equals_ignore_case(comando, "lsdir"))
 		return DIRECTORIO_LISTAR;
-	if (string_starts_with(comando, "fileinfo"))
+	if (string_equals_ignore_case(comando, "fileinfo"))
 		return ARCHIVO_INFO;
-	if (string_starts_with(comando, "lsfile"))
+	if (string_equals_ignore_case(comando, "lsfile"))
 		return ARCHIVO_LISTAR;
 
 	return NADA;

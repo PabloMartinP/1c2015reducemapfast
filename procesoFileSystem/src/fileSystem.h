@@ -63,15 +63,16 @@ void fs_copiar_archivo_local_al_fs(t_fileSystem* fs, char* archivo, int dir_padr
 void fs_print_archivo(t_fileSystem* fs, char* nombre, int dir_id);
 t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre, int dir_id);
 bool fs_existe_archivo(t_fileSystem* fs, char* nombre, int dir_id);
-void fs_exportar_a_fs_local(t_fileSystem* fs, char* nombre);
+void fs_copiar_mdfs_a_local(t_fileSystem* fs, char* nombre, int dir_id);
 bool fs_existe_dir(t_fileSystem* fs, int dir_id);
 void fs_print_archivos(t_fileSystem* fs);
+char* bloque_de_datos_traer_data(t_list* nodosBloque);
 /*
  * ****************************************************************************************
  */
 
 void fs_print_archivos(t_fileSystem* fs){
-	printf("IMPRIMIR ARCHIVOS DEL FS ***********************\n");
+	printf("IMPRIMIR ARCHIVOS DEL FS \n");
 	printf("CANTIDAD DE ARCHIVOS EN EL FS: %d\n", list_size(fs->archivos));
 	printf("********************************************\n");
 
@@ -82,9 +83,45 @@ void fs_print_archivos(t_fileSystem* fs){
 bool fs_existe_dir(t_fileSystem* fs, int dir_id){
 	return dir_buscar_por_id(fs->directorios, dir_id)!=NULL;
 }
-void fs_exportar_a_fs_local(t_fileSystem* fs, char* nombre){
+void fs_copiar_mdfs_a_local(t_fileSystem* fs, char* nombre, int dir_id){
+
+	int i;
+	t_archivo* archivo = NULL;
+	printf("comienzo a exportar el archivo\n");
 	//tengo que leer donde esta cada bloque y juntar cada uno para generar un archivo
-	//t_archivo* archivo = fs_buscar_archivo_por_nombre(nombre);
+
+	//busco el archivo en cuestion
+	archivo = fs_buscar_archivo_por_nombre(fs->archivos, nombre, dir_id);
+
+	t_bloque_de_datos* bloque_de_datos;
+	char* bloque;
+	for(i = 0; i<list_size(archivo->bloques_de_datos);i++){
+		bloque_de_datos  = NULL;
+		//leo el primer bloque
+		bloque_de_datos = list_get(archivo->bloques_de_datos, i);
+
+		//le paso la lista de los tres lugares donde esta y me tiene que devolver los datos leidos de cualquiera de lso nodosBloque
+		bloque = bloque_de_datos_traer_data(bloque_de_datos->nodosbloque);
+
+		//una vez que traigo el bloque lo grabo en un archivo
+
+
+	}
+
+	printf("fin exportacion archivo\n");
+}
+/*
+ * me tengo que conectar con el nodo y traer la info, ya sea del 1 2 o 3
+ */
+char* bloque_de_datos_traer_data(t_list* nodosBloque){
+	t_nodo_bloque* nb;
+	char* data = NULL;
+	int i;
+	for(i = 0; i< list_size(nodosBloque); i++){
+		nb = NULL;
+
+	}
+	return NULL;
 }
 
 bool fs_existe_archivo(t_fileSystem* fs, char* nombre, int dir_id){
@@ -112,10 +149,10 @@ void fs_formatear(t_fileSystem* fs) {
 	dir_formatear();
 	list_clean(fs->directorios);
 
-
-
 	arch_formatear();
-
+	list_clean_and_destroy_elements(fs->nodos_no_agregados, (void*)nodo_destroy);
+	list_clean_and_destroy_elements(fs->nodos, (void*)nodo_destroy);
+	list_clean_and_destroy_elements(fs->archivos, (void*)arch_destroy);
 
 	printf("se formateo.................................................\n");
 }

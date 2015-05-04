@@ -44,7 +44,7 @@ t_archivo* arch_crear();
 void arch_print(t_archivo* archivo);
 void arch_print_info(t_archivo_info* info);
 void arch_print_bloques(t_list* bloques_de_datos);
-
+void arch_destroy(t_archivo* archivo);
 /*
  *********************************************************************
  */
@@ -81,12 +81,21 @@ void arch_print_info(t_archivo_info* info){
 	printf(">> Cantdidad de bloques: %d\n", info->cant_bloques);
 }
 
+void bloque_de_datos_destroy(t_bloque_de_datos* bloque_de_datos){
+	list_destroy(bloque_de_datos->nodosbloque);
+	free_null(bloque_de_datos);
+}
 
 t_archivo* arch_crear(){
 	t_archivo* new = malloc(sizeof *new);
 	new->bloques_de_datos = list_create();
 
 	return new	;
+}
+
+void arch_destroy(t_archivo* archivo){
+	free_null(archivo->info);
+	list_destroy_and_destroy_elements(archivo->bloques_de_datos, (void*)bloque_de_datos_destroy);
 }
 
 void arch_formatear(){

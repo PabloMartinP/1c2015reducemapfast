@@ -117,12 +117,14 @@ void iniciar_thread_server_peticiones_fs() {
 }
 
 void procesar_mensaje_fs(int fd, t_msg* msg) {
-	//print_msg(msg);
+	print_msg(msg);
+	int n_bloque = 0;
 
 	switch (msg->header.id) {
 	case NODO_GET_BLOQUE:
+		n_bloque = msg->argv[0];
 		destroy_message(msg);
-		msg = string_message(NODO_GET_BLOQUE, getBloque(msg->argv[0]), 0);//en la posicion 0 esta en nuemro de bloque
+		msg = string_message(NODO_GET_BLOQUE, getBloque(n_bloque), 0);//en la posicion 0 esta en nuemro de bloque
 		enviar_mensaje(fd, msg);
 
 		destroy_message(msg);

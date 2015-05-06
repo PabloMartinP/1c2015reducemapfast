@@ -13,6 +13,7 @@
 #include "nodo.h"
 #include "directorios.h"
 #include "archivos.h"
+#include <commons/temporal.h>
 
 
 typedef struct {
@@ -63,15 +64,29 @@ void fs_copiar_archivo_local_al_fs(t_fileSystem* fs, char* archivo, int dir_padr
 void fs_print_archivo(t_fileSystem* fs, char* nombre, int dir_id);
 t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre, int dir_id);
 bool fs_existe_archivo(t_fileSystem* fs, char* nombre, int dir_id);
-void fs_copiar_mdfs_a_local(t_fileSystem* fs, char* nombre, int dir_id);
+void fs_copiar_mdfs_a_local(t_fileSystem* fs, char* nombre, int dir_id, char* destino);
 bool fs_existe_dir(t_fileSystem* fs, int dir_id);
 void fs_print_archivos(t_fileSystem* fs);
 char* bloque_de_datos_traer_data(t_list* nodosBloque);
+char* fs_archivo_get_bloque(t_fileSystem* fs, char* nombre, int dir_id, int n_bloque);
 void fs_archivo_ver_bloque(t_fileSystem* fs, char* nombre, int dir_id, int n_bloque);
 /*
  * ****************************************************************************************
  */
 void fs_archivo_ver_bloque(t_fileSystem* fs, char* nombre, int dir_id, int n_bloque){
+	char* datos_bloque = NULL;
+
+	if((datos_bloque = fs_archivo_get_bloque(fs, nombre, dir_id, n_bloque)) != NULL){
+		printf("Inicio bloque %d del archivo %s\n", n_bloque, nombre);
+		printf("%s", datos_bloque);
+		printf("\n***********************************************");
+		printf("Fin bloque %d del archivo %s\n", n_bloque, nombre);
+	}
+
+
+
+}
+char* fs_archivo_get_bloque(t_fileSystem* fs, char* nombre, int dir_id, int n_bloque){
 	int i;
 	//busco el archivo
 	t_archivo* a =  NULL;
@@ -85,12 +100,16 @@ void fs_archivo_ver_bloque(t_fileSystem* fs, char* nombre, int dir_id, int n_blo
 	//hardcodeo ip y puerto
 	char* ip = "127.0.0.1";int puerto = 6000;
 
-	bool ok = false;
 	t_nodo_bloque* nb = NULL;
+
+
+
+	char* datos_bloque = NULL;
+
 	for (i = 0; i < list_size(bloque->nodosbloque); i++) {
 		//obtengo el ip y puerto en base al nodo_id
-		if(nodo_esta_vivo(ip, puerto)){
-			ok = true;
+		if( bloque->n_bloque == n_bloque && nodo_esta_vivo(ip, puerto)){
+
 			//si esta vivo inicio la transferencia del bloque
 			nb = NULL;
 			nb = list_get(bloque->nodosbloque, i);
@@ -98,23 +117,23 @@ void fs_archivo_ver_bloque(t_fileSystem* fs, char* nombre, int dir_id, int n_blo
 			//me conecto con el nodo
 			int fd = client_socket(ip, puerto);
 			//le pido el bloque n_bloque
-			t_msg* msg = string_message(NODO_GET_BLOQUE, "",1, n_bloque);
+			t_msg* msg = string_message(NODO_GET_BLOQUE, "",1, nb->n_bloque);
 			enviar_mensaje(fd, msg);
 			destroy_message(msg);
 			msg = recibir_mensaje(fd);
 			//print_msg(msg);
-			printf("Inicio bloque %d del archivo %s\n", n_bloque, nombre);
-			printf("%s", msg->stream);
-			printf("***********************************************");
-			printf("Fin bloque %d del archivo %s\n", n_bloque, nombre);
+
+			//copy los datos del stream a una copia para devolver
+			datos_bloque = malloc(msg->header.length);
+			memccpy(datos_bloque, msg->stream, 1, msg->header.length);
+
+			destroy_message(msg);
 
 			break;
 		}
 	}
-	if(!ok)
-		printf("El archivo no tiene ningun nodo disponible\n");
 
-
+	return datos_bloque;
 }
 
 void fs_print_archivos(t_fileSystem* fs){
@@ -129,8 +148,8 @@ void fs_print_archivos(t_fileSystem* fs){
 bool fs_existe_dir(t_fileSystem* fs, int dir_id){
 	return dir_buscar_por_id(fs->directorios, dir_id)!=NULL;
 }
-void fs_copiar_mdfs_a_local(t_fileSystem* fs, char* nombre, int dir_id){
 
+void fs_copiar_mdfs_a_local(t_fileSystem* fs, char* nombre, int dir_id, char* destino){
 	int i;
 	t_archivo* archivo = NULL;
 	printf("comienzo a exportar el archivo\n");
@@ -139,22 +158,34 @@ void fs_copiar_mdfs_a_local(t_fileSystem* fs, char* nombre, int dir_id){
 	//busco el archivo en cuestion
 	archivo = fs_buscar_archivo_por_nombre(fs->archivos, nombre, dir_id);
 
+	//obtengo el nombre del archivo destino
+	char* nombre_nuevo_archivo = NULL;
+	nombre_nuevo_archivo = file_combine(destino, archivo->info->nombre);
+	char* timenow = temporal_get_string_time();
+	string_append(&nombre_nuevo_archivo, timenow);
+	free_null(timenow);
+	//creo el file, si ya existe lo BORRO!!!
+	clean_file(nombre_nuevo_archivo);
+	FILE* file = txt_open_for_append(nombre_nuevo_archivo);
+
 	t_bloque_de_datos* bloque_de_datos;
-	char* bloque;
-	for(i = 0; i<list_size(archivo->bloques_de_datos);i++){
+	char* datos_bloque;
+	for(i = 0; i<archivo->info->cant_bloques;i++){/**/
 		bloque_de_datos  = NULL;
-		//leo el primer bloque
+		//leo el bloque i
 		bloque_de_datos = list_get(archivo->bloques_de_datos, i);
 
 		//le paso la lista de los tres lugares donde esta y me tiene que devolver los datos leidos de cualquiera de lso nodosBloque
-		bloque = bloque_de_datos_traer_data(bloque_de_datos->nodosbloque);
+		datos_bloque = fs_archivo_get_bloque(fs, nombre, dir_id, i);
 
 		//una vez que traigo el bloque lo grabo en un archivo
-
+		txt_write_in_file(file, datos_bloque);
 
 	}
 
-	printf("fin exportacion archivo\n");
+	printf("Creado archivo nuevo: %s\n", nombre_nuevo_archivo);
+	txt_close_file(file);
+	free_null(nombre_nuevo_archivo);
 }
 /*
  * me tengo que conectar con el nodo y traer la info, ya sea del 1 2 o 3
@@ -372,12 +403,12 @@ t_bloque_de_datos* guardar_bloque(t_fileSystem* fs, char* bloque_origen, size_t 
 			return bloque->posicion == nb[i]->n_bloque;
 		}
 		//busco el nodo por id para obtener su lista de bloques
-		nodo = fs_buscar_nodo_por_id(fs, nb[i]->nodo_id);
+		nodo = fs_buscar_nodo_por_id(fs, nb[i]->nodo->id);
 
 		bloque_usado = list_find(nodo->bloques, (void*) buscar_bloque);
 		bloque_marcar_como_usado(bloque_usado);
 
-		printf("nodo %d bloque %d marcado como usado\n", nb[i]->nodo_id, nb[i]->n_bloque);
+		printf("nodo %d bloque %d marcado como usado\n", nb[i]->nodo->id, nb[i]->n_bloque);
 
 		//agrego el bloquenodo a la lista, al final del for quedaria con las tres copias y faltaria settear el nro_bloque
 		list_add(new->nodosbloque, (void*)nb[i]);
@@ -395,7 +426,7 @@ void fs_guardar_bloque(t_fileSystem* fs, t_nodo_bloque* nb, char* bloque, size_t
 	//me tengo que conectar con el nodo y pasarle el bloque
 	//obtengo info del bloque
 	t_nodo* nodo=NULL;;
-	nodo = fs_buscar_nodo_por_id(fs, nb->nodo_id);
+	nodo = fs_buscar_nodo_por_id(fs, nb->nodo->id);
 
 	printf("iniciando transferencia a Ip:%s:%d bloque %d\n", nodo->ip, nodo->puerto, nb->n_bloque);
 	int fd = client_socket(nodo->ip, nodo->puerto);
@@ -482,7 +513,7 @@ t_nodo_bloque** fs_get_tres_nodo_bloque_libres(t_fileSystem* fs) {
 		//devuelvo un bloque y lo marco como requerido para copiar para que no me traiga
 		bloque = nodo_get_bloque_para_copiar(nodo);
 
-		new[i]->nodo_id = nodo->id;
+		new[i]->nodo = nodo;
 		new[i]->n_bloque = bloque->posicion;
 
 	}

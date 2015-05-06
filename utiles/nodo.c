@@ -15,7 +15,9 @@
 #include "nodo.h"
 
 
-bool nodo_esta_vivo(char* ip, uint16_t puerto){
+
+//bool nodo_esta_vivo(t_nodo* nodo){
+bool nodo_esta_vivo(char* ip, int puerto){
 	bool on ;
 	//obtengo un socket cliente para ver si responde
 	int fd = client_socket(ip, puerto);
@@ -26,6 +28,7 @@ bool nodo_esta_vivo(char* ip, uint16_t puerto){
 	destroy_message(msg);
 	msg = recibir_mensaje(fd);
 
+	//si responde NODO_HOLA esta activo
 	on = msg->header.id == NODO_HOLA;
 
 	destroy_message(msg);

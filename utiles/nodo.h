@@ -13,6 +13,7 @@
 #include <commons/collections/list.h>
 #include <commons/string.h>
 
+
 typedef struct {
 	uint32_t posicion;
 	bool libre;
@@ -27,6 +28,11 @@ typedef struct {
 	t_list* bloques;
 } t_nodo;
 
+typedef struct {
+	t_nodo* nodo;
+	//int nodo_id;
+	int n_bloque;
+} t_nodo_bloque;
 
 //const int DATA_SIZE = 1024 * 1024 * 50; //50MB
 int TAMANIO_BLOQUE_MB = 20;
@@ -54,6 +60,6 @@ void nodo_destroy(t_nodo* nodo);
 char* nodo_isNew(t_nodo* nodo);
 void nodo_mensaje_desconexion(t_nodo* nodo);
 
-bool nodo_esta_vivo(char* ip, uint16_t puerto);
+bool nodo_esta_vivo(char* ip, int puerto);
 
 #endif /* NODO_H_ */

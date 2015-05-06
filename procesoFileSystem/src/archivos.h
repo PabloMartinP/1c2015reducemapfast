@@ -10,11 +10,7 @@
 
 #include <commons/txt.h>
 
-typedef struct {
-	//t_nodo* nodo;
-	int nodo_id;
-	int n_bloque;
-} t_nodo_bloque;
+
 
 
 typedef struct { //estructura que tiene las tres copias del bloque
@@ -74,7 +70,7 @@ void arch_print_bloques(t_list* bloques_de_datos){
 
 		int i=1;
 		void print_nodo_bloque(t_nodo_bloque* nodo_bloque){
-			printf(" >> >> >> Copia %d: nodo_id: %d, bloque-nro: %d\n", i, nodo_bloque->nodo_id, nodo_bloque->n_bloque);
+			printf(" >> >> >> Copia %d: nodo_id: %d, bloque-nro: %d\n", i, nodo_bloque->nodo->id, nodo_bloque->n_bloque);
 			i++;
 		}
 

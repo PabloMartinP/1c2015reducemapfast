@@ -73,7 +73,6 @@ void agregar_nodo_al_fs(int id_nodo) {
 
 void iniciar_consola() {
 	int nodo_id;
-	//int archivo_id;
 	int dir_id;
 	char* archivo_nombre;
 	char* dir_nombre;
@@ -100,6 +99,7 @@ void iniciar_consola() {
 			nro_bloque = atoi(input_user[3]);
 
 			if (fs_existe_archivo(&fs, archivo_nombre, dir_id))
+
 				fs_archivo_ver_bloque(&fs, archivo_nombre, dir_id, nro_bloque);
 			else
 				printf("el archivo no existe: %s\n", archivo_nombre);
@@ -137,7 +137,7 @@ void iniciar_consola() {
 
 			//verifico que exista el archivo en el mdfs
 			if (fs_existe_archivo(&fs, archivo_nombre, dir_id)) {
-				fs_copiar_mdfs_a_local(&fs, archivo_nombre, dir_id);
+				fs_copiar_mdfs_a_local(&fs, archivo_nombre, dir_id, dir_nombre);
 			} else
 				printf("EL archivo no existe en el mdfs: %s\n", archivo_nombre);
 
@@ -280,8 +280,7 @@ void procesar_mensaje_nodo(int i, t_msg* msg) {
 		//agrego el nodo a la lista de nodos nuevos
 		list_add(fs.nodos_no_agregados, (void*) nodo);
 
-		log_info(logger, "se conecto el nodo %d,  %s:%d | %s", nodo->id,
-				nodo->ip, nodo->puerto, nodo_isNew(nodo));
+		log_info(logger, "se conecto el nodo %d,  %s:%d | %s", nodo->id, nodo->ip, nodo->puerto, nodo_isNew(nodo));
 
 		agregar_nodo_al_fs(nodo->id);
 

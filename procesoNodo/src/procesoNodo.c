@@ -31,7 +31,7 @@ t_log* logger = NULL;
  */
 void* data_get(char* filename);
 void data_destroy();
-void* getBloque(int32_t numero);
+char* getBloque(int32_t numero);
 void setBloque(int32_t numero, char* bloque);
 
 void* getFileContent(char* filename);
@@ -120,6 +120,20 @@ void procesar_mensaje_fs(int fd, t_msg* msg) {
 	//print_msg(msg);
 
 	switch (msg->header.id) {
+	case NODO_GET_BLOQUE:
+		destroy_message(msg);
+		msg = string_message(NODO_GET_BLOQUE, getBloque(msg->argv[0]), 0);//en la posicion 0 esta en nuemro de bloque
+		enviar_mensaje(fd, msg);
+
+		destroy_message(msg);
+
+		break;
+	case NODO_HOLA:
+		destroy_message(msg);
+		msg = string_message(NODO_HOLA, "", 0);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+		break;
 	case NODO_CHAU:
 		FIN = true;
 
@@ -277,7 +291,7 @@ void setBloque(int32_t numero, char* bloquedatos) {
 /*
  * devuelve una copia del bloque, hacer free
  */
-void* getBloque(int32_t numero) {
+char* getBloque(int32_t numero) {
 	log_info(logger, "Ini getBloque(%d)", numero);
 	void* bloque = NULL;
 	bloque = malloc(TAMANIO_BLOQUE_B);

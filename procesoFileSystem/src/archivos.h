@@ -45,9 +45,22 @@ void arch_print(t_archivo* archivo);
 void arch_print_info(t_archivo_info* info);
 void arch_print_bloques(t_list* bloques_de_datos);
 void arch_destroy(t_archivo* archivo);
+t_bloque_de_datos* arch_buscar_bloque(t_archivo* archivo, int numero_bloque);
 /*
  *********************************************************************
  */
+
+t_bloque_de_datos* arch_buscar_bloque(t_archivo* archivo, int numero_bloque){
+	t_bloque_de_datos* bloque = NULL;
+
+	bool _buscar_bloque(t_bloque_de_datos* bloque){
+		return bloque->n_bloque == numero_bloque;
+	}
+
+	bloque = list_find(archivo->bloques_de_datos, (void*)_buscar_bloque);
+
+	return bloque;
+}
 
 void arch_print(t_archivo* archivo){
 	arch_print_info(archivo->info);

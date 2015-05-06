@@ -40,6 +40,7 @@ typedef enum {
 	ARCHIVO_INFO,
 	ARCHIVO_MOVER,
 	ARCHIVO_LISTAR,
+	ARCHIVO_VERBLOQUE,
 	ARCHIVO_COPIAR_MDFS_LOCAL,
 	NODO_LISTAR_NO_AGREGADOS,
 	FS_INFO
@@ -76,7 +77,9 @@ e_comando getComando(char* comando) {
 	if (string_equals_ignore_case(comando, "fileinfo"))
 		return ARCHIVO_INFO;
 	if (string_equals_ignore_case(comando, "lsfile"))
-		return ARCHIVO_LISTAR;
+			return ARCHIVO_LISTAR;
+	if (string_equals_ignore_case(comando, "filevb"))
+			return ARCHIVO_VERBLOQUE;
 
 	return NADA;
 }

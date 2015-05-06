@@ -15,6 +15,24 @@
 #include "nodo.h"
 
 
+bool nodo_esta_vivo(char* ip, uint16_t puerto){
+	bool on ;
+	//obtengo un socket cliente para ver si responde
+	int fd = client_socket(ip, puerto);
+
+	//le mando handshake a ver si me responde el HOLA
+	t_msg* msg = string_message(NODO_HOLA, "",0);
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
+	msg = recibir_mensaje(fd);
+
+	on = msg->header.id == NODO_HOLA;
+
+	destroy_message(msg);
+
+	return on;
+}
+
 /*
  * envio un mensaje de desconexion
  */

@@ -583,6 +583,9 @@ void print_msg(t_msg *msg) {
 char *id_string(t_msg_id id) {
 	char *buf;
 	switch (id) {
+	case NODO_GET_BLOQUE:
+		buf = strdup("NODO_GET_BLOQUE");
+		break;
 	case NODO_CONECTAR_CON_FS:
 		buf = strdup("NODO_CONECTAR_CON_FS");
 		break;

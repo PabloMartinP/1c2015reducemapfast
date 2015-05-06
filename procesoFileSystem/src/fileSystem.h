@@ -67,9 +67,55 @@ void fs_copiar_mdfs_a_local(t_fileSystem* fs, char* nombre, int dir_id);
 bool fs_existe_dir(t_fileSystem* fs, int dir_id);
 void fs_print_archivos(t_fileSystem* fs);
 char* bloque_de_datos_traer_data(t_list* nodosBloque);
+void fs_archivo_ver_bloque(t_fileSystem* fs, char* nombre, int dir_id, int n_bloque);
 /*
  * ****************************************************************************************
  */
+void fs_archivo_ver_bloque(t_fileSystem* fs, char* nombre, int dir_id, int n_bloque){
+	int i;
+	//busco el archivo
+	t_archivo* a =  NULL;
+	a = fs_buscar_archivo_por_nombre(fs->archivos, nombre, dir_id);
+
+	//busco el bloque
+	t_bloque_de_datos* bloque = NULL;
+	bloque = arch_buscar_bloque(a, n_bloque);
+
+	//tengo que verificar si alguno de los nodos que tiene la copia esta disponible
+	//hardcodeo ip y puerto
+	char* ip = "127.0.0.1";int puerto = 6000;
+
+	bool ok = false;
+	t_nodo_bloque* nb = NULL;
+	for (i = 0; i < list_size(bloque->nodosbloque); i++) {
+		//obtengo el ip y puerto en base al nodo_id
+		if(nodo_esta_vivo(ip, puerto)){
+			ok = true;
+			//si esta vivo inicio la transferencia del bloque
+			nb = NULL;
+			nb = list_get(bloque->nodosbloque, i);
+
+			//me conecto con el nodo
+			int fd = client_socket(ip, puerto);
+			//le pido el bloque n_bloque
+			t_msg* msg = string_message(NODO_GET_BLOQUE, "",1, n_bloque);
+			enviar_mensaje(fd, msg);
+			destroy_message(msg);
+			msg = recibir_mensaje(fd);
+			//print_msg(msg);
+			printf("Inicio bloque %d del archivo %s\n", n_bloque, nombre);
+			printf("%s", msg->stream);
+			printf("***********************************************");
+			printf("Fin bloque %d del archivo %s\n", n_bloque, nombre);
+
+			break;
+		}
+	}
+	if(!ok)
+		printf("El archivo no tiene ningun nodo disponible\n");
+
+
+}
 
 void fs_print_archivos(t_fileSystem* fs){
 	printf("IMPRIMIR ARCHIVOS DEL FS \n");
@@ -114,13 +160,7 @@ void fs_copiar_mdfs_a_local(t_fileSystem* fs, char* nombre, int dir_id){
  * me tengo que conectar con el nodo y traer la info, ya sea del 1 2 o 3
  */
 char* bloque_de_datos_traer_data(t_list* nodosBloque){
-	t_nodo_bloque* nb;
-	char* data = NULL;
-	int i;
-	for(i = 0; i< list_size(nodosBloque); i++){
-		nb = NULL;
 
-	}
 	return NULL;
 }
 

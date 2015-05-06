@@ -54,4 +54,6 @@ void nodo_destroy(t_nodo* nodo);
 char* nodo_isNew(t_nodo* nodo);
 void nodo_mensaje_desconexion(t_nodo* nodo);
 
+bool nodo_esta_vivo(char* ip, uint16_t puerto);
+
 #endif /* NODO_H_ */

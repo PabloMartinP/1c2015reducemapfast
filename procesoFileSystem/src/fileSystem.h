@@ -221,9 +221,11 @@ void fs_formatear(t_fileSystem* fs) {
 	list_clean(fs->directorios);
 
 	arch_formatear();
-	list_clean_and_destroy_elements(fs->nodos_no_agregados, (void*)nodo_destroy);
-	list_clean_and_destroy_elements(fs->nodos, (void*)nodo_destroy);
-	list_clean_and_destroy_elements(fs->archivos, (void*)arch_destroy);
+
+	list_add_all(fs->nodos_no_agregados, fs->nodos);
+	list_clean(fs->nodos);
+
+	//list_clean_and_destroy_elements(fs->archivos, (void*)arch_destroy);
 
 	printf("se formateo.................................................\n");
 }

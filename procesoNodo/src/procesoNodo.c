@@ -314,7 +314,7 @@ void* data_get(char* filename) {
 			handle_error("fopen");
 		}
 
-		printf("creado\n");
+		printf("creando archivo de %d bytes ...\n", TAMANIO_DATA);
 		//lo creo con el tamaño maximo
 		void* dump = NULL;
 		dump = malloc(TAMANIO_DATA);

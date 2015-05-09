@@ -80,9 +80,9 @@ int main(int argc, char *argv[]) {
 	 printf("%s\n", dataget);*/
 
 	/*
-	 free_null(saludo);
-	 free_null(saludoget);
-	 free_null(dataget);
+	 free_null((void*)&saludo);
+	 free_null((void*)&saludoget);
+	 free_null((void*)&dataget);
 	 */
 
 	/*
@@ -138,6 +138,7 @@ void procesar_mensaje_fs(int fd, t_msg* msg) {
 		break;
 	case NODO_CHAU:
 		FIN = true;
+		destroy_message(msg);
 
 		break;
 	case FS_HOLA:
@@ -155,7 +156,7 @@ void procesar_mensaje_fs(int fd, t_msg* msg) {
 		memcpy(bloque, msg->stream, msg->argv[1]);	//1 es el tamaño real
 		memset(bloque + msg->argv[1], '\0', TAMANIO_BLOQUE_B - msg->argv[1]);
 		setBloque(msg->argv[0], bloque);
-		free(bloque);
+		free_null((void*)&bloque);
 
 		destroy_message(msg);
 
@@ -264,7 +265,7 @@ void* getFileContent(char* filename) {
 
 	content = file_get_mapped(path);
 
-	free(path);
+	free_null((void*)&path);
 
 	log_info(logger, "Fin getFileContent(%s)", filename);
 	return content;
@@ -321,7 +322,7 @@ void* data_get(char* filename) {
 		////grabo 0 en todo el nodo.
 		memset(dump, 0, TAMANIO_DATA);
 		fwrite(dump, TAMANIO_DATA, 1, file);
-		free_null(dump);
+		free_null((void*)&dump);
 
 		fclose(file);
 	}

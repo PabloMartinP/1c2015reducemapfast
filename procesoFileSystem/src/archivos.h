@@ -91,8 +91,8 @@ void arch_print_info(t_archivo_info* info){
 }
 
 void bloque_de_datos_destroy(t_bloque_de_datos* bloque_de_datos){
-	list_destroy(bloque_de_datos->nodosbloque);
-	free_null(bloque_de_datos);
+	list_destroy_and_destroy_elements(bloque_de_datos->nodosbloque, (void*)free_null);
+	free_null((void*)&bloque_de_datos);
 }
 
 t_archivo* arch_crear(){
@@ -103,8 +103,9 @@ t_archivo* arch_crear(){
 }
 
 void arch_destroy(t_archivo* archivo){
-	free_null(archivo->info);
+	free_null((void*)&archivo->info);
 	list_destroy_and_destroy_elements(archivo->bloques_de_datos, (void*)bloque_de_datos_destroy);
+	free_null((void*)&archivo);
 }
 
 void arch_formatear(){
@@ -165,7 +166,15 @@ void arch_agregar(t_archivo* archivo) {
 		for (j = 0; j < list_size(bloquedatos->nodosbloque); j++) {
 			nodobloque = list_get(bloquedatos->nodosbloque, j);
 
-			fwrite(nodobloque, sizeof(t_nodo_bloque), 1, file);
+			//creo una estructura solo para guardar el nodo_id y el n_bloque
+			t_nodo_id_n_bloque nb;
+			nb.n_bloque = nodobloque->n_bloque;
+			nb.nodo_id = nodobloque->nodo->id;
+			fwrite(&nb, sizeof(t_nodo_id_n_bloque), 1, file);
+
+			//fwrite(&nodobloque->nodo->id, sizeof(nodobloque->nodo->id), 1, file);
+			//fwrite(&nodobloque->n_bloque, sizeof(nodobloque->n_bloque), 1, file);
+			//fwrite(nodobloque, sizeof(t_nodo_bloque), 1, file);
 		}
 	}
 

@@ -20,6 +20,7 @@
 bool nodo_esta_vivo(char* ip, int puerto){
 	bool on ;
 	//obtengo un socket cliente para ver si responde
+	//int fd = client_socket(nodo->ip, nodo->puerto);
 	int fd = client_socket(ip, puerto);
 
 	//le mando handshake a ver si me responde el HOLA
@@ -117,15 +118,25 @@ char* nodo_isNew(t_nodo* nodo) {
 
 
 void nodo_destroy(t_nodo* nodo) {
-	free_null(nodo->ip);
+	list_destroy(nodo->bloques);
+	free_null((void*)&nodo);
+	//printf("%s", nodo->ip);
+}
 
-	list_destroy_and_destroy_elements(nodo->bloques, free_null);
+void nodo_set_ip(t_nodo* nodo, char* ip){
+	memcpy(nodo->ip, ip, strlen(ip));
 }
 
 t_nodo* nodo_new(char* ip, uint16_t port, bool isNew, uint16_t cant_bloques) {
 	t_nodo* new = malloc(sizeof *new);
 
-	new->ip = string_duplicate(ip);
+	memset(new->ip, '\0', 15);
+
+	//le asigno un nuevo id solo si es nuevo
+	if(isNew)
+		nodo_set_ip(new, ip);
+
+	//new->ip = string_duplicate(ip);
 	new->puerto = port;
 	new->esNuevo = isNew;
 

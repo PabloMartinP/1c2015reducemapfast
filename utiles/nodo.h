@@ -22,11 +22,16 @@ typedef struct {
 
 typedef struct {
 	int id;
-	char* ip;
+	char ip[15];
 	uint16_t puerto;
 	bool esNuevo;
 	t_list* bloques;
 } t_nodo;
+
+typedef struct{
+	int nodo_id;
+	int n_bloque;
+}t_nodo_id_n_bloque; //se usa para grabar en el archivo de bloques
 
 typedef struct {
 	t_nodo* nodo;
@@ -56,10 +61,11 @@ int nodo_cant_bloques_usados(t_nodo* nodo);
 int nodo_cant_bloques(t_nodo* nodo);
 
 void nodo_destroy(t_nodo* nodo);
-
+void nodo_set_ip(t_nodo* nodo, char* ip);
 char* nodo_isNew(t_nodo* nodo);
 void nodo_mensaje_desconexion(t_nodo* nodo);
 
+//bool nodo_esta_vivo(t_nodo* nodo);
 bool nodo_esta_vivo(char* ip, int puerto);
 
 #endif /* NODO_H_ */

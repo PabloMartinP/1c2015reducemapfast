@@ -64,8 +64,9 @@ void* file_get_mapped(char* filename) {
 	return mapped;
 }
 
-void free_null(void* data) {
-	free(data);
+void free_null(void** data) {
+	free(*data);
+	*data = NULL;
 	data = NULL;
 }
 
@@ -284,7 +285,7 @@ int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer) {
 	memcpy(bufferAux, &header, sizeof(t_header_base));
 	memcpy((bufferAux + (sizeof(t_header_base))), buffer, tamanio);
 	auxInt = send(unSocket, bufferAux, (sizeof(t_header_base) + tamanio), 0);
-	free(bufferAux);
+	free_null((void*)&bufferAux);
 	return auxInt;
 }
 
@@ -336,7 +337,7 @@ t_msg *recibir_mensaje(int sock_fd) {
 	int status = recv(sock_fd, &(msg->header), sizeof(t_header), MSG_WAITALL);
 	if (status <= 0) {
 		/* An error has ocurred or remote connection has been closed. */
-		free(msg);
+		free_null((void*)&msg);
 		return NULL;
 	}
 
@@ -346,8 +347,8 @@ t_msg *recibir_mensaje(int sock_fd) {
 
 		if (recv(sock_fd, msg->argv, msg->header.argc * sizeof(uint32_t),
 		MSG_WAITALL) <= 0) {
-			free(msg->argv);
-			free(msg);
+			free_null((void*)&msg->argv);
+			free_null((void*)&msg);
 			return NULL;
 		}
 	}
@@ -356,9 +357,9 @@ t_msg *recibir_mensaje(int sock_fd) {
 		msg->stream = malloc(msg->header.length + 1);
 
 		if (recv(sock_fd, msg->stream, msg->header.length, MSG_WAITALL) <= 0) {
-			free(msg->stream);
-			free(msg->argv);
-			free(msg);
+			free_null((void*)&msg->stream);
+			free_null((void*)&msg->argv);
+			free_null((void*)&msg);
 			return NULL;
 		}
 
@@ -391,31 +392,27 @@ int enviar_mensaje(int sock_fd, t_msg *msg) {
 				msg->header.length + sizeof msg->header
 						+ msg->header.argc * sizeof(uint32_t), MSG_NOSIGNAL);
 		if (sent < 0) {
-			free(buffer);
+			free_null((void*)&buffer);
 			return -1;
 		}
 		total += sent;
 		pending -= sent;
 	}
 
-	free(buffer);
+	free_null((void*)&buffer);
 
 	return total;
 }
 
 void destroy_message(t_msg *msg) {
-	if (msg->header.length && msg->stream != NULL)
-		free(msg->stream);
+	if (msg->header.length  )
+		free_null((void*)&msg->stream);
+	else
+		if(msg->stream != NULL && string_is_empty(msg->stream))
+			free_null((void*)&msg->stream);
 	if (msg->header.argc && msg->argv != NULL)
-		free(msg->argv);
-	free(msg);
-}
-
-void seedgen(void) {
-	long seed;
-	time_t seconds;
-	seed = abs(((time(&seconds) * 181) * ((getpid() - 83) * 359)) % 104729);
-	srand(seed);
+		free_null((void*)&msg->argv);
+	free_null((void*)&msg);
 }
 
 void create_file(char *path, size_t size) {
@@ -565,7 +562,7 @@ void print_msg(t_msg *msg) {
 	printf("CONTENIDOS DEL MENSAJE:\n");
 	char* id = id_string(msg->header.id);
 	printf("- ID: %s\n", id);
-	free(id);
+	free_null((void*)&id);
 
 	for (i = 0; i < msg->header.argc; i++) {
 		;

@@ -129,7 +129,7 @@ char* fs_archivo_get_bloque(t_fileSystem* fs, char* nombre, int dir_id,
 	//tengo que verificar si alguno de los nodos que tiene la copia esta disponible
 	//hardcodeo ip y puerto
 	char* ip = "127.0.0.1";
-	int puerto = 6000;
+	int puerto = 6001;
 
 	t_nodo_bloque* nb = NULL;
 
@@ -754,7 +754,7 @@ void fd_leer_archivos(t_list* archivos) {
 				//tambien tengo que settear los bloques del nodo
 				//y le harcodeo como cant_bloques 50
 				int cant_bloques = 50;
-				t_nodo* nodo = nodo_new("127.0.0.1", 6000, false, cant_bloques);
+				t_nodo* nodo = nodo_new("127.0.0.1", 6001, false, cant_bloques);
 				nodo->id = nb.nodo_id;
 				nodo_marcar_bloque_como_usado(nodo, nb.n_bloque);
 

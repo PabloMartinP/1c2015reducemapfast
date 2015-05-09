@@ -127,14 +127,26 @@ void nodo_set_ip(t_nodo* nodo, char* ip){
 	memcpy(nodo->ip, ip, strlen(ip));
 }
 
+void nodo_marcar_bloque_como_usado(t_nodo* nodo, int n_bloque){
+	t_bloque* bloque = NULL;
+	bloque = nodo_buscar_bloque(nodo, n_bloque);
+	bloque->libre = false;
+}
+
+t_bloque* nodo_buscar_bloque(t_nodo* nodo, int n_bloque){
+	bool _buscar_bloque(t_bloque* bloque){
+		return bloque->posicion == n_bloque;
+	}
+	return list_find(nodo->bloques, (void*)_buscar_bloque);
+}
+
 t_nodo* nodo_new(char* ip, uint16_t port, bool isNew, uint16_t cant_bloques) {
 	t_nodo* new = malloc(sizeof *new);
 
 	memset(new->ip, '\0', 15);
 
 	//le asigno un nuevo id solo si es nuevo
-	if(isNew)
-		nodo_set_ip(new, ip);
+	nodo_set_ip(new, ip);
 
 	//new->ip = string_duplicate(ip);
 	new->puerto = port;
@@ -145,17 +157,16 @@ t_nodo* nodo_new(char* ip, uint16_t port, bool isNew, uint16_t cant_bloques) {
 	new->bloques = list_create();
 
 	t_bloque* bloque;
-	if (isNew) {
-		int i;
-		for (i = 0; i < cant_bloques; i++) {
-			bloque = malloc(sizeof *bloque);
-			bloque->posicion = i;
-			bloque->libre = true;
-			bloque->requerido_para_copia = false;
+	int i;
+	for (i = 0; i < cant_bloques; i++) {
+		bloque = malloc(sizeof *bloque);
+		bloque->posicion = i;
+		bloque->libre = true;
+		bloque->requerido_para_copia = false;
 
-			list_add(new->bloques, bloque);
-		}
+		list_add(new->bloques, bloque);
 	}
+
 
 	return new;
 }

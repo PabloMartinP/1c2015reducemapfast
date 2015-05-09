@@ -62,6 +62,8 @@ int nodo_cant_bloques(t_nodo* nodo);
 
 void nodo_destroy(t_nodo* nodo);
 void nodo_set_ip(t_nodo* nodo, char* ip);
+t_bloque* nodo_buscar_bloque(t_nodo* nodo, int n_bloque);
+void nodo_marcar_bloque_como_usado(t_nodo* nodo, int n_bloque);
 char* nodo_isNew(t_nodo* nodo);
 void nodo_mensaje_desconexion(t_nodo* nodo);
 

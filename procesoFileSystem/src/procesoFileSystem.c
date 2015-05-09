@@ -268,8 +268,7 @@ void procesar_mensaje_nodo(int i, t_msg* msg) {
 
 		msg = recibir_mensaje(i);
 		//print_msg(msg);
-		t_nodo* nodo = nodo_new(msg->stream, (uint16_t) msg->argv[0],
-				(bool) msg->argv[1], msg->argv[2]); //0 puerto, 1 si es nuevo o no, 2 es la cant bloques
+		t_nodo* nodo = nodo_new(msg->stream, (uint16_t) msg->argv[0],(bool) msg->argv[1], msg->argv[2]); //0 puerto, 1 si es nuevo o no, 2 es la cant bloques
 
 		//le asigno un nombre
 		nodo->id = get_id_nodo_nuevo();
@@ -279,8 +278,7 @@ void procesar_mensaje_nodo(int i, t_msg* msg) {
 		//agrego el nodo a la lista de nodos nuevos
 		list_add(fs.nodos_no_agregados, (void*) nodo);
 
-		log_info(logger, "se conecto el nodo %d,  %s:%d | %s", nodo->id,
-				nodo->ip, nodo->puerto, nodo_isNew(nodo));
+		log_info(logger, "se conecto el nodo %d,  %s:%d | %s", nodo->id,nodo->ip, nodo->puerto, nodo_isNew(nodo));
 
 		//ESTO NO VA PERO LO AGREGO PARA NO TENER QUE ESTAR AGREGANDO EL NODO CADA VEZ QUE LEVANTO EL FS
 		//agregar_nodo_al_fs(nodo->id);

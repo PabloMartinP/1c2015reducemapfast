@@ -418,13 +418,14 @@ t_list* fs_importar_archivo(t_fileSystem* fs, char* archivo) {
 	return new;
 }
 
+
+
 void bloque_marcar_como_usado(t_bloque* bloque) {
 	bloque->libre = false;
 	bloque->requerido_para_copia = true;
 }
 
-t_bloque_de_datos* guardar_bloque(t_fileSystem* fs, char* bloque_origen,
-		size_t bytes_a_copiar) {
+t_bloque_de_datos* guardar_bloque(t_fileSystem* fs, char* bloque_origen,size_t bytes_a_copiar) {
 	t_bloque_de_datos* new = bloque_de_datos_create();
 
 	int i;
@@ -440,6 +441,8 @@ t_bloque_de_datos* guardar_bloque(t_fileSystem* fs, char* bloque_origen,
 	for (i = 0; i < BLOQUE_CANT_COPIAS; i++) {
 		fs_guardar_bloque(fs, nb[i], bloque, bytes_a_copiar);
 
+		nodo_marcar_bloque_como_usado(nb[i]->nodo, nb[i]->n_bloque);
+		/*
 		bool buscar_bloque(t_bloque* bloque) {
 			return bloque->posicion == nb[i]->n_bloque;
 		}
@@ -448,9 +451,10 @@ t_bloque_de_datos* guardar_bloque(t_fileSystem* fs, char* bloque_origen,
 
 		bloque_usado = list_find(nodo->bloques, (void*) buscar_bloque);
 		bloque_marcar_como_usado(bloque_usado);
+		*/
 
-		printf("nodo %d bloque %d marcado como usado\n", nb[i]->nodo->id,
-				nb[i]->n_bloque);
+
+		printf("nodo %d bloque %d marcado como usado\n", nb[i]->nodo->id,nb[i]->n_bloque);
 
 		//agrego el bloquenodo a la lista, al final del for quedaria con las tres copias y faltaria settear el nro_bloque
 		list_add(new->nodosbloque, (void*) nb[i]);
@@ -463,16 +467,13 @@ t_bloque_de_datos* guardar_bloque(t_fileSystem* fs, char* bloque_origen,
 	return new;
 }
 
-void fs_guardar_bloque(t_fileSystem* fs, t_nodo_bloque* nb, char* bloque,
-		size_t tamanio_real) {
+void fs_guardar_bloque(t_fileSystem* fs, t_nodo_bloque* nb, char* bloque, size_t tamanio_real) {
 	//me tengo que conectar con el nodo y pasarle el bloque
 	//obtengo info del bloque
 	t_nodo* nodo = NULL;
-	;
 	nodo = fs_buscar_nodo_por_id(fs, nb->nodo->id);
 
-	printf("iniciando transferencia a Ip:%s:%d bloque %d\n", nodo->ip,
-			nodo->puerto, nb->n_bloque);
+	printf("iniciando transferencia a Ip:%s:%d bloque %d\n", nodo->ip,nodo->puerto, nb->n_bloque);
 	int fd = client_socket(nodo->ip, nodo->puerto);
 
 	t_msg* msg;
@@ -750,8 +751,12 @@ void fd_leer_archivos(t_list* archivos) {
 
 				//ahora tengo que buscar el nodo en la tabla de nodos para guardarlo en memoria
 				//todo POR AHORA HADCODEO UN NODO NUEVO
-				t_nodo* nodo = nodo_new("127.0.0.1", 6000, false, nb.n_bloque);
+				//tambien tengo que settear los bloques del nodo
+				//y le harcodeo como cant_bloques 50
+				int cant_bloques = 50;
+				t_nodo* nodo = nodo_new("127.0.0.1", 6000, false, cant_bloques);
 				nodo->id = nb.nodo_id;
+				nodo_marcar_bloque_como_usado(nodo, nb.n_bloque);
 
 				nodo_bloque->n_bloque = nb.n_bloque;
 				nodo_bloque->nodo = nodo;

@@ -8,9 +8,12 @@
 #ifndef DIRECTORIOS_H_
 #define DIRECTORIOS_H_
 
-char* FILE_DIRECTORIO = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/directorios.txt";
+
 const int DIR_TAMANIO_MAX_NOMBRE = 128;
 const int DIR_CANT_MAX = 1024;
+
+char* FILE_DIRECTORIO = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/directorios.bin";
+
 
 typedef struct {
 	int index;

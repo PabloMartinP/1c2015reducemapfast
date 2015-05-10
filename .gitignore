@@ -37,6 +37,10 @@ procesoNodo/Debug/
 
 procesoFileSystem/log.txt
 procesoFileSystem/Debug/
+procesoFileSystem/archivos.bin
+procesoFileSystem/bloques.bin
+procesoFileSystem/directorios.bin
+procesoFileSystem/nodos.bin
 
 utiles/Debug/
 

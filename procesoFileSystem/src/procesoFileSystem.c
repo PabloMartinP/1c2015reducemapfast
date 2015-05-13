@@ -19,8 +19,10 @@
 
 //#include <util.h>
 
-#define FILE_CONFIG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/config.txt"
-#define FILE_LOG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/log.txt"
+char FILE_CONFIG[1024]="/config.txt";
+char FILE_LOG[1024] ="/log.txt";
+
+
 
 t_log* logger;
 t_config* config;
@@ -28,10 +30,11 @@ t_config* config;
 
 void iniciar_consola();
 void nuevosNodos();
-void procesar_mensaje_nodo(int i, t_msg* msg);
+void procesar_mensaje_nodo(int fd, t_msg* msg);
 void inicializar();
 void finalizar();
 void iniciar_server_nodos_nuevos();
+void agregar_cwd(char* file);
 
 int main(void) {
 
@@ -235,22 +238,45 @@ void finalizar() {
 }
 
 void inicializar() {
+
+	agregar_cwd(FILE_LOG);
 	logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_INFO);
 
+	agregar_cwd(FILE_CONFIG);
 	config = config_create(FILE_CONFIG);
+
+
+	//completo el file_nodos
+	agregar_cwd(FILE_NODOS);
+	agregar_cwd(FILE_DIRECTORIO);
+	agregar_cwd(FILE_ARCHIVO);
+	agregar_cwd(FILE_ARCHIVO_BLOQUES);
 
 	fs_create();
 
 	//le cargo los nodos necesarios para que valide si puede estar operativo
 	fs.nodos_necesarios = config_get_array_value(config, "LISTA_NODOS");
 
+
+}
+
+void agregar_cwd(char* file){
+	char cwd[1024];
+	if (getcwd(cwd, sizeof(cwd)) == NULL)
+		handle_error("getcwd() error");
+
+	char* aux = malloc(strlen(file));
+	strcpy(aux, file);
+	strcpy(file, cwd);
+	strcat(file, aux);
+	free(aux);
 }
 
 void nuevosNodos() {
 	server_socket_select(config_get_int_value(config, "PUERTO_LISTEN"),	(void*) procesar_mensaje_nodo);
 }
 
-void procesar_mensaje_nodo(int i, t_msg* msg) {
+void procesar_mensaje_nodo(int fd, t_msg* msg) {
 	//leer el msg recibido
 	//print_msg(msg);
 
@@ -258,10 +284,10 @@ void procesar_mensaje_nodo(int i, t_msg* msg) {
 	case NODO_CONECTAR_CON_FS: //primer mensaje del nodo
 		destroy_message(msg);
 		msg = string_message(FS_NODO_QUIEN_SOS, "", 0);
-		enviar_mensaje(i, msg);
+		enviar_mensaje(fd, msg);
 		destroy_message(msg);
 
-		msg = recibir_mensaje(i);
+		msg = recibir_mensaje(fd);
 		//print_msg(msg);
 		t_nodo* nodo = nodo_new(msg->stream, (uint16_t) msg->argv[0],(bool) msg->argv[1], msg->argv[2]); //0 puerto, 1 si es nuevo o no, 2 es la cant bloques
 

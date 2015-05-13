@@ -11,8 +11,8 @@
 #include <commons/txt.h>
 
 
-char* FILE_ARCHIVO ="/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/archivos.bin";
-char* FILE_ARCHIVO_BLOQUES ="/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/bloques.bin";
+char FILE_ARCHIVO[1024] ="/mdfs_archivos.bin";
+char FILE_ARCHIVO_BLOQUES[1024] ="/mdfs_bloques.bin";
 
 
 typedef struct { //estructura que tiene las tres copias del bloque

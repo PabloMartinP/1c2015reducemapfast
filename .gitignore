@@ -37,10 +37,10 @@ procesoNodo/Debug/
 
 procesoFileSystem/log.txt
 procesoFileSystem/Debug/
-procesoFileSystem/archivos.bin
-procesoFileSystem/bloques.bin
-procesoFileSystem/directorios.bin
-procesoFileSystem/nodos.bin
+procesoFileSystem/mdfs_archivos.bin
+procesoFileSystem/mdfs_bloques.bin
+procesoFileSystem/mdfs_directorios.bin
+procesoFileSystem/mdfs_nodos.bin
 
 utiles/Debug/
 

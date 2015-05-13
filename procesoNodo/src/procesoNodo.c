@@ -18,8 +18,8 @@
 
 //#include "socket.h"
 
-#define FILE_CONFIG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/config.txt"
-#define FILE_LOG "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/log.txt"
+char FILE_CONFIG [1024] = "/config.txt";
+char FILE_LOG [1024] = "/log.txt";
 /*
  * variables
  */
@@ -44,6 +44,7 @@ int NODO_CANT_BLOQUES();
 void procesar_mensaje_fs(int fd, t_msg* msg);
 void iniciar_server_peticiones_fs();
 void iniciar_thread_server_peticiones_fs();
+void agregar_cwd(char* file);
 /*
  * main
  */
@@ -52,8 +53,7 @@ int CANT_BLOQUES;
 int main(int argc, char *argv[]) {
 	//por param le tiene que llegar el tamaño del archivo data.bin
 	//por ahora hardcodeo 100mb, serian 10 bloques de 20 mb
-	TAMANIO_DATA = 1024 * 1024 * 500; //100MB
-	CANT_BLOQUES = TAMANIO_DATA / TAMANIO_BLOQUE_B;
+
 
 	inicializar();
 
@@ -104,6 +104,19 @@ int main(int argc, char *argv[]) {
 
 	return EXIT_SUCCESS;
 }
+
+void agregar_cwd(char* file){
+	char cwd[1024];
+	if (getcwd(cwd, sizeof(cwd)) == NULL)
+		handle_error("getcwd() error");
+
+	char* aux = malloc(strlen(file));
+	strcpy(aux, file);
+	strcpy(file, cwd);
+	strcat(file, aux);
+	free(aux);
+}
+
 
 void iniciar_thread_server_peticiones_fs() {
 	pthread_t th;
@@ -246,7 +259,9 @@ void inicializar() {
 	 getcwd(cwd, sizeof(cwd));
 	 char* file_config = file_combine(cwd, FILE_CONFIG);
 	 */
+	agregar_cwd(FILE_CONFIG);
 	config = config_create(FILE_CONFIG);
+	agregar_cwd(FILE_LOG);
 	logger = log_create(FILE_LOG, "Nodo", true, LOG_LEVEL_INFO);
 
 	_data = data_get(NODO_ARCHIVOBIN());
@@ -306,10 +321,14 @@ char* getBloque(int32_t numero) {
 
 //devuelvo el archivo data.bin mappeado
 void* data_get(char* filename) {
+	char filenamenew[1024];
+	strcpy(filenamenew, filename);
+	agregar_cwd(filenamenew);
 
-	if (!file_exists(filename)) {
+	if (!file_exists(filenamenew)) {
+		TAMANIO_DATA = 1024 * 1024 * 500; //100MB
 		FILE* file = NULL;
-		file = fopen(filename, "w+");
+		file = fopen(filenamenew, "w+");
 		if (file == NULL) {
 			handle_error("fopen");
 		}
@@ -326,9 +345,12 @@ void* data_get(char* filename) {
 
 		fclose(file);
 	}
+	//calculo la cantidad de bloques
+	TAMANIO_DATA = file_get_size(filenamenew);
+	CANT_BLOQUES = TAMANIO_DATA / TAMANIO_BLOQUE_B;
 
 //el archivo ya esta creado con el size maximo
-	return file_get_mapped(filename);
+	return file_get_mapped(filenamenew);
 }
 
 void data_destroy() {

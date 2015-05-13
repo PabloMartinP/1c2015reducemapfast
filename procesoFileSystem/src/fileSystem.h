@@ -16,7 +16,7 @@
 #include <commons/temporal.h>
 
 
-char* FILE_NODOS =	"/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/nodos.bin";
+char FILE_NODOS[1024] =	"/mdfs_nodos.bin";
 
 typedef struct {
 	char** nodos_necesarios;
@@ -158,23 +158,26 @@ char* fs_archivo_get_bloque(char* nombre, int dir_id,
 
 	//tengo que verificar si alguno de los nodos que tiene la copia esta disponible
 	//hardcodeo ip y puerto
-	char* ip = "127.0.0.1";
-	int puerto = 6001;
+	//char* ip = "127.0.0.1";
+	//int puerto = 6001;
 
 	t_nodo_bloque* nb = NULL;
 
 	char* datos_bloque = NULL;
 
 	for (i = 0; i < list_size(bloque->nodosbloque); i++) {
+		nb = NULL;
+		nb = list_get(bloque->nodosbloque, i);
+
 		//obtengo el ip y puerto en base al nodo_id
-		if (bloque->n_bloque == n_bloque && nodo_esta_vivo(ip, puerto)) {
+		if (bloque->n_bloque == n_bloque && nodo_esta_vivo(nb->nodo->base.ip, nb->nodo->base.puerto)) {
 
 			//si esta vivo inicio la transferencia del bloque
 			nb = NULL;
 			nb = list_get(bloque->nodosbloque, i);
 
 			//me conecto con el nodo
-			int fd = client_socket(ip, puerto);
+			int fd = client_socket(nb->nodo->base.ip, nb->nodo->base.puerto);
 			//le pido el bloque n_bloque
 			t_msg* msg = string_message(NODO_GET_BLOQUE, "", 1, nb->n_bloque);
 			enviar_mensaje(fd, msg);
@@ -277,8 +280,9 @@ void fs_print_archivo(char* nombre, int dir_id) {
 
 }
 
-
 void fs_create() {
+
+
 
 	fs.nodos = list_create();
 
@@ -591,10 +595,11 @@ t_list* fs_importar_archivo(char* archivo) {
 	int i;
 	size_t bytes_leidos = 0, offset = 0;
 
-	for (i = 0; i < c_registros; i++) {
+	for (i = 0; i < c_registros; ) {
 
 		if (bytes_leidos + strlen(registros[i]) + 1 < TAMANIO_BLOQUE_B) {
 			bytes_leidos += strlen(registros[i]) + 1;
+			i++;
 		} else {
 			//si supera el tamaño de bloque grabo
 

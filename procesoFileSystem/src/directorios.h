@@ -12,7 +12,7 @@
 const int DIR_TAMANIO_MAX_NOMBRE = 128;
 const int DIR_CANT_MAX = 1024;
 
-char* FILE_DIRECTORIO = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/directorios.bin";
+char FILE_DIRECTORIO[1024] = "/mdfs_directorios.bin";
 
 
 typedef struct {

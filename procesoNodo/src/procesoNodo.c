@@ -38,8 +38,10 @@ void* getFileContent(char* filename);
 
 void inicializar();
 void finalizar();
-
+void incicar_server();
 void conectar_con_fs();
+void procesar_mensaje_job(int socket, t_msg* msg);
+
 int NODO_CANT_BLOQUES();
 void procesar_mensaje_fs(int fd, t_msg* msg);
 void iniciar_server_peticiones_fs();
@@ -61,7 +63,7 @@ int main(int argc, char *argv[]) {
 
 	//inicio el server para atender las peticiones del fs
 	iniciar_thread_server_peticiones_fs();
-
+	incicar_server();
 	//*todo: test settear 0 bloque y leerlo
 	/*
 	 //settear el bloque 0
@@ -357,4 +359,15 @@ void data_destroy() {
 	munmap(_data, TAMANIO_DATA);
 //mapped = NULL;
 }
+
+void procesar_mensaje_job(int socket, t_msg* msg){
+	print_msg(msg);
+	destroy_message(msg);
+}
+
+void incicar_server(){
+
+	server_socket_select(config_get_int_value(config, "PUERTO_NODO"),	(void*) procesar_mensaje_job);
+}
+
 

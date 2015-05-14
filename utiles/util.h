@@ -62,7 +62,8 @@ typedef enum {
 	NODO_HOLA,
 	FS_GRABAR_BLOQUE,
 	NODO_CHAU,
-	NODO_GET_BLOQUE
+	NODO_GET_BLOQUE,
+	JOB_HOLA
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/

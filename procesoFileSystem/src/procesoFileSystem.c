@@ -84,6 +84,7 @@ void iniciar_consola() {
 
 	bool fin = false;
 	while (!fin) {
+
 		printf("\nINGRESAR COMANDO: ");
 
 		leer_comando_consola(comando);

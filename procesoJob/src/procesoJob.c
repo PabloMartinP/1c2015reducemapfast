@@ -15,10 +15,17 @@
 #include <commons/config.h>
 #include <commons/collections/list.h>
 #include <pthread.h>
+#include <util.h>
 
 
+char FILE_CONFIG [1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/jobConfig.txt";
 
 int main(void) {
-	puts("!!!Hello World!!!"); /* prints !!!Hello World!!! */
+	t_config* jobConfig = NULL;
+	jobConfig = config_create(FILE_CONFIG);
+
+	printf("%s", config_get_string_value(jobConfig, "IP_MARTA"));
+
+	config_destroy(jobConfig);
 	return EXIT_SUCCESS;
 }

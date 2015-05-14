@@ -25,11 +25,14 @@ endif
 # All Target
 all: procesoJob
 
+dependents:
+	-cd /home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/utiles/Debug && $(MAKE) all
+
 # Tool invocations
-procesoJob: $(OBJS) $(USER_OBJS)
+procesoJob: $(OBJS) $(USER_OBJS) /home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/utiles/Debug/libutiles.so
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Linker'
-	gcc  -o "procesoJob" $(OBJS) $(USER_OBJS) $(LIBS)
+	gcc -L"/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/utiles/Debug" -o "procesoJob" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -40,5 +43,6 @@ clean:
 
 .PHONY: all clean dependents
 .SECONDARY:
+/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/utiles/Debug/libutiles.so:
 
 -include ../makefile.targets

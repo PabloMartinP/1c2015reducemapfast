@@ -3,6 +3,7 @@
 	<name>procesoJob</name>
 	<comment></comment>
 	<projects>
+		<project>utiles</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

@@ -103,6 +103,8 @@ int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*));
  */
 int server_socket(uint16_t port);
 
+char* ip_get();
+
 /*
  * Crea y conecta a una ip:puerto determinado.
  */

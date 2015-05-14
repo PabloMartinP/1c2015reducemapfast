@@ -620,7 +620,6 @@ t_list* fs_importar_archivo(char* archivo) {
 		nro_bloque++;
 		//agrego el bloquededatos a la lista
 		list_add(new, bd);
-
 	}
 
 	file_mmap_free(mapped, archivo);

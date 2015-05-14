@@ -24,6 +24,14 @@ typedef struct {
 	int id;
 	char ip[15];
 	uint16_t puerto;
+	int cant_bloques;
+}t_nodo_base;
+typedef struct {
+	t_nodo_base base;
+	//int id;
+	//char ip[15];
+	//uint16_t puerto;
+	bool conectado;
 	bool esNuevo;
 	t_list* bloques;
 } t_nodo;
@@ -48,7 +56,7 @@ size_t TAMANIO_BLOQUE_B = 1024 * 1024 * 20; //20mb
 int ID_NODO_NUEVO = 0; //se asigna cuando se crea un nodo nuevo
 t_nodo* nodo_new(char* ip, uint16_t port, bool isNew, uint16_t cant_bloques);
 void print_nodo(t_nodo* nodo);
-int get_id_nodo_nuevo();
+int nodo_get_new_nodo_id();
 
 bool bloque_esta_usado(t_bloque* bloque);
 bool bloque_esta_libre(t_bloque* bloque);
@@ -59,13 +67,16 @@ t_bloque* nodo_get_bloque_para_copiar(t_nodo* nodo);
 int nodo_cant_bloques_libres(t_nodo* nodo);
 int nodo_cant_bloques_usados(t_nodo* nodo);
 int nodo_cant_bloques(t_nodo* nodo);
+void nodo_marcar_como_libre_total(t_nodo* nodo);
 
 void nodo_destroy(t_nodo* nodo);
 void nodo_set_ip(t_nodo* nodo, char* ip);
 t_bloque* nodo_buscar_bloque(t_nodo* nodo, int n_bloque);
 void nodo_marcar_bloque_como_usado(t_nodo* nodo, int n_bloque);
 char* nodo_isNew(t_nodo* nodo);
+void nodo_print_info(t_nodo* nodo);
 void nodo_mensaje_desconexion(t_nodo* nodo);
+bool nodo_base_igual_a(t_nodo_base nb, t_nodo_base otro_nb);
 
 //bool nodo_esta_vivo(t_nodo* nodo);
 bool nodo_esta_vivo(char* ip, int puerto);

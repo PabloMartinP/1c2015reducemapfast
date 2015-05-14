@@ -14,6 +14,12 @@
 #include "util.h"
 #include <stdlib.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <net/if.h>
+
 size_t file_get_size(char* filename) {
 	struct stat st;
 	stat(filename, &st);
@@ -31,6 +37,29 @@ char* file_combine(char* f1, char* f2) {
 
 	return p;
 
+}
+char ip[15];
+char* ip_get(){
+	int fd;
+	struct ifreq ifr;
+
+	fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+	ifr.ifr_addr.sa_family = AF_INET;
+
+	snprintf(ifr.ifr_name, IFNAMSIZ, "eth0");
+
+	ioctl(fd, SIOCGIFADDR, &ifr);
+
+	/* and more importantly */
+
+	strcpy(ip, inet_ntoa(((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr));
+	//fprintf(ip, "%s", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+
+	printf("%s", ip);
+
+	close(fd);
+	return ip;
 }
 
 void file_mmap_free(char* mapped, char* filename) {

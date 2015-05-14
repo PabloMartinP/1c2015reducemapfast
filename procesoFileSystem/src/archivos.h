@@ -11,6 +11,8 @@
 #include <commons/txt.h>
 
 
+char FILE_ARCHIVO[1024] ="/mdfs_archivos.bin";
+char FILE_ARCHIVO_BLOQUES[1024] ="/mdfs_bloques.bin";
 
 
 typedef struct { //estructura que tiene las tres copias del bloque
@@ -70,7 +72,7 @@ void arch_print_bloques(t_list* bloques_de_datos){
 
 		int i=1;
 		void print_nodo_bloque(t_nodo_bloque* nodo_bloque){
-			printf(" >> >> >> Copia %d: nodo_id: %d, bloque-nro: %d\n", i, nodo_bloque->nodo->id, nodo_bloque->n_bloque);
+			printf(" >> >> >> Copia %d: nodo_id: %d, bloque-nro: %d\n", i, nodo_bloque->nodo->base.id, nodo_bloque->n_bloque);
 			i++;
 		}
 
@@ -91,7 +93,7 @@ void arch_print_info(t_archivo_info* info){
 }
 
 void bloque_de_datos_destroy(t_bloque_de_datos* bloque_de_datos){
-	list_destroy_and_destroy_elements(bloque_de_datos->nodosbloque, (void*)free_null);
+	list_destroy(bloque_de_datos->nodosbloque);
 	free_null((void*)&bloque_de_datos);
 }
 
@@ -169,7 +171,7 @@ void arch_agregar(t_archivo* archivo) {
 			//creo una estructura solo para guardar el nodo_id y el n_bloque
 			t_nodo_id_n_bloque nb;
 			nb.n_bloque = nodobloque->n_bloque;
-			nb.nodo_id = nodobloque->nodo->id;
+			nb.nodo_id = nodobloque->nodo->base.id;
 			fwrite(&nb, sizeof(t_nodo_id_n_bloque), 1, file);
 
 			//fwrite(&nodobloque->nodo->id, sizeof(nodobloque->nodo->id), 1, file);

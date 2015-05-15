@@ -9,6 +9,7 @@
 #define CONFIG_NODO_H_
 
 #include <commons/config.h>
+#include <util.h>
 
 int NODO_PORT_FS();
 char* NODO_IP_FS();

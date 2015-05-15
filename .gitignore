@@ -42,5 +42,7 @@ procesoFileSystem/mdfs_bloques.bin
 procesoFileSystem/mdfs_directorios.bin
 procesoFileSystem/mdfs_nodos.bin
 
+procesoJob/Debug
+
 utiles/Debug/
 

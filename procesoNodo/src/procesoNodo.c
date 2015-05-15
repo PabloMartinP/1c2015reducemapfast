@@ -4,7 +4,6 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-#include <util.h>
 
 #include <commons/string.h>
 #include <string.h>
@@ -16,6 +15,7 @@
 
 #include <nodo.h>
 
+#include <util.h>
 //#include "socket.h"
 
 char FILE_CONFIG [1024] = "/config.txt";
@@ -38,14 +38,11 @@ void* getFileContent(char* filename);
 
 void inicializar();
 void finalizar();
-void incicar_server();
-void conectar_con_fs();
-void procesar_mensaje_job(int socket, t_msg* msg);
-
+void probar_conexion_fs();
+void iniciar_server_thread();
 int NODO_CANT_BLOQUES();
-void procesar_mensaje_fs(int fd, t_msg* msg);
-void iniciar_server_peticiones_fs();
-void iniciar_thread_server_peticiones_fs();
+void procesar_mensaje(int fd, t_msg* msg);
+void incicar_server();
 void agregar_cwd(char* file);
 /*
  * main
@@ -59,11 +56,10 @@ int main(int argc, char *argv[]) {
 
 	inicializar();
 
-	conectar_con_fs();
+	probar_conexion_fs();
 
 	//inicio el server para atender las peticiones del fs
-	iniciar_thread_server_peticiones_fs();
-	incicar_server();
+	iniciar_server_thread();
 	//*todo: test settear 0 bloque y leerlo
 	/*
 	 //settear el bloque 0
@@ -120,18 +116,18 @@ void agregar_cwd(char* file){
 }
 
 
-void iniciar_thread_server_peticiones_fs() {
+void iniciar_server_thread() {
 	pthread_t th;
 	pthread_attr_t tattr;
 
 	pthread_attr_init(&tattr);
 	pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-	pthread_create(&th, &tattr, (void*) iniciar_server_peticiones_fs, NULL);
+	pthread_create(&th, &tattr, (void*) incicar_server, NULL);
 	pthread_attr_destroy(&tattr);
 
 }
 
-void procesar_mensaje_fs(int fd, t_msg* msg) {
+void procesar_mensaje(int fd, t_msg* msg) {
 	print_msg(msg);
 	int n_bloque = 0;
 
@@ -181,17 +177,17 @@ void procesar_mensaje_fs(int fd, t_msg* msg) {
 	}
 
 }
-void iniciar_server_peticiones_fs() {
-	printf("Iniciado server de peticiones del FS\n");
+void incicar_server() {
+	printf("Iniciado server nodo para FS y JOB. Puerto: %d\n", NODO_PORT());
 
-	server_socket_select(NODO_PORT(), procesar_mensaje_fs);
+	server_socket_select(NODO_PORT(), procesar_mensaje);
 }
 
 int NODO_CANT_BLOQUES() {
 	return CANT_BLOQUES;
 }
 
-void conectar_con_fs() {
+void probar_conexion_fs() {
 
 	log_trace(logger, "conectado al FS ... ");
 
@@ -240,6 +236,7 @@ void conectar_con_fs() {
 			printf("No se pudo conectar con el fs");
 
 		close(fs);
+		printf("Conectado con fs en %s:%d\n", NODO_IP_FS(), NODO_PORT_FS());
 	} else {
 		printf("No pudo iniciar la escucha al fs\n");
 	}
@@ -287,18 +284,6 @@ void* getFileContent(char* filename) {
 	log_info(logger, "Fin getFileContent(%s)", filename);
 	return content;
 }
-/*
- void bloques_set() {
-
- //creo el espacio para guardar las posiciones de memoria de cada
- _bloques = malloc(CANT_BLOQUES);
-
- int i = 0;
- for (i = 0; i < CANT_BLOQUES; i++) {
- //_bloques[i] = (_data + (i * TAMANIO_BLOQUE));
- (_bloques+i) = &i;
- }
- }*/
 
 void setBloque(int32_t numero, char* bloquedatos) {
 	log_info(logger, "Inicio setBloque(%d)", numero);
@@ -358,16 +343,6 @@ void* data_get(char* filename) {
 void data_destroy() {
 	munmap(_data, TAMANIO_DATA);
 //mapped = NULL;
-}
-
-void procesar_mensaje_job(int socket, t_msg* msg){
-	print_msg(msg);
-	destroy_message(msg);
-}
-
-void incicar_server(){
-
-	server_socket_select(config_get_int_value(config, "PUERTO_NODO"),	(void*) procesar_mensaje_job);
 }
 
 

@@ -28,6 +28,7 @@
 	do{perror(msj);exit(EXIT_FAILURE);} while(0)
 
 #define MB_EN_B  1024*1024//1mb
+
 #define REG_SIZE 4
 
 /* Funciones Macro */
@@ -93,7 +94,7 @@ void* file_get_mapped(char* filename);
 void file_mmap_free(char* mapped, char* filename);
 float  bytes_to_kilobytes(size_t bytes);
 float bytes_to_megabytes(size_t bytes);
-
+int cant_registros(char** registros) ;
 int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer);
 int recibir_mensaje_flujo(int unSocket, void** buffer);
 

@@ -6,6 +6,7 @@
 
 
 #include <commons/string.h>
+#include <commons/temporal.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -20,6 +21,30 @@
 
 char FILE_CONFIG [1024] = "/config.txt";
 char FILE_LOG [1024] = "/log.txt";
+
+/* since pipes are unidirectional, we need two pipes.
+   one for data to flow from parent's stdout to child's
+   stdin and the other for child's stdout to flow to
+   parent's stdin */
+
+#define NUM_PIPES          2
+
+#define PARENT_WRITE_PIPE  0
+#define PARENT_READ_PIPE   1
+
+int pipes[NUM_PIPES][2];
+
+/* always in a pipe[], pipe[0] is for read and
+   pipe[1] is for write */
+#define READ_FD  0
+#define WRITE_FD 1
+
+#define PARENT_READ_FD  ( pipes[PARENT_READ_PIPE][READ_FD]   )
+#define PARENT_WRITE_FD ( pipes[PARENT_WRITE_PIPE][WRITE_FD] )
+
+#define CHILD_READ_FD   ( pipes[PARENT_WRITE_PIPE][READ_FD]  )
+#define CHILD_WRITE_FD  ( pipes[PARENT_READ_PIPE][WRITE_FD]  )
+
 /*
  * variables
  */
@@ -45,6 +70,15 @@ void procesar_mensaje(int fd, t_msg* msg);
 void incicar_server();
 void agregar_cwd(char* file);
 /*
+ * graba el temp concatenandole el timenow en el filename para que sea unico
+ */
+char* grabar_en_temp(char* filename, char* data);
+
+/*
+ * devuelve el archivo creado en el  temp del nodo
+ */
+char* aplicar_map(int n_bloque, char* mapping);
+/*
  * main
  */
 int TAMANIO_DATA;
@@ -60,47 +94,106 @@ int main(int argc, char *argv[]) {
 
 	//inicio el server para atender las peticiones del fs
 	iniciar_server_thread();
-	//*todo: test settear 0 bloque y leerlo
-	/*
-	 //settear el bloque 0
-	 void* saludo = malloc(TAMANIO_BLOQUE_B);
-	 strcpy(saludo, "ahora cambio el mensaje!");
-	 //setBloque(0, saludo);
-	 */
 
-	/*
-	 //leo el bl0que 0 1 2
-	 char * dataget = getBloque(0);
-	 printf("%s\n", dataget);
-	 dataget = getBloque(1);
-	 printf("%s\n", dataget);
-	 dataget = getBloque(2);
-	 printf("%s\n", dataget);*/
+	int n_bloque =0;
+	//aplicar_map(n_bloque, "/home/utnso/Escritorio/scripts/map.py");
+	aplicar_map(n_bloque, "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/map.sh");
 
-	/*
-	 free_null((void*)&saludo);
-	 free_null((void*)&saludoget);
-	 free_null((void*)&dataget);
-	 */
-
-	/*
-	 * todo: TEST LEER UN ARCHIVO DE LA CARPETA /TMP
-	 * EL ARCHIVO DEBE ESTAR CREADO
-	 int i=0;
-	 char *d = NULL;
-	 d = getFileContent("hola");
-	 for(i=0;i<10;i++)
-	 printf("%c", d[i]);
-	 file_mmap_free(d, "hola");
-	 */
-
-////
 	//bool fin = true	;
-	while (!FIN)
-		;
+	//while (!FIN);
 	finalizar();
 
 	return EXIT_SUCCESS;
+}
+
+char* aplicar_map(int n_bloque, char* mapping){
+	//int outfd[2];
+	//int infd[2];
+
+
+	// pipes for parent to write and read
+	pipe(pipes[PARENT_READ_PIPE]);
+	pipe(pipes[PARENT_WRITE_PIPE]);
+
+	if (!fork()) {
+		//char *argv[] = { mapping, NULL , 0 };
+        char *argv[]={ mapping, NULL};
+
+
+		dup2(CHILD_READ_FD, STDIN_FILENO);
+		dup2(CHILD_WRITE_FD, STDOUT_FILENO);
+
+		/* Close fds not required by child. Also, we don't
+		 want the exec'ed program to know these existed */
+		close(CHILD_READ_FD);
+		close(CHILD_WRITE_FD);
+		close(PARENT_READ_FD);
+		close(PARENT_WRITE_FD);
+
+		execv(argv[0], argv);
+		return NULL;
+	} else {
+		char* buffer = malloc(TAMANIO_BLOQUE_B);
+		//char *buffer = malloc(100);
+		char* new_file_mapped = NULL;
+		int count;
+
+		/* close fds not required by parent */
+		close(CHILD_READ_FD);
+		close(CHILD_WRITE_FD);
+
+		// Write to child’s stdin
+		//char* stdinn = "2^10\n3Por2\n\0";
+		char* stdinn = getBloque(n_bloque);
+		size_t len = strlen(stdinn)+1;
+		char* _stdin = malloc(len+1);
+		memcpy(_stdin, stdinn, len+1);
+		_stdin[len-1] = '\n';
+		write(PARENT_WRITE_FD, _stdin, len+1);
+
+		//spliteo por enter
+		char** registros = string_split(_stdin, "\n");
+		int c_registros = cant_registros(registros);
+		// Read from child’s stdout
+		int i=0, n_reg = 0;
+		do{
+			count = read(PARENT_READ_FD, buffer + i, 1);
+			if(buffer[i]=='\n')
+				n_reg++;
+			i++;
+		//}while(count!=0);
+		}while(n_reg < c_registros );
+        //count = read(PARENT_READ_FD, buffer, 100);
+
+		if (i >= 0) {
+			buffer[i] = 0;
+			printf("%s\n", buffer);
+			//grabo el archivo
+
+			new_file_mapped = grabar_en_temp("job_map" ,buffer);
+
+
+		} else {
+			printf("IO Error\n");
+		}
+
+		free(buffer);
+		return new_file_mapped;
+	}
+
+}
+
+char* grabar_en_temp(char* filename, char* data){
+	char* nombre_nuevo_archivo = NULL;
+	nombre_nuevo_archivo = file_combine(NODO_DIRTEMP(), filename);
+	char* timenow = temporal_get_string_time();
+	string_append(&nombre_nuevo_archivo, timenow);
+	free_null((void*) &timenow);
+
+	write_file(nombre_nuevo_archivo, data, strlen(data));
+
+	//free_null(&nombre_nuevo_archivo);
+	return nombre_nuevo_archivo;
 }
 
 void agregar_cwd(char* file){

@@ -66,6 +66,15 @@ void file_mmap_free(char* mapped, char* filename) {
 	munmap(mapped, file_get_size(filename));
 }
 
+int cant_registros(char** registros) {
+	int i = 0;
+	while (registros[i] != NULL) {
+		i++;
+	}
+	return i;
+}
+
+
 /*
  * devuelve el arhivo mappeado modo lectura y escritura
  */

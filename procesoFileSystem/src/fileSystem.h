@@ -211,8 +211,7 @@ bool fs_existe_dir(int dir_id) {
 	return dir_buscar_por_id(fs.directorios, dir_id) != NULL;
 }
 
-void fs_copiar_mdfs_a_local(char* nombre, int dir_id,
-		char* destino) {
+void fs_copiar_mdfs_a_local(char* nombre, int dir_id, char* destino) {
 	int i;
 	t_archivo* archivo = NULL;
 	printf("comienzo a exportar el archivo\n");
@@ -783,13 +782,6 @@ t_nodo_bloque** fs_get_tres_nodo_bloque_libres() {
 	return new;
 }
 
-int cant_registros(char** registros) {
-	int i = 0;
-	while (registros[i] != NULL) {
-		i++;
-	}
-	return i;
-}
 
 /*
  * devuelvo 20mb con el pedazo de bloque leido hasta el \n

@@ -1,5 +1,6 @@
 #!/bin/bash
+n=0
 while read line ; do
-  echo  ${#line}
+  let n=n+line
 done
-
+echo $n

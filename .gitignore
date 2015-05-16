@@ -43,6 +43,9 @@ procesoFileSystem/mdfs_directorios.bin
 procesoFileSystem/mdfs_nodos.bin
 
 procesoJob/Debug
+procesoJob/reduce.sh~
+procesoJob/map.sh~
+
 
 utiles/Debug/
 

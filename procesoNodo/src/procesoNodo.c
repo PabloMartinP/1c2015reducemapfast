@@ -70,7 +70,8 @@ int NODO_CANT_BLOQUES();
 void procesar_mensaje(int fd, t_msg* msg);
 void incicar_server();
 void agregar_cwd(char* file);
-void* ejecutar_script(char* mapping, void* (*procesar_std)()) ;
+void* ejecutar_script(char* script, void* (*procesar_std)()) ;
+char* aplicar_reduce(char* file, char* script_reduce);
 char* ejecutar_script_sort(char* filename);
 /*
  * graba el temp concatenandole el timenow en el filename para que sea unico
@@ -80,7 +81,7 @@ char* grabar_en_temp(char* filename, char* data);
 /*
  * devuelve el archivo creado en el  temp del nodo
  */
-char* aplicar_map(int n_bloque, char* mapping);
+char* aplicar_map(int n_bloque, char* script_map);
 /*
  * main
  */
@@ -100,16 +101,54 @@ int main(int argc, char *argv[]) {
 
 
 	int n_bloque =0;
-	char* file;
-	file = aplicar_map(n_bloque, "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/map.sh");
-	printf("%s\n", file);
-	free(file);
+	char* file_map;
+	file_map = aplicar_map(n_bloque, "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/map.sh");
+	printf("%s\n", file_map);
+	char* file_reduce;
+	file_reduce = aplicar_reduce(file_map, "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/reduce.sh");
+	printf("%s\n", file_reduce);
+	free(file_reduce);
+	free(file_map);
 
 	//bool fin = true	;
 	while (!FIN);
 	finalizar();
 
 	return EXIT_SUCCESS;
+}
+
+char* aplicar_reduce(char* file, char* script_reduce){
+
+	void* _reduce(){
+		char* new_file_reduced = NULL;
+		char* stdinn = read_whole_file(file);
+		size_t len = strlen(stdinn);
+		write(PARENT_WRITE_FD, stdinn, len);
+		close(PARENT_WRITE_FD);
+
+		char* buffer = malloc(len);
+		int count;
+		int i = 0;
+		do {
+			count = read(PARENT_READ_FD, buffer + i, 1);
+			i++;
+		} while (count != 0);
+		close(PARENT_READ_FD);
+
+		if (i >= 0) {
+			buffer[i] = 0;
+			//printf("%s\n", buffer);
+			//grabo el archivo
+			new_file_reduced = grabar_en_temp("job_reduce_untidy_", buffer);
+
+		} else {
+			printf("IO Error\n");
+		}
+
+		return new_file_reduced;
+	}
+	char* file_reduced = ejecutar_script(script_reduce, (void*) _reduce);
+	return file_reduced;
 }
 /*
 void* ejecutar_script(char* mapping, void* (*procesar_std)()) {
@@ -150,7 +189,7 @@ void* ejecutar_script(char* mapping, void* (*procesar_std)()) {
 }
 */
 
-void* ejecutar_script(char* mapping, void* (*procesar_std)()) {
+void* ejecutar_script(char* script, void* (*procesar_std)()) {
 	// pipes for parent to write and read
 	if (pipe(pipes[PARENT_READ_PIPE]) == -1)
 		handle_error("pipe");
@@ -163,7 +202,7 @@ void* ejecutar_script(char* mapping, void* (*procesar_std)()) {
 		handle_error("fork");
 
 	if (p==0) {
-		char *argv[] = { mapping, NULL };
+		char *argv[] = { script, NULL };
 		dup2(CHILD_READ_FD, STDIN_FILENO);
 		dup2(CHILD_WRITE_FD, STDOUT_FILENO);
 		close(CHILD_READ_FD);
@@ -181,7 +220,7 @@ void* ejecutar_script(char* mapping, void* (*procesar_std)()) {
 	}
 }
 
-char* aplicar_map(int n_bloque, char* mapping){
+char* aplicar_map(int n_bloque, char* script_map){
 
 	char* _aplicar_map()
 	{
@@ -228,62 +267,8 @@ char* aplicar_map(int n_bloque, char* mapping){
 	//hago fork para el mapping y aplico
 	char* file_untidy= NULL;
 	//file_untidy = ejecutar_script(mapping, (void*)_aplicar_map);
-	file_untidy = ejecutar_script(mapping, (void*)_aplicar_map);
+	file_untidy = ejecutar_script(script_map, (void*)_aplicar_map);
 	//return file_untidy;
-
-	/*
-	char* _guardar(){
-		char input[100];
-		write(PARENT_WRITE_FD,"dino\nbat\nfish\nzilla\nlizard\n\0",27);
-		close(PARENT_WRITE_FD);
-		input[read(PARENT_READ_FD, input,100)] = 0;
-		printf("%s\n", input);
-
-		//////////////////////////////////
-		int res;
-		char* buffer = malloc(TAMANIO_BLOQUE_B);
-		int count = 0;
-		char* new_file_mapped_tidy = NULL;
-		char* stdinn = read_whole_file(file_untidy);
-		size_t len = strlen(stdinn) + 1;
-		//char* _stdin = malloc(len+1);
-		//memcpy(_stdin, stdinn, len+1);
-		//stdinn[len - 1] = '\n';
-		if((res = write(PARENT_WRITE_FD, stdinn, len))==-1)
-			handle_error("write");
-
-		//spliteo por enter
-		char** registros = string_split(stdinn, "\n");
-		int c_registros = cant_registros(registros);
-		// Read from child’s stdout
-		int i = 0, n_reg = 0;
-		do {
-			count = read(PARENT_READ_FD, buffer + i, 1);
-			if (buffer[i] == '\n')
-				n_reg++;
-			i++;
-			//}while(count!=0);
-		} while (n_reg < c_registros);
-		//count = read(PARENT_READ_FD, buffer, 100);
-
-		if (i >= 0) {
-			buffer[i] = 0;
-			printf("%s\n", buffer);
-			//grabo el archivo
-
-			new_file_mapped_tidy = grabar_en_temp("job_map_tidy_", buffer);
-
-		} else {
-			printf("IO Error\n");
-		}
-
-		close(PARENT_READ_FD);
-		close(PARENT_WRITE_FD);
-
-		free_null(&stdinn);
-		free_null(&buffer);
-		return new_file_mapped_tidy;
-	}*/
 
 	char* file_tidy = NULL;
 	file_tidy = ejecutar_script_sort(file_untidy);

@@ -70,6 +70,8 @@ int NODO_CANT_BLOQUES();
 void procesar_mensaje(int fd, t_msg* msg);
 void incicar_server();
 void agregar_cwd(char* file);
+void* ejecutar_script(char* mapping, void* (*procesar_std)()) ;
+char* ejecutar_script_sort(char* filename);
 /*
  * graba el temp concatenandole el timenow en el filename para que sea unico
  */
@@ -96,33 +98,78 @@ int main(int argc, char *argv[]) {
 	//inicio el server para atender las peticiones del fs
 	iniciar_server_thread();
 
-	/*
+
 	int n_bloque =0;
 	char* file;
 	file = aplicar_map(n_bloque, "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/map.sh");
 	printf("%s\n", file);
 	free(file);
-*/
+
 	//bool fin = true	;
 	while (!FIN);
 	finalizar();
 
 	return EXIT_SUCCESS;
 }
+/*
+void* ejecutar_script(char* mapping, void* (*procesar_std)()) {
+	// pipes for parent to write and read
+	if(pipe(pipes[PARENT_READ_PIPE])==-1)
+		handle_error("pipe");
+
+	if((pipe(pipes[PARENT_WRITE_PIPE]))==-1)
+		handle_error("pipe");
+	char *argv[2] ;
+	switch (fork()) {
+	case -1:
+		handle_error("fork");
+		break;
+	case 0: // CHILD
+		argv[0] = mapping;
+		argv[0] = NULL;
+
+		dup2(CHILD_READ_FD, STDIN_FILENO);
+		dup2(CHILD_WRITE_FD, STDOUT_FILENO);
+		close(CHILD_READ_FD);
+		close(CHILD_WRITE_FD);
+		close(PARENT_READ_FD);
+		close(PARENT_WRITE_FD);
+
+        execv(argv[0], argv);
+		break;
+	default:
+		break; // fall through to parent
+	}
+
+	close(CHILD_READ_FD);
+	close(CHILD_WRITE_FD);
+
+	return procesar_std();
+
+
+}
+*/
 
 void* ejecutar_script(char* mapping, void* (*procesar_std)()) {
 	// pipes for parent to write and read
-	pipe(pipes[PARENT_READ_PIPE]);
-	pipe(pipes[PARENT_WRITE_PIPE]);
+	if (pipe(pipes[PARENT_READ_PIPE]) == -1)
+		handle_error("pipe");
 
-	if (!fork()) {
+	if ((pipe(pipes[PARENT_WRITE_PIPE])) == -1)
+		handle_error("pipe");
+
+	int p =fork();
+	if(p==-1)
+		handle_error("fork");
+
+	if (p==0) {
 		char *argv[] = { mapping, NULL };
 		dup2(CHILD_READ_FD, STDIN_FILENO);
 		dup2(CHILD_WRITE_FD, STDOUT_FILENO);
-		//close(CHILD_READ_FD);
-		//close(CHILD_WRITE_FD);
-		//close(PARENT_READ_FD);
-		//close(PARENT_WRITE_FD);
+		close(CHILD_READ_FD);
+		close(CHILD_WRITE_FD);
+		close(PARENT_READ_FD);
+		close(PARENT_WRITE_FD);
 
 		execv(argv[0], argv);
 		return NULL;
@@ -139,36 +186,27 @@ char* aplicar_map(int n_bloque, char* mapping){
 	char* _aplicar_map()
 	{
 		char* buffer = malloc(TAMANIO_BLOQUE_B);
-		//char *buffer = malloc(100);
 		char* new_file_mapped_untidy = NULL;
 		int count;
 
 		// Write to child’s stdin
-		//char* stdinn = "2^10\n3Por2\n\0";
 		char* stdinn = getBloque(n_bloque);
 		size_t len = strlen(stdinn)+1;
-		//char* _stdin = malloc(len+1);
-		//memcpy(_stdin, stdinn, len+1);
 		stdinn[len-1] = '\n';
 		write(PARENT_WRITE_FD, stdinn, len);
+		close(PARENT_WRITE_FD);
 
-		//spliteo por enter
-		char** registros = string_split(stdinn, "\n");
-		int c_registros = cant_registros(registros);
 		// Read from child’s stdout
-		int i=0, n_reg = 0;
+		int i=0;
 		do{
 			count = read(PARENT_READ_FD, buffer + i, 1);
-			if(buffer[i]=='\n')
-				n_reg++;
 			i++;
-		//}while(count!=0);
-		}while(n_reg < c_registros );
-        //count = read(PARENT_READ_FD, buffer, 100);
+		}while(count!=0);
+		close(PARENT_READ_FD);
 
 		if (i >= 0) {
 			buffer[i] = 0;
-			printf("%s\n", buffer);
+			//printf("%s\n", buffer);
 			//grabo el archivo
 
 			new_file_mapped_untidy = grabar_en_temp("job_map_untidy_" ,buffer);
@@ -178,8 +216,8 @@ char* aplicar_map(int n_bloque, char* mapping){
 			printf("IO Error\n");
 		}
 
-		close(PARENT_READ_FD);
-		close(PARENT_WRITE_FD);
+
+
 
 
 		free_null(&stdinn);
@@ -187,15 +225,22 @@ char* aplicar_map(int n_bloque, char* mapping){
 		return new_file_mapped_untidy;
 	}
 
-
-
-
 	//hago fork para el mapping y aplico
 	char* file_untidy= NULL;
+	//file_untidy = ejecutar_script(mapping, (void*)_aplicar_map);
 	file_untidy = ejecutar_script(mapping, (void*)_aplicar_map);
-	return file_untidy;
+	//return file_untidy;
+
 	/*
 	char* _guardar(){
+		char input[100];
+		write(PARENT_WRITE_FD,"dino\nbat\nfish\nzilla\nlizard\n\0",27);
+		close(PARENT_WRITE_FD);
+		input[read(PARENT_READ_FD, input,100)] = 0;
+		printf("%s\n", input);
+
+		//////////////////////////////////
+		int res;
 		char* buffer = malloc(TAMANIO_BLOQUE_B);
 		int count = 0;
 		char* new_file_mapped_tidy = NULL;
@@ -204,8 +249,8 @@ char* aplicar_map(int n_bloque, char* mapping){
 		//char* _stdin = malloc(len+1);
 		//memcpy(_stdin, stdinn, len+1);
 		//stdinn[len - 1] = '\n';
-		int j = write(PARENT_WRITE_FD, stdinn, len);
-		handle_error("write");
+		if((res = write(PARENT_WRITE_FD, stdinn, len))==-1)
+			handle_error("write");
 
 		//spliteo por enter
 		char** registros = string_split(stdinn, "\n");
@@ -238,12 +283,75 @@ char* aplicar_map(int n_bloque, char* mapping){
 		free_null(&stdinn);
 		free_null(&buffer);
 		return new_file_mapped_tidy;
-	}
+	}*/
+
 	char* file_tidy = NULL;
-	file_tidy = ejecutar_script("sort", (void*)_guardar);
+	file_tidy = ejecutar_script_sort(file_untidy);
 
 	return file_tidy;
-	*/
+
+}
+
+char* ejecutar_script_sort(char* filename){
+	int fi[2];
+	int fo[2];
+	int oldstdin;
+	int oldstdout;
+
+	if (pipe(fi) == -1) {
+		exit(EXIT_FAILURE);
+	}
+	if (pipe(fo) == -1) {
+		exit(EXIT_FAILURE);
+	}
+	oldstdin = dup(STDIN_FILENO); /* Save current sdtin */
+	oldstdout = dup(STDOUT_FILENO); /* Save current stdout */
+
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+
+	if (dup2(fo[0], STDIN_FILENO) == -1) /* Make the read end of out to be stdin */
+		exit(EXIT_FAILURE);
+	if (dup2(fi[1], STDOUT_FILENO) == -1) /* Make the write end of in to be stdout */
+		exit(EXIT_FAILURE);
+
+	switch (fork()) {
+	case -1:
+		exit(EXIT_FAILURE);
+	case 0: /* CHILD */
+		close(fo[0]);
+		close(fo[1]);
+		close(fi[0]);
+		close(fi[1]);
+		execlp("sort", "sort", (char *) NULL);
+		break;
+	default:
+		break; /* fall through to parent */
+	}
+
+
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	dup2(oldstdin, STDIN_FILENO);
+	dup2(oldstdout, STDOUT_FILENO);
+
+	close(fo[0]); /* these are used by CHILD */
+	close(fi[1]); /* "" */
+
+	char* stdinn = read_whole_file(filename);
+	size_t len = strlen(stdinn);
+	stdinn[len] = '\0';
+	//write(fo[1], "dino\nbat\nfish\nzilla\nlizard\n\0", 27);
+	write(fo[1], stdinn, len);
+	close(fo[1]);
+	char* buffer = malloc(27);
+	//buffer[read(fi[0], buffer, 27)] = 0;
+	buffer[read(fi[0], buffer, len)] = 0;
+	printf("%s\n", buffer);
+
+	char* new_file_mapped_tidy = grabar_en_temp("job_map_tidy_", buffer);
+
+	return new_file_mapped_tidy;
 }
 
 char* grabar_en_temp(char* filename, char* data){
@@ -255,6 +363,7 @@ char* grabar_en_temp(char* filename, char* data){
 
 	write_file(nombre_nuevo_archivo, data, strlen(data));
 
+	printf("archivo creado: %s\n", nombre_nuevo_archivo);
 	//free_null(&nombre_nuevo_archivo);
 	return nombre_nuevo_archivo;
 }
@@ -458,7 +567,7 @@ char* getBloque(int32_t numero) {
 	bloque = malloc(TAMANIO_BLOQUE_B);
 	memcpy(bloque, &(_data[numero * TAMANIO_BLOQUE_B]), TAMANIO_BLOQUE_B);
 	//memcpy(bloque, _bloques[numero], TAMANIO_BLOQUE);
-	log_info(logger, "Fin getBloque(%d)", numero);
+	log_info(logger, "Fin getBloque(%d)\n", numero);
 	return bloque;
 }
 

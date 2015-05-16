@@ -15,6 +15,7 @@
 #include "config_nodo.h"
 
 #include <nodo.h>
+#include <strings.h>
 
 #include <util.h>
 //#include "socket.h"
@@ -71,17 +72,19 @@ void procesar_mensaje(int fd, t_msg* msg);
 void incicar_server();
 void agregar_cwd(char* file);
 void* ejecutar_script(char* script, void* (*procesar_std)()) ;
-char* aplicar_reduce(char* file, char* script_reduce);
-char* ejecutar_script_sort(char* filename);
+int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino);
+int aplicar_reduce(char* file, char* script_reduce, char* filename_result);
+char* convertir_a_temp_path_filename(char* filename);
+//char* ejecutar_script_sort(char* filename);
 /*
  * graba el temp concatenandole el timenow en el filename para que sea unico
  */
-char* grabar_en_temp(char* filename, char* data);
+int grabar_en_temp(char* filename, char* data);
 
 /*
  * devuelve el archivo creado en el  temp del nodo
  */
-char* aplicar_map(int n_bloque, char* script_map);
+int aplicar_map(int n_bloque, char* script_map, char* filename_result);
 /*
  * main
  */
@@ -98,17 +101,28 @@ int main(int argc, char *argv[]) {
 
 	//inicio el server para atender las peticiones del fs
 	iniciar_server_thread();
-
+/*
+	char* timenow = temporal_get_string_time();
 
 	int n_bloque =0;
-	char* file_map;
-	file_map = aplicar_map(n_bloque, "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/map.sh");
+	char* file_map = string_new();
+	string_append(&file_map, "job_map_");
+	string_append(&file_map, timenow);
+	string_append(&file_map, ".txt");
+
+	aplicar_map(n_bloque, "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/map.sh", file_map);
 	printf("%s\n", file_map);
-	char* file_reduce;
-	file_reduce = aplicar_reduce(file_map, "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/reduce.sh");
+
+
+	char* file_reduce = string_new();
+	string_append(&file_reduce, "job_reduce_");
+	string_append(&file_reduce, timenow);
+	aplicar_reduce(file_map, "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/reduce.sh", file_reduce);
 	printf("%s\n", file_reduce);
-	free(file_reduce);
 	free(file_map);
+	free(file_reduce);
+
+	free_null((void*) &timenow);*/
 
 	//bool fin = true	;
 	while (!FIN);
@@ -117,11 +131,17 @@ int main(int argc, char *argv[]) {
 	return EXIT_SUCCESS;
 }
 
-char* aplicar_reduce(char* file, char* script_reduce){
+int aplicar_reduce(char* file_mapped, char* script_reduce, char* filename_result){
 
-	void* _reduce(){
-		char* new_file_reduced = NULL;
-		char* stdinn = read_whole_file(file);
+	int _reduce(){
+		int rs = 0;
+		//lo convierto a path absoluto para leer el file
+		char* file_mapped_temp = convertir_a_temp_path_filename(file_mapped);
+
+		char* stdinn = read_whole_file(file_mapped_temp);
+		//lo borro
+		free_null((void*)&file_mapped_temp);
+
 		size_t len = strlen(stdinn);
 		write(PARENT_WRITE_FD, stdinn, len);
 		close(PARENT_WRITE_FD);
@@ -136,20 +156,36 @@ char* aplicar_reduce(char* file, char* script_reduce){
 		close(PARENT_READ_FD);
 
 		if (i >= 0) {
-			buffer[i] = 0;
-			//printf("%s\n", buffer);
-			//grabo el archivo
-			new_file_reduced = grabar_en_temp("job_reduce_untidy_", buffer);
+			buffer[i-1] = '\0';
+			char* new_file_reduced;
+			new_file_reduced = convertir_a_temp_path_filename(filename_result);
 
+			grabar_en_temp(new_file_reduced, buffer);
+
+			free_null((void*)&new_file_reduced);
+			rs = 0;
 		} else {
 			printf("IO Error\n");
+			rs = -1;
 		}
 
-		return new_file_reduced;
+		free_null((void*)&stdinn);
+		free_null((void*)&buffer);
+
+		return rs;
 	}
-	char* file_reduced = ejecutar_script(script_reduce, (void*) _reduce);
-	return file_reduced;
+
+	return (int)ejecutar_script(script_reduce, (void*) _reduce);
 }
+
+char* convertir_a_temp_path_filename(char* filename){
+	char* new_path_file = string_new();
+	string_append(&new_path_file, NODO_DIRTEMP());
+	string_append(&new_path_file, "/");
+	string_append(&new_path_file, filename);
+	return new_path_file;
+}
+
 /*
 void* ejecutar_script(char* mapping, void* (*procesar_std)()) {
 	// pipes for parent to write and read
@@ -220,18 +256,19 @@ void* ejecutar_script(char* script, void* (*procesar_std)()) {
 	}
 }
 
-char* aplicar_map(int n_bloque, char* script_map){
+int aplicar_map(int n_bloque, char* script_map, char* filename_result){
 
-	char* _aplicar_map()
+	int _aplicar_map()
 	{
 		char* buffer = malloc(TAMANIO_BLOQUE_B);
-		char* new_file_mapped_untidy = NULL;
+		int res = 0;
 		int count;
 
 		// Write to child’s stdin
 		char* stdinn = getBloque(n_bloque);
-		size_t len = strlen(stdinn)+1;
-		stdinn[len-1] = '\n';
+		size_t len = strlen(stdinn)+2;
+		stdinn[len-1] = '\0';
+		stdinn[len-2] = '\n';
 		write(PARENT_WRITE_FD, stdinn, len);
 		close(PARENT_WRITE_FD);
 
@@ -244,39 +281,54 @@ char* aplicar_map(int n_bloque, char* script_map){
 		close(PARENT_READ_FD);
 
 		if (i >= 0) {
-			buffer[i] = 0;
-			//printf("%s\n", buffer);
-			//grabo el archivo
+			buffer[i-1] = '\0';//-1 porque el ultimo es basura
+			//grabo el archivo, primero lo guardo en un .tmp y luego lo ordeno
+			char* new_file_map_disorder = convertir_a_temp_path_filename(filename_result);
+			string_append(&new_file_map_disorder , "-disorder.tmp");
+			//guardo en temp el archivo mapeado y desordenado
+			//grabar_en_temp(new_file_map_disorder ,buffer);
+			write_file(new_file_map_disorder, buffer, strlen(buffer));
 
-			new_file_mapped_untidy = grabar_en_temp("job_map_untidy_" ,buffer);
+			//ordeno el archivo y lo guardo con el nombre final
+			ordenar_y_guardar_en_temp(new_file_map_disorder, filename_result);
 
+			free_null((void*)&new_file_map_disorder);
 
+			res = 0;
+			//system("cat /tmp/map.py.result.tmp | sort > /tmp/librazo12347.tmp");
+			//res = 0;
 		} else {
 			printf("IO Error\n");
+			res = -1;
 		}
 
-
-
-
-
-		free_null(&stdinn);
-		free_null(&buffer);
-		return new_file_mapped_untidy;
+		free_null((void**)&stdinn);
+		free_null((void**)&buffer);
+		return res;
 	}
 
-	//hago fork para el mapping y aplico
-	char* file_untidy= NULL;
-	//file_untidy = ejecutar_script(mapping, (void*)_aplicar_map);
-	file_untidy = ejecutar_script(script_map, (void*)_aplicar_map);
-	//return file_untidy;
-
-	char* file_tidy = NULL;
-	file_tidy = ejecutar_script_sort(file_untidy);
-
-	return file_tidy;
-
+	return (int) ejecutar_script(script_map, (void*)_aplicar_map);
 }
 
+int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino){
+
+	char* commando_ordenar = string_new();
+	string_append(&commando_ordenar, "cat ");
+	string_append(&commando_ordenar, file_desordenado);
+	string_append(&commando_ordenar, " | sort > ");
+	string_append(&commando_ordenar, NODO_DIRTEMP());
+	string_append(&commando_ordenar, "/");
+	string_append(&commando_ordenar, destino);
+
+	printf("%s\n", commando_ordenar);
+
+	system(commando_ordenar);
+	free_null((void*)&commando_ordenar);
+
+	return 0;
+}
+
+/*
 char* ejecutar_script_sort(char* filename){
 	int fi[2];
 	int fo[2];
@@ -289,21 +341,21 @@ char* ejecutar_script_sort(char* filename){
 	if (pipe(fo) == -1) {
 		exit(EXIT_FAILURE);
 	}
-	oldstdin = dup(STDIN_FILENO); /* Save current sdtin */
-	oldstdout = dup(STDOUT_FILENO); /* Save current stdout */
+	oldstdin = dup(STDIN_FILENO);
+	oldstdout = dup(STDOUT_FILENO);
 
 	close(STDIN_FILENO);
 	close(STDOUT_FILENO);
 
-	if (dup2(fo[0], STDIN_FILENO) == -1) /* Make the read end of out to be stdin */
+	if (dup2(fo[0], STDIN_FILENO) == -1)
 		exit(EXIT_FAILURE);
-	if (dup2(fi[1], STDOUT_FILENO) == -1) /* Make the write end of in to be stdout */
+	if (dup2(fi[1], STDOUT_FILENO) == -1)
 		exit(EXIT_FAILURE);
 
 	switch (fork()) {
 	case -1:
 		exit(EXIT_FAILURE);
-	case 0: /* CHILD */
+	case 0:
 		close(fo[0]);
 		close(fo[1]);
 		close(fi[0]);
@@ -311,7 +363,7 @@ char* ejecutar_script_sort(char* filename){
 		execlp("sort", "sort", (char *) NULL);
 		break;
 	default:
-		break; /* fall through to parent */
+		break;
 	}
 
 
@@ -320,8 +372,8 @@ char* ejecutar_script_sort(char* filename){
 	dup2(oldstdin, STDIN_FILENO);
 	dup2(oldstdout, STDOUT_FILENO);
 
-	close(fo[0]); /* these are used by CHILD */
-	close(fi[1]); /* "" */
+	close(fo[0]);
+	close(fi[1]);
 
 	char* stdinn = read_whole_file(filename);
 	size_t len = strlen(stdinn);
@@ -338,8 +390,15 @@ char* ejecutar_script_sort(char* filename){
 
 	return new_file_mapped_tidy;
 }
+*/
+int grabar_en_temp(char* filename, char* data){
 
-char* grabar_en_temp(char* filename, char* data){
+	write_file(filename, data, strlen(data));
+	printf("archivo temporal creado: %s\n", filename);
+
+	return 0;
+
+/*
 	char* nombre_nuevo_archivo = NULL;
 	nombre_nuevo_archivo = file_combine(NODO_DIRTEMP(), filename);
 	char* timenow = temporal_get_string_time();
@@ -351,6 +410,7 @@ char* grabar_en_temp(char* filename, char* data){
 	printf("archivo creado: %s\n", nombre_nuevo_archivo);
 	//free_null(&nombre_nuevo_archivo);
 	return nombre_nuevo_archivo;
+	*/
 }
 
 void agregar_cwd(char* file){

@@ -1,10 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <sys/stat.h>
 #include <sys/mman.h>
-
-
 #include <commons/string.h>
 #include <commons/temporal.h>
 #include <string.h>
@@ -13,9 +10,7 @@
 #include <commons/log.h>
 #include <pthread.h>
 #include "config_nodo.h"
-
 #include <nodo.h>
-
 #include <util.h>
 //#include "socket.h"
 

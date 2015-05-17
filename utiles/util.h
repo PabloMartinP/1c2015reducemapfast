@@ -65,7 +65,9 @@ typedef enum {
 	NODO_CHAU,
 	NODO_GET_BLOQUE,
 	JOB_HOLA,
-	MARTA_HOLA
+	MARTA_HOLA,
+	JOB_MAP_TERMINO,
+	JOB_REDUCE_TERMINO
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/

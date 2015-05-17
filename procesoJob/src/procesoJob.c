@@ -12,19 +12,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <commons/log.h>
-#include <commons/config.h>
 #include <commons/collections/list.h>
 #include <pthread.h>
-#include <util.h>
 
+#include "procesos.h"
 
-char FILE_CONFIG [1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/jobConfig.txt";
 
 int main(void) {
-	t_config* jobConfig = NULL;
 	jobConfig = config_create(FILE_CONFIG);
 
-	printf("%s", config_get_string_value(jobConfig, "IP_MARTA"));
+	printf("%s", JOB_IP_MARTA());
+
+	//test conexion con marta
+	conectar_con_marta();
+
+
+	//finalizo el programa para que no intente conectar con el nodo
+	return 0;
+	/////////////////////////////////////////////////
+	//TEST CONEXION CON NODO
 	int socketjob = client_socket("127.0.0.1", 6001);
 
 	t_msg* msg;
@@ -33,5 +39,6 @@ int main(void) {
 	destroy_message(msg);
 
 	config_destroy(jobConfig);
+	////////////////////////////////////////////////////////
 	return EXIT_SUCCESS;
 }

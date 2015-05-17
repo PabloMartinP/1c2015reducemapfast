@@ -133,6 +133,7 @@ int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*)) {
 	if ((fdNuevoNodo = server_socket(port)) < 0) {
 		handle_error("error al iniciar  server");
 	}
+	printf("server iniciado en %d\n", port);
 
 	FD_ZERO(&master); // borra los conjuntos maestro y temporal
 	FD_ZERO(&read_fds);
@@ -148,6 +149,8 @@ int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*)) {
 			perror("select");
 			exit(1);
 		}
+
+
 
 		// explorar conexiones existentes en busca de datos que leer
 		for (i = 0; i <= fdmax; i++) {
@@ -651,8 +654,13 @@ char *id_string(t_msg_id id) {
 	default:
 		buf = string_from_format("%d, <AGREGAR A LA LISTA>", id);
 		break;
+	case JOB_HOLA:
+		buf = strdup("JOB_HOLA");
+		break;
+	case MARTA_HOLA:
+		buf = strdup("MARTA_HOLA");
+		break;
 	}
-
 	return buf;
 }
 

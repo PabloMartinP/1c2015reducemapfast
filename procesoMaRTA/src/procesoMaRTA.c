@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <commons/log.h>
-#include <commons/config.h>
 #include <commons/collections/list.h>
 #include <pthread.h>
 #include <util.h>
@@ -29,7 +28,8 @@ int main(void) {
 	bool soporta;
 	t_list* lista;
 
-	iniciar_server_MaRTA();
+	//iniciar_thread_server_MaRTA();
+	iniciar_servidor();//bloqueante, para no bloquear usar a iniciar_thread_server_MaRTA()
 
 	// socket (JOB_LIBRE);//
 

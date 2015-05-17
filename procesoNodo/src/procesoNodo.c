@@ -11,11 +11,8 @@
 #include <pthread.h>
 #include "config_nodo.h"
 #include <nodo.h>
-<<<<<<< HEAD
-=======
 #include <strings.h>
 
->>>>>>> f4a5d9313ba88bebf9175c10d4d0254984b126c7
 #include <util.h>
 //#include "socket.h"
 

@@ -42,3 +42,10 @@ int main(void) {
 	////////////////////////////////////////////////////////
 	return EXIT_SUCCESS;
 }
+
+//void crearHiloMapper(){
+	//pthread_t idHilo;
+
+
+	//pthread_create(&idHilo, NULL, funcionMapping, NULL); //que párametro  ponemos??
+//}

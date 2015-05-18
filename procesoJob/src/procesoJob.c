@@ -16,7 +16,7 @@
 #include <pthread.h>
 
 #include "procesos.h"
-
+#include "config_job.h"
 
 int main(void) {
 	jobConfig = config_create(FILE_CONFIG);

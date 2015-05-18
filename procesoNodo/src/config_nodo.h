@@ -38,8 +38,8 @@ int NODO_PORT(){
 	return config_get_int_value(config, "PUERTO_NODO");
 }
 char* NODO_IP(){
-	//return config_get_string_value(config, "IP_NODO");
-	return ip_get();
+	return config_get_string_value(config, "IP_NODO");
+	//return ip_get();
 }
 char* NODO_DIRTEMP(){
 	return config_get_string_value(config, "DIR_TEMP");

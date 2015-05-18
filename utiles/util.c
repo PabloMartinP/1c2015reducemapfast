@@ -660,6 +660,11 @@ char *id_string(t_msg_id id) {
 	case MARTA_HOLA:
 		buf = strdup("MARTA_HOLA");
 		break;
+	case NODO_GET_FILECONTENT:
+		buf = strdup("NODO_GET_FILECONTENT");
+		break;
+
+
 	}
 	return buf;
 }

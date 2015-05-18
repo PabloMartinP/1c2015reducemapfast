@@ -67,7 +67,8 @@ typedef enum {
 	JOB_HOLA,
 	MARTA_HOLA,
 	JOB_MAP_TERMINO,
-	JOB_REDUCE_TERMINO
+	JOB_REDUCE_TERMINO,
+	NODO_GET_FILECONTENT
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/

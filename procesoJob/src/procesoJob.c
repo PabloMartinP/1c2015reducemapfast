@@ -18,7 +18,15 @@
 #include "procesos.h"
 #include "config_job.h"
 
-int main(void) {
+typedef struct {
+	char ip[15];
+	int puerto;
+}t_map;
+
+void funcionMapping(t_map*);
+void crearHiloMapper();
+
+int main(int argc, char *argv[]) {
 	jobConfig = config_create(FILE_CONFIG);
 
 	printf("%s", JOB_IP_MARTA());
@@ -26,8 +34,10 @@ int main(void) {
 	//test conexion con marta
 	conectar_con_marta();
 
-
 	//finalizo el programa para que no intente conectar con el nodo
+
+	crearHiloMapper();
+
 	return 0;
 	/////////////////////////////////////////////////
 	//TEST CONEXION CON NODO
@@ -38,14 +48,27 @@ int main(void) {
 	enviar_mensaje(socketjob, msg);
 	destroy_message(msg);
 
+
 	config_destroy(jobConfig);
 	////////////////////////////////////////////////////////
 	return EXIT_SUCCESS;
 }
 
-//void crearHiloMapper(){
-	//pthread_t idHilo;
 
 
-	//pthread_create(&idHilo, NULL, funcionMapping, NULL); //que párametro  ponemos??
-//}
+void funcionMapping(t_map* map){
+	printf("%s:%d\n", map->ip, map->puerto);
+}
+
+void crearHiloMapper(){
+	pthread_t idHilo;
+
+	t_map* map = malloc(sizeof(t_map));
+	strcpy(map->ip, "127.0.0.1");
+	map->puerto = 1234;
+
+	pthread_create(&idHilo, NULL, (void*)funcionMapping, (void*)map); //que párametro  ponemos??
+	pthread_join(idHilo, NULL); //el proceso espera a que termine el hilo
+	free(map);
+}
+

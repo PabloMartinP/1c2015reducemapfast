@@ -29,6 +29,7 @@
 
 #define MB_EN_B  1024*1024//1mb
 
+
 #define REG_SIZE 4
 
 /* Funciones Macro */
@@ -64,6 +65,7 @@ typedef enum {
 	FS_GRABAR_BLOQUE,
 	NODO_CHAU,
 	NODO_GET_BLOQUE,
+	NODO_GET_FILECONTENT_DATA,//envia el mensaje sin header, puro flujo de bytes
 	JOB_HOLA,
 	MARTA_HOLA,
 	JOB_MAP_TERMINO,
@@ -102,13 +104,15 @@ int cant_registros(char** registros) ;
 int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer);
 int recibir_mensaje_flujo(int unSocket, void** buffer);
 
+int enviar_mensaje_sin_header(int sock_fd, int tamanio, void* buffer);
+
 /****************** FUNCIONES SOCKET. ******************/
 int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*));
 /*
  * Crea, vincula y escucha un socket desde un puerto determinado.
  */
 int server_socket(uint16_t port);
-
+char* recibir_linea(int sock_fd);
 char* ip_get();
 
 /*

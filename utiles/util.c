@@ -313,6 +313,26 @@ t_msg *argv_message(t_msg_id id, uint16_t count, ...) {
 	return new;
 }
 
+int enviar_mensaje_sin_header(int sock_fd, int tamanio, void* buffer){
+	int total=0, pending =tamanio;
+	char *bufferAux = malloc(pending);
+	memcpy(bufferAux, buffer, tamanio);
+
+	/* Send message(s). */
+
+	while (total < pending) {
+		int sent = send(sock_fd, bufferAux, tamanio, MSG_NOSIGNAL);
+		if (sent < 0) {
+			free_null((void*) &bufferAux);
+			return -1;
+		}
+		total += sent;
+		pending -= sent;
+	}
+	free_null((void*) &bufferAux);
+	return 0;
+}
+
 //Mande un mensaje a un socket determinado usando una estructura
 int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer) {
 	t_header_base header;
@@ -367,6 +387,37 @@ t_msg *string_message(t_msg_id id, char *message, uint16_t count, ...) {
 	va_end(arguments);
 
 	return new;
+}
+
+char* recibir_linea(int sock_fd){
+	char* linea = malloc(1024);
+	char caracter=NULL;
+	int bytes_leidos = 0;
+	int status;
+	do{
+		status = recv(sock_fd, &caracter, 1, 0);
+		linea[bytes_leidos] = caracter;
+		if(caracter == '\n'){
+			status = -2;//fin de linea
+		}
+		if(caracter =='\0')
+			status = -3;
+		bytes_leidos++;
+	}while(status>0);
+
+	if(status==-2){//si es igual a menos dos
+		linea[bytes_leidos] = '\0';
+		return linea;
+	}
+	else
+	{
+		if(status==-3){//termino de leer el archivo
+			return NULL;
+		}
+		else
+			perror("El nodo perdio conexion\n");
+
+	}
 }
 
 t_msg *recibir_mensaje(int sock_fd) {

@@ -8,7 +8,7 @@
 #ifndef MAPREDUCE_H_
 #define MAPREDUCE_H_
 
-#define LEN_KEYVALUE 1024 //longitud de la key de map o reduce
+
 
 //#define KEYVALUE_END '_' // para saber cuando termina un archivo, lo marco con esto
 

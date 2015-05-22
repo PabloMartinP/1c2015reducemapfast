@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
 	free_null((void*) &file_reduce_result);
 
 //////////////////////////////////////////////////////////////////////////
-	/*
+
 	 //test reduce de los dos archivos mapeados y en otro nodo?
 	 //creo un archivo para reducir
 	 t_list* files_to_reduce = list_create();
@@ -136,17 +136,19 @@ int main(int argc, char *argv[]) {
 	 file_reduce2->puerto = 6002;
 	 list_add(files_to_reduce, file_reduce2);
 
-	 char* file_reduce_result = string_new();
-	 string_append(&file_reduce_result, "job_reduced_result_");
-	 string_append(&file_reduce_result, timenow);
-	 aplicar_reduce_local_red(files_to_reduce, "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/reduce.sh", file_reduce_result);
-	 printf("%s\n", file_reduce_result);
+	 char* file_red_reduce_result = string_new();
+	 string_append(&file_red_reduce_result, "job_reduced_result_");
+	 string_append(&file_red_reduce_result, timenow);
+	 aplicar_reduce_local_red(files_to_reduce, "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/reduce.sh", file_red_reduce_result);
+	 printf("%s\n", file_red_reduce_result);
 
+	 free(file_red_reduce_result);
 	 list_destroy(files_to_reduce);
 	 free(file_reduce1);
 	 free(file_reduce2);
+
 	 free(file_reduce_result);
-	 */
+
 
 	free(file_map1);
 	free(file_map2);
@@ -167,15 +169,18 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
 	int rs;
 	int cant_red_files, cant_total_files, cant_local_files;
 	t_list* local_files = list_create();	//tmp para guardar los fr locales
-	t_list* local_files_reduce = list_create();	//lista que solo tiene los nombres de los archivos temp
-	t_list* red_files = list_create();
+	t_list* local_files_reduce;// = list_create();	//lista que solo tiene los nombres de los archivos temp
+	t_list* red_files;// = list_create();
 
 	//creo ambas listas
+	local_files_reduce = list_filter(files_reduces, (void*) file_reduce_es_local);
+	red_files = list_filter(files_reduces, (void*) file_reduce_es_de_red);
+	/*
 	list_add_all(local_files_reduce,
 			list_filter(files_reduces, (void*) file_reduce_es_local));
 	list_add_all(red_files,
 			list_filter(files_reduces, (void*) file_reduce_es_de_red));
-
+*/
 	//cargo la lista local_files solo con los path absolutos
 	void _convertir_a_absoluto(t_files_reduce* fr) {
 		list_add(local_files, convertir_a_temp_path_filename(fr->archivo));
@@ -215,21 +220,29 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
 	//ahora me queda leer tanto los fdlocal como los fdred
 
 	//limpio las listas que ya no las voy a usar
-	list_destroy(local_files);
+	//list_destroy(local_files);
+	list_destroy_and_destroy_elements(local_files, (void*)free);
 	list_destroy(red_files);
 	list_destroy(local_files_reduce);
 
 	int index_menor; //para guardar el menor item
 	//creo una lista de key para guardar las key de cada file
-	int LEN_KEY = 1024;
-	int len_key = LEN_KEY;
-	char** keys = malloc(sizeof(len_key) * (cant_total_files));
+	size_t len_key = LEN_KEYVALUE;
+	char* key = NULL;
+	char** keys = malloc(sizeof(char*) * (cant_total_files));
 	int _reduce_local_red() {
 		int i = 0;
 
 		//cargo las keys de los archivos locales, con su primer valor
 		for (i = 0; i < cant_local_files; i++) {
-			rs = getline(&(keys[i]), &len_key, fdlocal[i]);
+			//rs = getline(&(keys[i]), &len_key, fd[i]);
+			key = malloc(LEN_KEYVALUE);
+			len_key = LEN_KEYVALUE;
+			rs = getline(&key, &len_key, fdlocal[i]);
+			if (rs != -1) {
+				//key[rs] = '\0';
+				keys[i] = key;
+			}
 		}
 		//ahora me queda cargar las key que falta, que son las que estan en fdred
 		//el i empieza donde quedo el anterior
@@ -246,20 +259,19 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
 			index_menor = get_index_menor(keys, cant_total_files);
 			//el menor lo mando a stdinn (keys[i])
 			printf("%s\n", keys[index_menor]);
-			write(PARENT_WRITE_FD, keys[index_menor],
-					strlen(keys[index_menor]) + 1);
+			write(PARENT_WRITE_FD, keys[index_menor], strlen(keys[index_menor]) + 1);
 			//leo el siguiente elmento del fdlocal[index_menor]
-			len_key = LEN_KEY;
+			len_key = LEN_KEYVALUE;
 			if (index_menor < cant_local_files) {
-				rs = getline(&(keys[index_menor]), &len_key,
-						fdlocal[index_menor]);
+				rs = getline(&(keys[index_menor]), &len_key,fdlocal[index_menor]);
 				//si es igual a -1, termino el file, marco como null la key para que la ignore cuando obtiene el menor
 				if (rs == -1) {
+					free_null((void*)&keys[index_menor]);
 					keys[index_menor] = NULL;
 				}
 			} else {
-				keys[index_menor] = recibir_linea(
-						fdred[cant_local_files - index_menor]);
+				free_null((void*)&keys[index_menor]);
+				keys[index_menor] = recibir_linea( fdred[cant_local_files - index_menor]);
 			}
 			//cuando termina devuelve NULL;
 
@@ -268,18 +280,47 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
 		//cierro el stdin
 		close(PARENT_WRITE_FD);
 
+		//cierro los archivos locales
+		for (i = 0; i < cant_local_files; i++) {
+			fclose(fdlocal[i]);
+			//free(fdlocal[i]);
+		}
+		//borro fdlocal
+		//free(fdlocal);
+		free_null((void*) &fdlocal);
+
+		//cierro las conexiones con lso nodos
+		for (i = 0; i < cant_red_files; i++)
+			close(fdred[i]);
+		//borro fdred
+		//free(fdred);
+		free_null((void*)&fdred);
+
+		//limpio las keys -- ya estan limpias
+/*
+		for (i = 0; i < cant_total_files; i++) {
+			free(keys[i]);
+		}*/
+		//limpio key
+		free_null((void*) &keys);
+		/////////////////////////////////////////////////
 		//empiezo a leer el stdout
 		int count;
 		char* new_file_reduced;
 		new_file_reduced = convertir_a_temp_path_filename(filename_result);	//genero filename absoluto
 		FILE* file_reduced = txt_open_for_append(new_file_reduced);	//creo el file
 		free_null((void*) &new_file_reduced);		//limpio el nombre
-		char* buffer = malloc(1024);//creo un buffer para ir almacenando el stdout
+		char* buffer = malloc(LEN_KEYVALUE);//creo un buffer para ir almacenando el stdout
 		i = 0;
 		do {
-			count = read(PARENT_READ_FD, buffer, 1024);
+			count = read(PARENT_READ_FD, buffer, LEN_KEYVALUE);
 			//guardo en el archivo resultado
 			fwrite(buffer, count, 1, file_reduced);
+			if(count>0){
+				buffer[count] = '\0';
+				printf("%s\n", buffer);
+			}
+
 			i++;
 		} while (count != 0);
 		close(PARENT_READ_FD);
@@ -287,25 +328,7 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
 		free_null((void*) &buffer);
 
 //////////////////////////////////////////////
-		//cierro los archivos locales
-		for (i = 0; i < cant_local_files; i++)
-			close(fdlocal[i]);
-		//borro fdlocal
-		free_null((void*) fdlocal);
 
-		//cierro las conexiones con lso nodos
-		for (i = 0; i < cant_red_files; i++)
-			close(fdred[i]);
-		//borro fdred
-		//free_null((void*)fdred);
-
-		//limpio las keys
-		/*
-		 for(i=0;i<cant_total_files;i++){
-		 free_null((void*)keys[i]);
-		 }*/
-		//limpio key
-		free_null((void*) &keys);
 
 		return 0;
 	}
@@ -379,7 +402,7 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,	char* filename_resul
 
 			//si es igual a -1, termino el file, marco como null la key para que la ignore cuando obtiene el menor
 			if (rs == -1) {
-				free(keys[index_menor]);
+				free_null((void*)&keys[index_menor]);
 				keys[index_menor] =  NULL;
 				//keys[index_menor] = KEYVALUE_END;
 			}
@@ -400,6 +423,11 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,	char* filename_resul
 		do {
 			count = read(PARENT_READ_FD, buffer, 1024);
 			fwrite(buffer, count, 1, file_reduced);
+			if(count>0){
+				buffer[count] = '\0';
+				printf("%s\n", buffer);
+			}
+
 			i++;
 		} while (count != 0);
 		close(PARENT_READ_FD);

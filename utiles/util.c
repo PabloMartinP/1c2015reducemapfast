@@ -390,7 +390,7 @@ t_msg *string_message(t_msg_id id, char *message, uint16_t count, ...) {
 }
 
 char* recibir_linea(int sock_fd){
-	char* linea = malloc(1024);
+	char* linea = malloc(LEN_KEYVALUE);
 	char caracter=NULL;
 	int bytes_leidos = 0;
 	int status;
@@ -412,10 +412,13 @@ char* recibir_linea(int sock_fd){
 	else
 	{
 		if(status==-3){//termino de leer el archivo
+			free_null((void*)&linea);
 			return NULL;
 		}
-		else
+		else{
+			free_null((void*)&linea);
 			perror("El nodo perdio conexion\n");
+		}
 
 	}
 }

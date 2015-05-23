@@ -38,7 +38,9 @@ char* file_combine(char* f1, char* f2) {
 	return p;
 
 }
-char ip[15];
+/*
+//char ip[15];
+
 char* ip_get(){
 	int fd;
 	struct ifreq ifr;
@@ -51,7 +53,7 @@ char* ip_get(){
 
 	ioctl(fd, SIOCGIFADDR, &ifr);
 
-	/* and more importantly */
+
 
 	strcpy(ip, inet_ntoa(((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr));
 	//fprintf(ip, "%s", inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
@@ -61,6 +63,7 @@ char* ip_get(){
 	close(fd);
 	return ip;
 }
+*/
 
 void file_mmap_free(char* mapped, char* filename) {
 	munmap(mapped, file_get_size(filename));
@@ -525,6 +528,7 @@ void create_file(char *path, size_t size) {
 void clean_file(char *path) {
 
 	FILE *f = fopen(path, "wb");
+	perror("fopen");
 
 	fclose(f);
 }
@@ -735,3 +739,15 @@ float bytes_to_kilobytes(size_t bytes){
 float bytes_to_megabytes(size_t bytes){
 	return bytes / ((1024*1024) + 0.0);
 }
+
+char* convertir_path_absoluto(char* file){
+	char* destino = malloc(PATH_MAX_LEN);
+	if (getcwd(destino, PATH_MAX_LEN) == NULL)
+		handle_error("getcwd() error");
+
+
+	strcat(destino, file);
+	return destino;
+}
+
+

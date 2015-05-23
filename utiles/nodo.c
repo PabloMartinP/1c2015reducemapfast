@@ -113,11 +113,6 @@ void nodo_marcar_como_libre_total(t_nodo* nodo){
 	list_iterate(nodo->bloques, (void*)_marcar_como_libre);
 }
 
-int nodo_get_new_nodo_id() {
-	ID_NODO_NUEVO++;
-	return ID_NODO_NUEVO;
-}
-
 char* nodo_isNew(t_nodo* nodo) {
 	return (nodo->esNuevo) ? "Nuevo" : "Viejo";
 }

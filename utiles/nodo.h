@@ -14,6 +14,9 @@
 #include "commons/string.h"
 #include <stdint.h>
 
+#define TAMANIO_BLOQUE_MB 20
+#define TAMANIO_BLOQUE_B  (1024 * 1024 * 20) //20mb
+
 
 typedef struct {
 	uint32_t posicion;
@@ -48,16 +51,8 @@ typedef struct {
 	int n_bloque;
 } t_nodo_bloque;
 
-//const int DATA_SIZE = 1024 * 1024 * 50; //50MB
-int TAMANIO_BLOQUE_MB = 20;
-size_t TAMANIO_BLOQUE_B = 1024 * 1024 * 20; //20mb
-
-//const int CANT_BLOQUES = 50;
-
-int ID_NODO_NUEVO = 0; //se asigna cuando se crea un nodo nuevo
 t_nodo* nodo_new(char* ip, uint16_t port, bool isNew, uint16_t cant_bloques);
 void print_nodo(t_nodo* nodo);
-int nodo_get_new_nodo_id();
 
 bool bloque_esta_usado(t_bloque* bloque);
 bool bloque_esta_libre(t_bloque* bloque);

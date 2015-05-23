@@ -30,6 +30,8 @@
 #define MB_EN_B  1024*1024//1mb
 #define LEN_KEYVALUE 1024 //longitud de la key de map o reduce
 
+#define PATH_MAX_LEN 1024 //size maximo de un path
+
 #define REG_SIZE 4
 
 /* Funciones Macro */
@@ -113,7 +115,8 @@ int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*));
  */
 int server_socket(uint16_t port);
 char* recibir_linea(int sock_fd);
-char* ip_get();
+
+//char* ip_get();
 
 /*
  * Crea y conecta a una ip:puerto determinado.
@@ -216,5 +219,5 @@ void print_msg(t_msg *msg);
  * Convierte t_msg_id a string.
  */
 char *id_string(t_msg_id id);
-
+char* convertir_path_absoluto(char* file);
 #endif /* UTIL_H_ */

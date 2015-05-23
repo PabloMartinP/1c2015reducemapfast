@@ -7,34 +7,8 @@
  Description : Hello World in C, Ansi-style
  ============================================================================
  */
-#include <libgen.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <commons/log.h>
-#include <commons/config.h>
-#include <commons/collections/list.h>
-#include <pthread.h>
-#include "consola.h"
-#include "fileSystem.h"
 
-//#include <util.h>
-
-char FILE_CONFIG[1024]="/config.txt";
-char FILE_LOG[1024] ="/log.txt";
-
-
-
-t_log* logger;
-t_config* config;
-
-
-void iniciar_consola();
-void nuevosNodos();
-void procesar_mensaje_nodo(int fd, t_msg* msg);
-void inicializar();
-void finalizar();
-void iniciar_server_nodos_nuevos();
-void agregar_cwd(char* file);
+#include "procesoFileSystem.h"
 
 int main(void) {
 
@@ -235,42 +209,31 @@ void finalizar() {
 
 	log_destroy(logger);
 	config_destroy(config);
-	printf("bb world!!!!\n");
+	printf("FS Terminado!!!!\n");
 }
 
 void inicializar() {
+	char* f ;
+	f = convertir_path_absoluto(FILE_LOG);
+	logger = log_create(f, "FileSystem", true, LOG_LEVEL_INFO);
+	free(f);
 
-	agregar_cwd(FILE_LOG);
-	logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_INFO);
-
-	agregar_cwd(FILE_CONFIG);
-	config = config_create(FILE_CONFIG);
-
-
+	f = convertir_path_absoluto(FILE_CONFIG);
+	config = config_create(f);
+	free(f);
 	//completo el file_nodos
+	/*
 	agregar_cwd(FILE_NODOS);
 	agregar_cwd(FILE_DIRECTORIO);
 	agregar_cwd(FILE_ARCHIVO);
 	agregar_cwd(FILE_ARCHIVO_BLOQUES);
+	*/
 
 	fs_create();
 
 	//le cargo los nodos necesarios para que valide si puede estar operativo
-	fs.nodos_necesarios = config_get_array_value(config, "LISTA_NODOS");
+	fs.cant_nodos_minima = config_get_int_value(config, "CANT_NODOS_MINIMA");
 
-
-}
-
-void agregar_cwd(char* file){
-	char cwd[1024];
-	if (getcwd(cwd, sizeof(cwd)) == NULL)
-		handle_error("getcwd() error");
-
-	char* aux = malloc(strlen(file));
-	strcpy(aux, file);
-	strcpy(file, cwd);
-	strcat(file, aux);
-	free(aux);
 }
 
 void nuevosNodos() {
@@ -293,9 +256,6 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 		t_nodo* nodo = nodo_new(msg->stream, (uint16_t) msg->argv[0],(bool) msg->argv[1], msg->argv[2]); //0 puerto, 1 si es nuevo o no, 2 es la cant bloques
 
 		//tengo que ver si ya existe la lista de nodos del fs
-
-
-
 		nodo->base.id = fs_get_nodo_id_en_archivo_nodos(msg->stream, msg->argv[0]);
 
 		//print_nodo(nodo);

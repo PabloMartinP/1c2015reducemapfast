@@ -1,75 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <commons/string.h>
-#include <commons/temporal.h>
-#include <commons/txt.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <commons/log.h>
-#include <pthread.h>
-#include "config_nodo.h"
-#include <nodo.h>
-#include <strings.h>
-#include <commons/collections/list.h>
+#include "procesoNodo.h"
 
-#include <util.h>
-#include "mapreduce.h"
-//#include "socket.h"
-
-char FILE_CONFIG[1024] = "/config.txt";
-char FILE_LOG[1024] = "/log.txt";
-
-/*
- * variables
- */
-bool FIN = false;
-char* _data = NULL;
-t_log* logger = NULL;
-/*
- * declaraciones
- */
-void* data_get(char* filename);
-void data_destroy();
-char* getBloque(int32_t numero);
-void setBloque(int32_t numero, char* bloque);
-
-char* getFileContent(char* filename);
-bool nodo_es_local(char* ip, int puerto);
-void inicializar();
-void finalizar();
-void probar_conexion_fs();
-void iniciar_server_thread();
-int NODO_CANT_BLOQUES();
-void procesar_mensaje(int fd, t_msg* msg);
-void incicar_server();
-void agregar_cwd(char* file);
-
-int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino);
-int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
-		char* filename_result);
-
-int aplicar_reduce_local(t_list* files, char*script_reduce,
-		char* filename_result);
-char* convertir_a_temp_path_filename(char* filename);
-//char* ejecutar_script_sort(char* filename);
-/*
- * graba el temp concatenandole el timenow en el filename para que sea unico
- */
-int grabar_en_temp(char* filename, char* data);
-bool file_reduce_es_local(t_files_reduce* fr);
-bool file_reduce_es_de_red(t_files_reduce* fr);
-/*
- * devuelve el archivo creado en el  temp del nodo
- */
-int aplicar_map(int n_bloque, char* script_map, char* filename_result);
-/*
- * main
- */
-int TAMANIO_DATA;
-int CANT_BLOQUES;
 int main(int argc, char *argv[]) {
 	//por param le tiene que llegar el tamaño del archivo data.bin
 	//por ahora hardcodeo 100mb, serian 10 bloques de 20 mb
@@ -81,6 +11,8 @@ int main(int argc, char *argv[]) {
 	//inicio el server para atender las peticiones del fs
 	iniciar_server_thread();
 
+	//todo estas pruebas andan OK 0 leaks
+	/*
 	//test map OK
 	char* timenow = temporal_get_string_time();
 
@@ -154,7 +86,7 @@ int main(int argc, char *argv[]) {
 	free(file_map2);
 
 	free_null((void*) &timenow);
-
+*/
 	//bool fin = true	;
 	//while (!FIN);
 	finalizar();
@@ -163,8 +95,7 @@ int main(int argc, char *argv[]) {
 }
 
 //files es una lista de t_files_reduce
-int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
-		char* filename_result) {
+int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* filename_result) {
 	int i = 0;
 	int rs;
 	int cant_red_files, cant_total_files, cant_local_files;
@@ -558,17 +489,14 @@ void agregar_cwd(char* file) {
 
 void iniciar_server_thread() {
 	pthread_t th;
-	pthread_attr_t tattr;
 
-	pthread_attr_init(&tattr);
-	pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-	pthread_create(&th, &tattr, (void*) incicar_server, NULL);
-	pthread_attr_destroy(&tattr);
+	pthread_create(&th, NULL, (void*) incicar_server, NULL);
+	pthread_join(th, NULL);
 
 }
 
 void procesar_mensaje(int fd, t_msg* msg) {
-	int rs;
+	//int rs;
 	print_msg(msg);
 	int n_bloque = 0;
 	//char* buff;
@@ -712,16 +640,15 @@ void finalizar() {
 }
 
 void inicializar() {
-	/*
-	 * deberia tomar el getcwd y concatenarle el nombre de archivo
-	 char cwd[1024];
-	 getcwd(cwd, sizeof(cwd));
-	 char* file_config = file_combine(cwd, FILE_CONFIG);
-	 */
-	agregar_cwd(FILE_CONFIG);
-	config = config_create(FILE_CONFIG);
-	agregar_cwd(FILE_LOG);
-	logger = log_create(FILE_LOG, "Nodo", true, LOG_LEVEL_INFO);
+
+
+	char*f;
+	f = convertir_path_absoluto(FILE_CONFIG);
+	config = config_create(f);
+	free(f);
+	f = convertir_path_absoluto(FILE_LOG);
+	logger = log_create(f, "Nodo", true, LOG_LEVEL_INFO);
+	free(f);
 
 	_data = data_get(NODO_ARCHIVOBIN());
 }
@@ -787,7 +714,7 @@ char* getBloque(int32_t numero) {
 void* data_get(char* filename) {
 
 	if (!file_exists(filename)) {
-		TAMANIO_DATA = 1024 * 1024 * 500; //100MB
+		TAMANIO_DATA = 1024 * 1024 * 100; //100MB
 		FILE* file = NULL;
 		file = fopen(filename, "w+");
 		if (file == NULL) {

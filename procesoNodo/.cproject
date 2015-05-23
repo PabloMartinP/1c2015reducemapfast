@@ -37,9 +37,8 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/utiles/Debug}&quot;"/>
 								</option>
 								<option id="gnu.c.link.option.libs.1403908925" name="Libraries (-l)" superClass="gnu.c.link.option.libs" valueType="libs">
-									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="utiles"/>
+									<listOptionValue builtIn="false" value="utiles"/>
 									<listOptionValue builtIn="false" value="pthread"/>
-									<listOptionValue builtIn="false" value="commons"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.linker.input.188227760" superClass="cdt.managedbuild.tool.gnu.c.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>

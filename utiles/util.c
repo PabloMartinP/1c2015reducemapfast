@@ -418,6 +418,7 @@ char* recibir_linea(int sock_fd){
 		else{
 			free_null((void*)&linea);
 			perror("El nodo perdio conexion\n");
+			return NULL;
 		}
 
 	}

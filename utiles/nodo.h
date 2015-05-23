@@ -8,11 +8,17 @@
 #ifndef NODO_H_
 #define NODO_H_
 
-
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <stdbool.h>
 #include "commons/collections/list.h"
 #include "commons/string.h"
 #include <stdint.h>
+
+#include "util.h"
+
+
 
 #define TAMANIO_BLOQUE_MB 20
 #define TAMANIO_BLOQUE_B  (1024 * 1024 * 20) //20mb

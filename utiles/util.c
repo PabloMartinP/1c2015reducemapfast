@@ -134,7 +134,7 @@ int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*)) {
 	int i;
 
 	if ((fdNuevoNodo = server_socket(port)) < 0) {
-		handle_error("error al iniciar  server");
+		handle_error("No se pudo iniciar el server");
 	}
 	printf("server iniciado en %d\n", port);
 
@@ -149,11 +149,8 @@ int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*)) {
 	for (;;) {
 		read_fds = master; // cópialo
 		if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
-			perror("select");
-			exit(1);
+			handle_error("Error en select");
 		}
-
-
 
 		// explorar conexiones existentes en busca de datos que leer
 		for (i = 0; i <= fdmax; i++) {
@@ -184,6 +181,7 @@ int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*)) {
 			}
 		}
 	}
+	return 0;
 }
 int server_socket(uint16_t port) {
 	int sock_fd, optval = 1;

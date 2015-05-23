@@ -4,16 +4,7 @@
  *  Created on: 29/4/2015
  *      Author: utnso
  */
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-
-#include "commons/collections/list.h"
-#include "util.h"
-
 #include "nodo.h"
-
 
 
 //bool nodo_esta_vivo(t_nodo* nodo){

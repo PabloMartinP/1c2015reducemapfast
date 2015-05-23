@@ -23,6 +23,15 @@ int main(void) {
 }
 
 void iniciar_server_nodos_nuevos() {
+
+	void _nodos_nuevos(){
+
+		if(server_socket_select(config_get_int_value(config, "PUERTO_LISTEN"),	(void*) procesar_mensaje_nodo)<0){
+			log_error(logger, "No se pudo iniciar el server de nodos nodos en el puerto %d", config_get_int_value(config, "PUERTO_LISTEN"));
+			exit(EXIT_FAILURE);
+		}
+	}
+
 	/*
 	 * ABRO UN THREAD EL SERVER PARA QUE SE CONECTEN NODOS
 	 */
@@ -31,7 +40,7 @@ void iniciar_server_nodos_nuevos() {
 
 	pthread_attr_init(&tattr);
 	pthread_attr_setdetachstate(&tattr, PTHREAD_CREATE_DETACHED);
-	pthread_create(&th_nuevosNodos, &tattr, (void*) nuevosNodos, NULL);
+	pthread_create(&th_nuevosNodos, &tattr, (void*) _nodos_nuevos, NULL);
 	pthread_attr_destroy(&tattr);
 	//espera a que termine el nodo: bloquea
 	//pthread_join(th_nuevosNodos, NULL);
@@ -80,7 +89,13 @@ void iniciar_consola() {
 
 				if (fs_existe_archivo(archivo_nombre, dir_id))
 
-					fs_archivo_ver_bloque(archivo_nombre, dir_id, nro_bloque);
+					if(fs_archivo_ver_bloque(archivo_nombre, dir_id, nro_bloque)<0){
+						log_error(logger, "No se encontro el bloque %d del archivo %s dir %d", nro_bloque, archivo_nombre, dir_id);
+					}
+					else{
+						log_trace(logger, "ver bloque nro %d en archivo %s en dir %d ", nro_bloque, archivo_nombre, dir_id);
+					}
+
 				else
 					printf("el archivo no existe: %s\n", archivo_nombre);
 				break;
@@ -213,32 +228,34 @@ void finalizar() {
 }
 
 void inicializar() {
-	char* f ;
+	char* f;
+	int rs;
+
+	//inicializo el log
 	f = convertir_path_absoluto(FILE_LOG);
 	logger = log_create(f, "FileSystem", true, LOG_LEVEL_INFO);
 	free(f);
 
+	//inicializo el config
 	f = convertir_path_absoluto(FILE_CONFIG);
+	if (!file_exists(f)) {
+		log_info(logger, "No existe el archivo config - %s", f);
+		handle_error("config");
+	}
 	config = config_create(f);
 	free(f);
-	//completo el file_nodos
-	/*
-	agregar_cwd(FILE_NODOS);
-	agregar_cwd(FILE_DIRECTORIO);
-	agregar_cwd(FILE_ARCHIVO);
-	agregar_cwd(FILE_ARCHIVO_BLOQUES);
-	*/
 
-	fs_create();
+	if((rs = fs_create())<0){
+		log_info(logger, "No se pudo crear el fs");
+		handle_error("config");
+		//return -1;
+	}
 
 	//le cargo los nodos necesarios para que valide si puede estar operativo
 	fs.cant_nodos_minima = config_get_int_value(config, "CANT_NODOS_MINIMA");
 
 }
 
-void nuevosNodos() {
-	server_socket_select(config_get_int_value(config, "PUERTO_LISTEN"),	(void*) procesar_mensaje_nodo);
-}
 
 void procesar_mensaje_nodo(int fd, t_msg* msg) {
 	//leer el msg recibido
@@ -263,10 +280,12 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 		//agrego el nodo a la lista de nodos nuevos
 		list_add(fs.nodos_no_agregados, (void*) nodo);
 
-		log_info(logger, "se conecto el nodo %d,  %s:%d | %s", nodo->base.id,nodo->base.ip, nodo->base.puerto, nodo_isNew(nodo));
+		printf("Se conecto el nodo %d,  %s:%d | %s\n", nodo->base.id,nodo->base.ip, nodo->base.puerto, nodo_isNew(nodo));
+		log_info(logger, "Se conecto el nodo %d,  %s:%d | %s", nodo->base.id,nodo->base.ip, nodo->base.puerto, nodo_isNew(nodo));
 
 		//ESTO NO VA PERO LO AGREGO PARA NO TENER QUE ESTAR AGREGANDO EL NODO CADA VEZ QUE LEVANTO EL FS
 		//agregar_nodo_al_fs(nodo->id);
+
 
 		break;
 	default:

@@ -502,6 +502,11 @@ void procesar_mensaje(int fd, t_msg* msg) {
 	//char* buff;
 	char* file_data;
 	switch (msg->header.id) {
+	case FS_AGREGO_NODO:
+		log_info(logger, "El nodo se agrego al fs con id %d", msg->argv[0]);
+		destroy_message(msg);
+
+		break;
 	case NODO_GET_FILECONTENT_DATA:
 		//lo convierto a path absoluto
 		//buff = convertir_a_temp_path_filename(msg->stream);

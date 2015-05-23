@@ -33,7 +33,6 @@ t_config* config;
 
 
 void iniciar_consola();
-void nuevosNodos();
 void procesar_mensaje_nodo(int fd, t_msg* msg);
 void inicializar();
 void finalizar();

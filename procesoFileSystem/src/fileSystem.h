@@ -38,8 +38,8 @@ t_fileSystem fs;
 #define BLOQUE_CANT_COPIAS 3
 
 void fs_print_dirs();
-void fs_agregar_nodo(int id_nodo);
-void fs_create();
+int fs_agregar_nodo(int id_nodo);
+int fs_create();
 void fs_destroy();
 void fs_addNodo(t_nodo* nodo);
 void fs_print_info();
@@ -83,7 +83,7 @@ bool fs_existe_dir(int dir_id);
 void fs_print_archivos();
 char* bloque_de_datos_traer_data(t_list* nodosBloque);
 char* fs_archivo_get_bloque(char* nombre, int dir_id,	int n_bloque);
-void fs_archivo_ver_bloque(char* nombre, int dir_id,	int n_bloque);
+int fs_archivo_ver_bloque(char* nombre, int dir_id,	int n_bloque);
 bool fs_esta_operativo();
 bool fs_existe_nodo_por_id(int nodo_id);
 void fs_cargar_nodo_base(t_nodo_base* destino, int nodo_id);
@@ -91,4 +91,10 @@ t_nodo* fs_buscar_nodo_por_ip_puerto(char* ip, uint16_t puerto);
 int fs_get_nodo_id_en_archivo_nodos(char* ip, uint16_t puerto);
 void fs_cargar();
 
+
+/*
+ * *****************************************************************************************
+ */
+
 #endif /* FILESYSTEM_H_ */
+

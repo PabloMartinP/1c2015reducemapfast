@@ -57,16 +57,17 @@ bool fs_esta_operativo() {
 
 }
 
-void fs_archivo_ver_bloque(char* nombre, int dir_id, int n_bloque) {
+int fs_archivo_ver_bloque(char* nombre, int dir_id, int n_bloque) {
 	char* datos_bloque = NULL;
 
-	if ((datos_bloque = fs_archivo_get_bloque(nombre, dir_id, n_bloque))
-			!= NULL) {
+	if ((datos_bloque = fs_archivo_get_bloque(nombre, dir_id, n_bloque))	!= NULL) {
 		printf("Inicio bloque %d del archivo %s\n", n_bloque, nombre);
 		printf("%s", datos_bloque);
 		printf("\n***********************************************");
 		printf("Fin bloque %d del archivo %s\n", n_bloque, nombre);
 	}
+
+	return 0;
 
 }
 char* fs_archivo_get_bloque(char* nombre, int dir_id,
@@ -203,14 +204,14 @@ void fs_print_archivo(char* nombre, int dir_id) {
 
 }
 
-void fs_create() {
+int fs_create() {
 	fs.nodos = list_create();
 	fs.nodos_no_agregados = list_create();
 	fs.directorios = list_create();
 	fs.archivos = list_create();
 
 	fs_cargar();
-
+	return 0;
 }
 void fs_cargar(){
 	if (file_exists(FILE_DIRECTORIO))
@@ -394,7 +395,7 @@ bool fs_existe_en_archivo_nodos(t_nodo_base base){
 		return false;//si el tamaño es cero no hay ningun nodo guardado
 }
 
-void fs_agregar_nodo(int id_nodo) {
+int fs_agregar_nodo(int id_nodo) {
 	//busco el id_nodo en la lista de nodos_nuevos
 	bool _buscar_nodo_por_id(t_nodo* nodo) {
 		return nodo->base.id == id_nodo;
@@ -403,7 +404,7 @@ void fs_agregar_nodo(int id_nodo) {
 	t_nodo* nodo;
 	if ((nodo = list_find(fs.nodos_no_agregados,(void*) _buscar_nodo_por_id)) == NULL) {
 		printf("El nodo ingresado no existe: %d\n", id_nodo);
-		return;
+		return -1;
 	}
 
 	//ahora tengo que agregarlo al archivo nodos.bin
@@ -442,12 +443,23 @@ void fs_agregar_nodo(int id_nodo) {
 		list_add(fs.nodos, nodo);
 		nn = nodo;//se lo asigno para poder hacer el printf y el conectado = true;
 	}
-	nn->conectado = true;
 
+	int fd = client_socket(nn->base.ip, nn->base.puerto);
+	if((fd<0)){
+		printf("No se pudo conectar con el nodo. %s:%d\n", nn->base.ip, nn->base.puerto);
+		nn->conectado = false;
+		return -1;
+	}
+	else{
+		t_msg* msg = string_message(FS_AGREGO_NODO, "", 1, nn->base.id);
+		enviar_mensaje(fd, msg);
+		nn->conectado = true;
+	}
 
 	printf("El nodo fue agregado al fs: \n");
 	nodo_print_info(nn);
 
+	return 0;
 }
 
 void fs_eliminar_nodo(int id_nodo) {

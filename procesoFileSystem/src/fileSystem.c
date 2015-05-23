@@ -65,21 +65,26 @@ int fs_archivo_ver_bloque(char* nombre, int dir_id, int n_bloque) {
 		printf("%s", datos_bloque);
 		printf("\n***********************************************");
 		printf("Fin bloque %d del archivo %s\n", n_bloque, nombre);
+
+		return 0;
+	}
+	else{
+		return -1;
 	}
 
-	return 0;
+
 
 }
-char* fs_archivo_get_bloque(char* nombre, int dir_id,
-		int n_bloque) {
+
+char* fs_archivo_get_bloque(char* nombre, int dir_id, int n_bloque) {
 	int i;
 	//busco el archivo
-	t_archivo* a = NULL;
-	a = fs_buscar_archivo_por_nombre(fs.archivos, nombre, dir_id);
+	t_archivo* archivo = NULL;
+	archivo = fs_buscar_archivo_por_nombre(fs.archivos, nombre, dir_id);
 
 	//busco el bloque
 	t_bloque_de_datos* bloque = NULL;
-	bloque = arch_buscar_bloque(a, n_bloque);
+	bloque = arch_buscar_bloque(archivo, n_bloque);
 
 	//tengo que verificar si alguno de los nodos que tiene la copia esta disponible
 	//hardcodeo ip y puerto
@@ -95,32 +100,55 @@ char* fs_archivo_get_bloque(char* nombre, int dir_id,
 		nb = list_get(bloque->nodosbloque, i);
 
 		//obtengo el ip y puerto en base al nodo_id
-		if (bloque->n_bloque == n_bloque && nodo_esta_vivo(nb->nodo->base.ip, nb->nodo->base.puerto)) {
+		//if (bloque->n_bloque == n_bloque)
 
-			//si esta vivo inicio la transferencia del bloque
-			nb = NULL;
-			nb = list_get(bloque->nodosbloque, i);
+		if (nb->nodo->conectado) {
+			if (nodo_esta_vivo(nb->nodo->base.ip, nb->nodo->base.puerto)) {
 
-			//me conecto con el nodo
-			int fd = client_socket(nb->nodo->base.ip, nb->nodo->base.puerto);
-			//le pido el bloque n_bloque
-			t_msg* msg = string_message(NODO_GET_BLOQUE, "", 1, nb->n_bloque);
-			enviar_mensaje(fd, msg);
-			destroy_message(msg);
-			msg = recibir_mensaje(fd);
-			//print_msg(msg);
+				//si esta vivo inicio la transferencia del bloque
+				nb = NULL;
+				nb = list_get(bloque->nodosbloque, i);
 
-			//copy los datos del stream a una copia para devolver
-			datos_bloque = malloc(msg->header.length);
-			memccpy(datos_bloque, msg->stream, 1, msg->header.length);
+				//me conecto con el nodo
+				int fd = client_socket(nb->nodo->base.ip, nb->nodo->base.puerto);
+				//le pido el bloque n_bloque
+				t_msg* msg = string_message(NODO_GET_BLOQUE, "", 1,	nb->n_bloque);
+				enviar_mensaje(fd, msg);
+				destroy_message(msg);
+				msg = recibir_mensaje(fd);
+				//print_msg(msg);
 
-			destroy_message(msg);
+				//copy los datos del stream a una copia para devolver
+				datos_bloque = malloc(msg->header.length);
+				memccpy(datos_bloque, msg->stream, 1, msg->header.length);
 
-			break;
+				destroy_message(msg);
+
+				return datos_bloque;
+				//break;
+			} else {//el nodo se desconecto
+				fs_marcar_nodo_como_desconectado(nb->nodo);
+			}
+		}
+		else{//el nodo no esta conectado
+			printf("Nodo %d(%s:%d) desconectado\n", nb->nodo->base.id, nb->nodo->base.ip, nb->nodo->base.puerto);
 		}
 	}
 
-	return datos_bloque;
+	//si llego hasta aca significa que las tres copias de bloques que tiene estan desconectadas
+	//por lo tanto marco al archivo como no-disponible
+	archivo->info->disponible = false;
+
+	return NULL;
+}
+
+int fs_marcar_nodo_como_desconectado(t_nodo* nodo){
+	printf("El nodo %d - %s:%d se ha desconectado\n", nodo->base.id, nodo->base.ip, nodo->base.puerto);
+	nodo->conectado = false;
+
+
+
+	return 0;
 }
 
 void fs_print_archivos() {
@@ -477,12 +505,16 @@ void fs_eliminar_nodo(int id_nodo) {
 	list_add(fs.nodos_no_agregados, (void*) nodo);
 }
 
-void fs_copiar_archivo_local_al_fs(char* nombre,
-		int dir_padre) {
+int fs_copiar_archivo_local_al_fs(char* nombre, int dir_padre) {
 
 	t_list* bloques_de_dato = NULL;
 	//obtengo los bloques y donde esta guardado cada copia
 	bloques_de_dato = fs_importar_archivo(nombre);
+
+	if(bloques_de_dato==NULL){
+
+		return -1;
+	}
 
 	//obtengo info del archivo
 	t_archivo_info* info = arch_get_info(nombre, dir_padre);
@@ -504,33 +536,104 @@ void fs_copiar_archivo_local_al_fs(char* nombre,
 /*
  * devuelvo una lista de los t_bloque_de_datos del archivo
  */
+/////////////////////
+/*
 t_list* fs_importar_archivo(char* archivo) {
+	size_t size = file_get_size(archivo);
+	printf("Tamanio : %zd b, %.2f kb, %.2f mb\n", size, bytes_to_kilobytes(size),bytes_to_megabytes(size));
+
+	int cant_bloq_necesarios = cant_bloques_necesarios(archivo)*3;
+	printf("Bloques necesarios para el archivo: %d\n", cant_bloq_necesarios);
+	if(cant_bloq_necesarios> fs_cant_bloques_libres()){
+		printf("La cantidad de bloques necesarios para el archivo es %d y solo hay %d bloques libres\n", cant_bloq_necesarios, fs_cant_bloques_libres());
+		return NULL;
+	}
+
+	t_list* new = list_create();
+	t_bloque_de_datos* bd = NULL;
+	int nro_bloque = 0;
+	size_t len_keyvalue=LEN_KEYVALUE;
+	char* linea = malloc(LEN_KEYVALUE);
+	size_t bytes_leidos = 0, offset = 0;
+
+	char* bloque = malloc(TAMANIO_BLOQUE_B);
+	FILE* file = fopen(archivo, "r");
+	for(;bytes_leidos <size;){
+		if(bytes_leidos<TAMANIO_BLOQUE_B){
+			//fread(&linea, &len_keyvalue, file);
+			bytes_leidos +=strlen(linea);
+			//strcat(bloque, linea);
+		}else{
+
+			//si supera el tamaño del bloque, grabo
+			bd = guardar_bloque(bloque, bytes_leidos);
+			bd->n_bloque = nro_bloque;
+			nro_bloque++;
+			list_add(new, bd);
+
+			offset = bytes_leidos;
+			bytes_leidos = 0;
+			memset(bloque, 0, TAMANIO_BLOQUE_B);
+		}
+	}
+	//me fijo si quedo algo sin grabar en el bloque
+	if (bytes_leidos > 0) {
+		bd = guardar_bloque(bloque, bytes_leidos);
+
+		//setteo el nro de bloque
+		bd->n_bloque = nro_bloque;
+		nro_bloque++;
+		//agrego el bloquededatos a la lista
+		list_add(new, bd);
+	}
+
+	free(linea);
+	free(bloque);
+	fclose(file);
+
+	return new;
+}
+*/
+
+t_list* fs_importar_archivo(char* archivo) {
+	size_t size = file_get_size(archivo);
+	printf("Tamanio : %zd b, %.2f kb, %.2f mb\n", size,	bytes_to_kilobytes(size), bytes_to_megabytes(size));
+
+	int cant_bloq_necesarios = cant_bloques_necesarios(archivo) * 3;
+	printf("Bloques necesarios para el archivo: %d\n", cant_bloq_necesarios);
+	if (cant_bloq_necesarios > fs_cant_bloques_libres()) {
+		printf(	"La cantidad de bloques necesarios para el archivo es %d y solo hay %d bloques libres\n",cant_bloq_necesarios, fs_cant_bloques_libres());
+		return NULL;
+	}
 
 	t_list* new = list_create();
 
 	t_bloque_de_datos* bd = NULL;
 
-	size_t size = file_get_size(archivo);
-	printf("tamaño total en byes: %zd\n", size);
-
-	int cant_bloq_necesarios = cant_bloques_necesarios(archivo);
-	printf("bloques necesarios: %d\n", cant_bloq_necesarios);
-
 	char* mapped = file_get_mapped(archivo);
 
 	int nro_bloque = 0;
 	//spliteo por enter
+/*
 	char** registros = string_split(mapped, "\n");
 	int c_registros = cant_registros(registros);
 	printf("cant registros: %d\n", c_registros);
-
+*/
 	int i;
 	size_t bytes_leidos = 0, offset = 0;
 
-	for (i = 0; i < c_registros; ) {
+	int len_hasta_enter(char* strings){
+		int i=0;
+		while(strings[i]!='\n' && strings[i]!='\0')
+			i++;
 
-		if (bytes_leidos + strlen(registros[i]) + 1 < TAMANIO_BLOQUE_B) {
-			bytes_leidos += strlen(registros[i]) + 1;
+		return i+1;
+	}
+	int len_aux;
+	for (bytes_leidos = 0, offset = 0; bytes_leidos+offset < size; ) {
+		len_aux = len_hasta_enter(mapped+bytes_leidos+offset);
+		if (bytes_leidos + len_aux < TAMANIO_BLOQUE_B) {
+			bytes_leidos += len_aux ;
 			i++;
 		} else {
 			//si supera el tamaño de bloque grabo
@@ -547,6 +650,7 @@ t_list* fs_importar_archivo(char* archivo) {
 	//me fijo si quedo algo sin grabar en el bloque
 	if (bytes_leidos > 0) {
 		bd = guardar_bloque(mapped + offset, bytes_leidos);
+
 		//setteo el nro de bloque
 		bd->n_bloque = nro_bloque;
 		nro_bloque++;
@@ -575,7 +679,7 @@ t_bloque_de_datos* guardar_bloque(char* bloque_origen,size_t bytes_a_copiar) {
 	//t_nodo* nodo;
 	char* bloque = malloc(bytes_a_copiar);
 	memcpy(bloque, bloque_origen, bytes_a_copiar);
-
+	bloque[bytes_a_copiar] = '\0';
 	t_nodo_bloque** nb = NULL;
 	//me traigo en un vector los tres t_nodo_bloque donde va a ir la copia del bloque
 	nb = fs_get_tres_nodo_bloque_libres(fs);
@@ -625,8 +729,7 @@ void fs_guardar_bloque(t_nodo_bloque* nb, char* bloque, size_t tamanio_real) {
 	if (msg->header.id == NODO_HOLA) {
 		destroy_message(msg);
 		//le digo que grabe el blque en el nodo n
-		msg = string_message(FS_GRABAR_BLOQUE, bloque, 2, nb->n_bloque,
-				tamanio_real);
+		msg = string_message(FS_GRABAR_BLOQUE, bloque, 2, nb->n_bloque,	tamanio_real);
 
 		enviar_mensaje(fd, msg);
 	}

@@ -32,7 +32,7 @@ typedef struct {
 	char nombre[128];
 	size_t tamanio;
 	int directorio;
-	bool estado;
+	bool disponible;
 	int cant_bloques;
 } t_archivo_info;
 

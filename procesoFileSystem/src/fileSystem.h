@@ -73,7 +73,7 @@ void fs_print_dirs();
 void fd_leer_dirs(t_list* dirs);
 void fs_formatear();
 void fd_leer_archivos(t_list* archivo);
-void fs_copiar_archivo_local_al_fs(char* archivo,int dir_padre);
+int fs_copiar_archivo_local_al_fs(char* archivo,int dir_padre);
 void fs_print_archivo(char* nombre, int dir_id);
 t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre,	int dir_id);
 bool fs_existe_archivo(char* nombre, int dir_id);
@@ -81,6 +81,7 @@ void fs_copiar_mdfs_a_local(char* nombre, int dir_id,
 		char* destino);
 bool fs_existe_dir(int dir_id);
 void fs_print_archivos();
+int fs_marcar_nodo_como_desconectado(t_nodo* nodo);
 char* bloque_de_datos_traer_data(t_list* nodosBloque);
 char* fs_archivo_get_bloque(char* nombre, int dir_id,	int n_bloque);
 int fs_archivo_ver_bloque(char* nombre, int dir_id,	int n_bloque);

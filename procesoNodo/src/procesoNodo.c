@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 	free_null((void*) &timenow);
 */
 	//bool fin = true	;
-	//while (!FIN);
+	while (!FIN);
 	finalizar();
 
 	return EXIT_SUCCESS;
@@ -491,7 +491,7 @@ void iniciar_server_thread() {
 	pthread_t th;
 
 	pthread_create(&th, NULL, (void*) incicar_server, NULL);
-	pthread_join(th, NULL);
+	//pthread_join(th, NULL);
 
 }
 
@@ -719,7 +719,7 @@ char* getBloque(int32_t numero) {
 void* data_get(char* filename) {
 
 	if (!file_exists(filename)) {
-		TAMANIO_DATA = 1024 * 1024 * 100; //100MB
+		TAMANIO_DATA = 1024 * 1024 * 500; //100MB
 		FILE* file = NULL;
 		file = fopen(filename, "w+");
 		if (file == NULL) {

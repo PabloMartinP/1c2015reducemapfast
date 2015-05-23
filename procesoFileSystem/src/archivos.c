@@ -50,7 +50,7 @@ void arch_print_info(t_archivo_info* info){
 	printf(">> Tamanio : %zd b, %.2f kb, %.2f mb\n", info->tamanio, bytes_to_kilobytes(info->tamanio), bytes_to_megabytes(info->tamanio));
 
 	printf(">> Directorio padre: %d\n", info->directorio);
-	printf(">> Estado: %d\n", info->estado);
+	printf(">> Disponible: %d\n", info->disponible);
 	printf(">> Cantdidad de bloques: %d\n", info->cant_bloques);
 }
 
@@ -87,7 +87,7 @@ t_archivo_info* arch_get_info(char* nombre, int dir_padre) {
 	t_archivo_info* new = malloc(sizeof *new);
 	//el id es siempre incremental
 	new->id = arch_get_new_id();
-	new->estado = true;
+	new->disponible = true;
 	strcpy(new->nombre, basename(nombre));
 	memset(new->nombre, ' ', 128);//aca hay que guardar solo el nombre, no el path completo
 	strcpy(new->nombre, basename(nombre));

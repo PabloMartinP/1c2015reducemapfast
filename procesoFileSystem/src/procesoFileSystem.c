@@ -10,6 +10,8 @@
 
 #include "procesoFileSystem.h"
 
+bool OPERATIVO = false;
+
 int main(void) {
 
 	inicializar();
@@ -50,8 +52,10 @@ void iniciar_server_nodos_nuevos() {
 void agregar_nodo_al_fs(int id_nodo) {
 	fs_agregar_nodo(id_nodo);
 
-	//t_nodo* nodo = fs_buscar_nodo_por_id(id_nodo);
-	//log_info(logger, "El nodo %d fue agregado al fs. %s:%d", id_nodo, nodo->base.ip, nodo->base.puerto);
+	//si no esta operativo verifico si ahora lo esta
+	if(!OPERATIVO){
+		OPERATIVO = fs_esta_operativo();
+	}
 }
 
 void iniciar_consola() {
@@ -77,9 +81,17 @@ void iniciar_consola() {
 		char** input_user = separar_por_espacios(comando);
 		e_comando cmd = getComando(input_user[0]);
 
-		if (cmd != NODO_AGREGAR && !fs_esta_operativo() && cmd!=SALIR) {
-			printf("FS no operativo. \n");
-			fs_print_nodos_no_agregados();
+		if (cmd != NODO_AGREGAR && cmd!=SALIR) {
+			if(!OPERATIVO){
+				printf("FS no operativo. \n");
+				printf("Cantidad minima de nodos conectados: %d\n", fs.cant_nodos_minima);
+				printf("Cantidad de nodos conectados: %d\n", list_size(fs.nodos));
+				printf("Cantidad de nodos no conectados: %d\n", list_size(fs.nodos_no_agregados));
+				fs_print_nodos_no_agregados();
+				//OPERATIVO = false;
+			}else{
+				//OPERATIVO = true;
+			}
 		} else {
 			switch (cmd) {
 			case ARCHIVO_VERBLOQUE:	//filevb nombre dir nro_bloque
@@ -229,24 +241,52 @@ void finalizar() {
 	printf("FS Terminado!!!!\n");
 }
 
+void set_cwd(){
+
+	char*aux;
+	aux = convertir_path_absoluto(FILE_LOG);
+	strcpy(FILE_LOG, aux);
+	free(aux);
+	aux = convertir_path_absoluto(FILE_CONFIG);
+	strcpy(FILE_CONFIG, aux);
+	free(aux);
+	aux = convertir_path_absoluto(FILE_ARCHIVO);
+	strcpy(FILE_ARCHIVO, aux);
+	free(aux);
+
+	aux = convertir_path_absoluto(FILE_ARCHIVO_BLOQUES);
+	strcpy(FILE_ARCHIVO_BLOQUES, aux);
+	free(aux);
+
+	aux = convertir_path_absoluto(FILE_DIRECTORIO);
+	strcpy(FILE_DIRECTORIO, aux);
+	free(aux);
+
+	aux = convertir_path_absoluto(FILE_NODOS);
+	strcpy(FILE_NODOS, aux);
+	free(aux);
+}
 void inicializar() {
-	char* f;
 	int rs;
 
+	//comento para que siempre que ejecute tome el mismo cwd
+	set_cwd();
+
 	//inicializo el log
-	f = convertir_path_absoluto(FILE_LOG);
-	logger = log_create(f, "FileSystem", true, LOG_LEVEL_INFO);
-	free(f);
+
+	logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_INFO);
 
 	//inicializo el config
-	f = convertir_path_absoluto(FILE_CONFIG);
-	if (!file_exists(f)) {
-		log_info(logger, "No existe el archivo config - %s", f);
+
+	if (!file_exists(FILE_CONFIG)) {
+		log_info(logger, "No existe el archivo config - %s", FILE_CONFIG);
 		handle_error("config");
 	}
-	config = config_create(f);
-	free(f);
 
+	config = config_create(FILE_CONFIG);
+
+
+	//INICIO EL FS
 	if((rs = fs_create())<0){
 		log_info(logger, "No se pudo crear el fs");
 		handle_error("config");
@@ -287,7 +327,8 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 
 		//ESTO NO VA PERO LO AGREGO PARA NO TENER QUE ESTAR AGREGANDO EL NODO CADA VEZ QUE LEVANTO EL FS
 		//agregar_nodo_al_fs(nodo->id);
-		fs_agregar_nodo(nodo->base.id);
+
+		//agregar_nodo_al_fs(nodo->base.id);
 
 
 		break;

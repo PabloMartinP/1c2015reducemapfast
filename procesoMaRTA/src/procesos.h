@@ -13,6 +13,7 @@ bool soporta_combiner();
 int rutina_con_combiner();
 int rutina_sin_combiner();
 void enviar_rutina_reduce();
+int probar_conexion_filesystem();
 
 typedef struct{
 	char* ip;//para conectarme con el nodo
@@ -81,6 +82,8 @@ void procesar (int socket, t_msg*msg){
 				break;
 			}
 
+
+
 			//le pido al job los archivos que quiere procesar (asumo que ya estan almacenados en el fs)
 
 			//busco en el fs los nodos y bloques de los archivos
@@ -133,6 +136,26 @@ void procesar (int socket, t_msg*msg){
 	}
 
 
+}
+
+int probar_conexion_filesystem(){
+
+	int fd ;
+	if((fd = client_socket(MaRTA_IP(), MaRTA_PUERTO()))<0){
+		printf("No se pudo conectar con el fs en %s:%d\n", MaRTA_IP(), MaRTA_PUERTO());
+		return -1;
+	}
+	t_msg* msg = string_message(MARTA_HOLA, "", 0);
+	if(enviar_mensaje(fd, msg)<0){
+		printf("No se pudo enviar el mensaje al fs\n");
+		return -2;
+	}
+
+	destroy_message(msg);
+	msg = recibir_mensaje(fd);
+
+	destroy_message(msg);
+	return 0;
 }
 
 int rutina_con_combiner(){

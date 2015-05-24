@@ -28,6 +28,11 @@ int main(void) {
 	bool soporta;
 	t_list* lista;
 
+	if(probar_conexion_filesystem()<0){
+		printf("Imposible conectar con el fs en %s:%d\n", MaRTA_IP(), MaRTA_PUERTO());
+		return -1;
+	}
+
 	//iniciar_thread_server_MaRTA();
 	iniciar_servidor();//bloqueante, para no bloquear usar a iniciar_thread_server_MaRTA()
 

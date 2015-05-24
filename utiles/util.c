@@ -526,7 +526,7 @@ void create_file(char *path, size_t size) {
 void clean_file(char *path) {
 
 	FILE *f = fopen(path, "wb");
-	perror("fopen");
+	//perror("fopen");
 
 	fclose(f);
 }
@@ -737,13 +737,20 @@ float bytes_to_kilobytes(size_t bytes){
 float bytes_to_megabytes(size_t bytes){
 	return bytes / ((1024*1024) + 0.0);
 }
+/*
+int convertir_path_absoluto(char**destino, char* file){
+	//char* destino = malloc(PATH_MAX_LEN);
+	if (getcwd(*destino, PATH_MAX_LEN) == NULL)
+		handle_error("getcwd() error");
+	strcat(*destino, file);
 
+	return 0;
+}
+*/
 char* convertir_path_absoluto(char* file){
 	char* destino = malloc(PATH_MAX_LEN);
 	if (getcwd(destino, PATH_MAX_LEN) == NULL)
 		handle_error("getcwd() error");
-
-
 	strcat(destino, file);
 	return destino;
 }

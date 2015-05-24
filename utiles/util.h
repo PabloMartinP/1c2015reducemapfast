@@ -220,5 +220,6 @@ void print_msg(t_msg *msg);
  * Convierte t_msg_id a string.
  */
 char *id_string(t_msg_id id);
+//int convertir_path_absoluto(char** destino, char* file);
 char* convertir_path_absoluto(char* file);
 #endif /* UTIL_H_ */

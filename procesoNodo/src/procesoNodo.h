@@ -30,7 +30,7 @@
 
 char FILE_CONFIG[1024] = "/config.txt";
 char FILE_LOG[1024] = "/log.txt";
-char CWD[PATH_MAX_LEN];//para guardar el currentworkingdirectory
+//char CWD[PATH_MAX_LEN];//para guardar el currentworkingdirectory
 /*
  * variables
  */

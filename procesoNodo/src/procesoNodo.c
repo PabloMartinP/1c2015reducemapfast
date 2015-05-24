@@ -628,7 +628,7 @@ void probar_conexion_fs() {
 		} else
 			printf("No se pudo conectar con el fs");
 
-		close(fs);
+		//close(fs);
 		printf("Conectado con fs en %s:%d\n", NODO_IP_FS(), NODO_PORT_FS());
 	} else {
 		printf("No pudo iniciar la escucha al fs\n");
@@ -645,6 +645,7 @@ void finalizar() {
 }
 
 void inicializar() {
+
 
 
 	char*f;

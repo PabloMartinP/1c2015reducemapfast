@@ -66,7 +66,7 @@ uint16_t dir_obtenerUltimoIndex() {
 			break;
 		}
 	}
-	free_null((void*)&dir);
+	FREE_NULL(dir);
 	file_mmap_free(map, FILE_DIRECTORIO);
 
 	return index_new;
@@ -116,7 +116,7 @@ void dir_formatear() {
 		memcpy(map + i * sizeof(t_directorio), dir, sizeof(t_directorio));
 	}
 
-	free_null((void*)&dir);
+	FREE_NULL(dir);
 
 	file_mmap_free(map, FILE_DIRECTORIO);
 

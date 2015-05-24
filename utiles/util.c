@@ -105,11 +105,12 @@ void* file_get_mapped(char* filename) {
 	return mapped;
 }
 
+/*
 void free_null(void** data) {
 	free(*data);
 	*data = NULL;
 	data = NULL;
-}
+}*/
 
 bool file_exists(const char* filename) {
 	bool rs = true;
@@ -324,13 +325,13 @@ int enviar_mensaje_sin_header(int sock_fd, int tamanio, void* buffer){
 	while (total < pending) {
 		int sent = send(sock_fd, bufferAux, tamanio, MSG_NOSIGNAL);
 		if (sent < 0) {
-			free_null((void*) &bufferAux);
+			FREE_NULL(bufferAux);
 			return -1;
 		}
 		total += sent;
 		pending -= sent;
 	}
-	free_null((void*) &bufferAux);
+	FREE_NULL(bufferAux);
 	return 0;
 }
 
@@ -347,7 +348,7 @@ int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer) {
 	memcpy(bufferAux, &header, sizeof(t_header_base));
 	memcpy((bufferAux + (sizeof(t_header_base))), buffer, tamanio);
 	auxInt = send(unSocket, bufferAux, (sizeof(t_header_base) + tamanio), 0);
-	free_null((void*)&bufferAux);
+	FREE_NULL(bufferAux);
 	return auxInt;
 }
 
@@ -413,11 +414,11 @@ char* recibir_linea(int sock_fd){
 	else
 	{
 		if(status==-3){//termino de leer el archivo
-			free_null((void*)&linea);
+			FREE_NULL(linea);
 			return NULL;
 		}
 		else{
-			free_null((void*)&linea);
+			FREE_NULL(linea);
 			perror("El nodo perdio conexion\n");
 			return NULL;
 		}
@@ -434,7 +435,7 @@ t_msg *recibir_mensaje(int sock_fd) {
 	int status = recv(sock_fd, &(msg->header), sizeof(t_header), MSG_WAITALL);
 	if (status <= 0) {
 		/* An error has ocurred or remote connection has been closed. */
-		free_null((void*)&msg);
+		FREE_NULL(msg);
 		return NULL;
 	}
 
@@ -444,8 +445,8 @@ t_msg *recibir_mensaje(int sock_fd) {
 
 		if (recv(sock_fd, msg->argv, msg->header.argc * sizeof(uint32_t),
 		MSG_WAITALL) <= 0) {
-			free_null((void*)&msg->argv);
-			free_null((void*)&msg);
+			FREE_NULL(msg->argv);
+			FREE_NULL(msg);
 			return NULL;
 		}
 	}
@@ -454,9 +455,9 @@ t_msg *recibir_mensaje(int sock_fd) {
 		msg->stream = malloc(msg->header.length + 1);
 
 		if (recv(sock_fd, msg->stream, msg->header.length, MSG_WAITALL) <= 0) {
-			free_null((void*)&msg->stream);
-			free_null((void*)&msg->argv);
-			free_null((void*)&msg);
+			FREE_NULL(msg->stream);
+			FREE_NULL(msg->argv);
+			FREE_NULL(msg);
 			return NULL;
 		}
 
@@ -489,27 +490,28 @@ int enviar_mensaje(int sock_fd, t_msg *msg) {
 				msg->header.length + sizeof msg->header
 						+ msg->header.argc * sizeof(uint32_t), MSG_NOSIGNAL);
 		if (sent < 0) {
-			free_null((void*)&buffer);
+			FREE_NULL(buffer);
 			return -1;
 		}
 		total += sent;
 		pending -= sent;
 	}
 
-	free_null((void*)&buffer);
+	FREE_NULL(buffer);
 
 	return total;
 }
 
 void destroy_message(t_msg *msg) {
-	if (msg->header.length  )
-		free_null((void*)&msg->stream);
+	if (msg->header.length  ){
+		FREE_NULL(msg->stream);
+	}
 	else
 		if(msg->stream != NULL && string_is_empty(msg->stream))
-			free_null((void*)&msg->stream);
+			FREE_NULL(msg->stream);
 	if (msg->header.argc && msg->argv != NULL)
-		free_null((void*)&msg->argv);
-	free_null((void*)&msg);
+		FREE_NULL(msg->argv);
+	FREE_NULL(msg);
 }
 
 void create_file(char *path, size_t size) {
@@ -660,7 +662,7 @@ void print_msg(t_msg *msg) {
 	printf("CONTENIDOS DEL MENSAJE:\n");
 	char* id = id_string(msg->header.id);
 	printf("- ID: %s\n", id);
-	free_null((void*)&id);
+	FREE_NULL(id);
 
 	for (i = 0; i < msg->header.argc; i++) {
 		;

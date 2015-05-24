@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 			"/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/reduce.sh",
 			file_reduce_result);
 	list_destroy(files);
-	free_null((void*) &file_reduce_result);
+	FREE_NULL(file_reduce_result);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 	free(file_map1);
 	free(file_map2);
 
-	free_null((void*) &timenow);
+	FREE_NULL(timenow);
 */
 	//bool fin = true	;
 	while (!FIN);
@@ -197,11 +197,11 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 				rs = getline(&(keys[index_menor]), &len_key,fdlocal[index_menor]);
 				//si es igual a -1, termino el file, marco como null la key para que la ignore cuando obtiene el menor
 				if (rs == -1) {
-					free_null((void*)&keys[index_menor]);
+					FREE_NULL(keys[index_menor]);
 					keys[index_menor] = NULL;
 				}
 			} else {
-				free_null((void*)&keys[index_menor]);
+				FREE_NULL(keys[index_menor]);
 				keys[index_menor] = recibir_linea( fdred[cant_local_files - index_menor]);
 			}
 			//cuando termina devuelve NULL;
@@ -218,14 +218,14 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 		}
 		//borro fdlocal
 		//free(fdlocal);
-		free_null((void*) &fdlocal);
+		FREE_NULL(fdlocal);
 
 		//cierro las conexiones con lso nodos
 		for (i = 0; i < cant_red_files; i++)
 			close(fdred[i]);
 		//borro fdred
 		//free(fdred);
-		free_null((void*)&fdred);
+		FREE_NULL(fdred);
 
 		//limpio las keys -- ya estan limpias
 /*
@@ -233,14 +233,14 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 			free(keys[i]);
 		}*/
 		//limpio key
-		free_null((void*) &keys);
+		FREE_NULL(keys);
 		/////////////////////////////////////////////////
 		//empiezo a leer el stdout
 		int count;
 		char* new_file_reduced;
 		new_file_reduced = convertir_a_temp_path_filename(filename_result);	//genero filename absoluto
 		FILE* file_reduced = txt_open_for_append(new_file_reduced);	//creo el file
-		free_null((void*) &new_file_reduced);		//limpio el nombre
+		FREE_NULL(new_file_reduced);		//limpio el nombre
 		char* buffer = malloc(LEN_KEYVALUE);//creo un buffer para ir almacenando el stdout
 		i = 0;
 		do {
@@ -256,7 +256,7 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 		} while (count != 0);
 		close(PARENT_READ_FD);
 		fclose(file_reduced);
-		free_null((void*) &buffer);
+		FREE_NULL(buffer);
 
 //////////////////////////////////////////////
 
@@ -333,7 +333,7 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,	char* filename_resul
 
 			//si es igual a -1, termino el file, marco como null la key para que la ignore cuando obtiene el menor
 			if (rs == -1) {
-				free_null((void*)&keys[index_menor]);
+				FREE_NULL(keys[index_menor]);
 				keys[index_menor] =  NULL;
 				//keys[index_menor] = KEYVALUE_END;
 			}
@@ -348,7 +348,7 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,	char* filename_resul
 		char* new_file_reduced;
 		new_file_reduced = convertir_a_temp_path_filename(filename_result);	//genero filename absoluto
 		FILE* file_reduced = txt_open_for_append(new_file_reduced);	//creo el file
-		free_null((void*) &new_file_reduced);		//limpio el nombre
+		FREE_NULL(new_file_reduced);		//limpio el nombre
 		char* buffer = malloc(1024);//creo un buffer para ir almacenando el stdout
 		i = 0;
 		do {
@@ -363,17 +363,17 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,	char* filename_resul
 		} while (count != 0);
 		close(PARENT_READ_FD);
 		fclose(file_reduced);
-		free_null((void*) &buffer);
+		FREE_NULL(buffer);
 
 ////////////////////////////////////////
 		for (i = 0; i < cant_files; i++)
 			fclose(fd[i]);
-		free_null((void*) &fd);
+		FREE_NULL(fd);
 
 		for(i=0;i<cant_files;i++){
 			free(keys[i]);
 		}
-		free_null((void*) &keys);
+		FREE_NULL(keys);
 
 
 
@@ -408,7 +408,7 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		//stdinn[len - 2] = '\n';
 		write(PARENT_WRITE_FD, stdinn, len);
 		close(PARENT_WRITE_FD);
-		free_null((void**) &stdinn);
+		FREE_NULL(stdinn);
 
 		// Read from child’s stdout
 		char* new_file_map_disorder = convertir_a_temp_path_filename(
@@ -423,9 +423,9 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		} while (count != 0);
 		close(PARENT_READ_FD);
 		txt_close_file(file_disorder);
-		free_null((void**) &buffer);
+		FREE_NULL(buffer);
 		ordenar_y_guardar_en_temp(new_file_map_disorder, filename_result);//guardo el file definitivo en el tmp
-		free_null((void*) &new_file_map_disorder);
+		FREE_NULL(new_file_map_disorder);
 
 		return res;
 	}
@@ -446,7 +446,7 @@ int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {
 	printf("%s\n", commando_ordenar);
 
 	system(commando_ordenar);
-	free_null((void*) &commando_ordenar);
+	FREE_NULL(commando_ordenar);
 
 	//borro el file
 	remove(file_desordenado);
@@ -465,7 +465,7 @@ int grabar_en_temp(char* filename, char* data) {
 	 nombre_nuevo_archivo = file_combine(NODO_DIRTEMP(), filename);
 	 char* timenow = temporal_get_string_time();
 	 string_append(&nombre_nuevo_archivo, timenow);
-	 free_null((void*) &timenow);
+	 FREE_NULL(timenow);
 
 	 write_file(nombre_nuevo_archivo, data, strlen(data));
 
@@ -512,7 +512,7 @@ void procesar_mensaje(int fd, t_msg* msg) {
 		//buff = convertir_a_temp_path_filename(msg->stream);
 		//obtengo el char
 		file_data = getFileContent(msg->stream);
-		//free_null((void*)&buff);
+		//FREE_NULL(buff);
 
 		//envio el archivo
 		destroy_message(msg);
@@ -560,7 +560,7 @@ void procesar_mensaje(int fd, t_msg* msg) {
 		memcpy(bloque, msg->stream, msg->argv[1]);	//1 es el tamaño real
 		memset(bloque + msg->argv[1], '\0', TAMANIO_BLOQUE_B - msg->argv[1]);
 		setBloque(msg->argv[0], bloque);
-		free_null((void*) &bloque);
+		FREE_NULL(bloque);
 
 		destroy_message(msg);
 
@@ -676,7 +676,7 @@ char* getFileContent(char* filename) {
 	memcpy(content, mapped, size);	//
 	file_mmap_free(mapped, path);
 
-	free_null((void*) &path);
+	FREE_NULL(path);
 
 	log_info(logger, "Fin getFileContent(%s)", filename);
 	return content;
@@ -689,7 +689,7 @@ char* getFileContent(char* filename) {
 
 	 content = file_get_mapped(path);
 
-	 free_null((void*)&path);
+	 FREE_NULL(path);
 
 	 log_info(logger, "Fin getFileContent(%s)", filename);
 	 return content;*/
@@ -735,7 +735,7 @@ void* data_get(char* filename) {
 		////grabo 0 en todo el nodo.
 		memset(dump, 0, TAMANIO_DATA);
 		fwrite(dump, TAMANIO_DATA, 1, file);
-		free_null((void*) &dump);
+		FREE_NULL(dump);
 
 		fclose(file);
 	}

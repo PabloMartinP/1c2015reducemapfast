@@ -268,7 +268,7 @@ void fs_copiar_mdfs_a_local(char* nombre, int dir_id, char* destino) {
 	nombre_nuevo_archivo = file_combine(destino, archivo->info->nombre);
 	char* timenow = temporal_get_string_time();
 	string_append(&nombre_nuevo_archivo, timenow);
-	free_null((void*)&timenow);
+	FREE_NULL(timenow);
 	//creo el file, si ya existe lo BORRO!!!
 	clean_file(nombre_nuevo_archivo);
 	FILE* file = txt_open_for_append(nombre_nuevo_archivo);
@@ -289,7 +289,8 @@ void fs_copiar_mdfs_a_local(char* nombre, int dir_id, char* destino) {
 
 	printf("Creado archivo nuevo: %s\n", nombre_nuevo_archivo);
 	txt_close_file(file);
-	free_null((void*)&nombre_nuevo_archivo);
+	//FREE_NULL(nombre_nuevo_archivo);
+	free(nombre_nuevo_archivo);nombre_nuevo_archivo = NULL;
 }
 /*
  * me tengo que conectar con el nodo y traer la info, ya sea del 1 2 o 3
@@ -787,7 +788,7 @@ t_bloque_de_datos* guardar_bloque(char* bloque_origen,size_t bytes_a_copiar) {
 	//free(nb)
 	//hacer free de lam matriz
 
-	free_null((void*)&bloque);
+	FREE_NULL(bloque);
 
 	return new;
 }
@@ -1107,7 +1108,7 @@ void fd_leer_dirs(t_list* dirs) {
 			dir = malloc(sizeof *dir);
 		}
 	}
-	free_null((void*)&dir);
+	FREE_NULL(dir);
 	file_mmap_free(map, FILE_DIRECTORIO);
 }
 

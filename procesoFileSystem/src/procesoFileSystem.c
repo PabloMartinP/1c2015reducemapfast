@@ -81,7 +81,7 @@ void iniciar_consola() {
 		char** input_user = separar_por_espacios(comando);
 		e_comando cmd = getComando(input_user[0]);
 
-		if (cmd != NODO_AGREGAR && cmd!=SALIR) {
+		if (cmd != NODO_AGREGAR && cmd!=SALIR && !OPERATIVO) {
 			if(!OPERATIVO){
 				printf("FS no operativo. \n");
 				printf("Cantidad minima de nodos conectados: %d\n", fs.cant_nodos_minima);
@@ -89,8 +89,6 @@ void iniciar_consola() {
 				printf("Cantidad de nodos no conectados: %d\n", list_size(fs.nodos_no_agregados));
 				fs_print_nodos_no_agregados();
 				//OPERATIVO = false;
-			}else{
-				//OPERATIVO = true;
 			}
 		} else {
 			switch (cmd) {
@@ -129,7 +127,7 @@ void iniciar_consola() {
 			case NODO_AGREGAR:			//addnodo 1
 				//printf("comando ingresado: agregar nodo\n");
 				nodo_id = atoi(input_user[1]);
-				fs_agregar_nodo(nodo_id );
+				agregar_nodo_al_fs(nodo_id);
 
 				break;
 
@@ -225,10 +223,10 @@ void iniciar_consola() {
 		//free(*input_user);
 		int i = 0;
 		while (input_user[i] != NULL) {
-			free_null((void*)&input_user[i]);
+			FREE_NULL(input_user[i]);
 			i++;
 		}
-		free_null((void*)&input_user);
+		FREE_NULL(input_user);
 	}
 }
 

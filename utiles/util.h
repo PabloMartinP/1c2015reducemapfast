@@ -35,7 +35,12 @@
 #define REG_SIZE 4
 
 /* Funciones Macro */
+#define FREE_NULL(p) \
+    {free(p); \
+    p = NULL;}
 
+
+//#define free_null(p) ({free(p);(p)=(NULL);})
 /*
  * Compara dos numeros y retorna el mínimo.
  */
@@ -96,7 +101,7 @@ typedef struct {
 }__attribute__ ((__packed__)) t_msg;
 
 bool file_exists(const char* filename);
-void free_null(void** data);
+//void free_null(void** data);
 char* file_combine(char* f1, char* f2);
 size_t file_get_size(char* filename);
 void* file_get_mapped(char* filename);

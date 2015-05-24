@@ -18,8 +18,6 @@
 
 #include "procesos.h"
 
-
-
 int main(void) {
 	config = config_create(FILE_CONFIG);
 

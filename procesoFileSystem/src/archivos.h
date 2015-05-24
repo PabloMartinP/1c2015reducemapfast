@@ -105,7 +105,7 @@ void arch_print_info(t_archivo_info* info){
 
 void bloque_de_datos_destroy(t_bloque_de_datos* bloque_de_datos){
 	list_destroy(bloque_de_datos->nodosbloque);
-	free_null((void*)&bloque_de_datos);
+	FREE_NULL(bloque_de_datos);
 }
 
 t_archivo* arch_crear(){
@@ -116,9 +116,11 @@ t_archivo* arch_crear(){
 }
 
 void arch_destroy(t_archivo* archivo){
-	free_null((void*)&archivo->info);
+	//FREE_NULL(archivo->info);
+	free(archivo->info);archivo->info = NULL;
 	list_destroy_and_destroy_elements(archivo->bloques_de_datos, (void*)bloque_de_datos_destroy);
-	free_null((void*)&archivo);
+	//FREE_NULL(archivo);
+	free(archivo);archivo = NULL;
 }
 
 void arch_formatear(){

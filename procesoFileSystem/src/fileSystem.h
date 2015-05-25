@@ -38,6 +38,9 @@ t_fileSystem fs;
 
 void fs_print_dirs();
 int fs_agregar_nodo(int id_nodo);
+char* fs_dir_get_path(int dir_index);
+int fs_dir_get_index(char* path, int padre);
+int fs_dir_get_padre();
 int fs_create();
 void fs_destroy();
 void fs_addNodo(t_nodo* nodo);
@@ -78,7 +81,8 @@ t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre,	int dir_
 bool fs_existe_archivo(char* nombre, int dir_id);
 void fs_copiar_mdfs_a_local(char* nombre, int dir_id,
 		char* destino);
-bool fs_existe_dir(int dir_id);
+bool fs_existe_dir(char* nombre,int dir_id);
+bool fs_existe_dir_por_id(int dir_id);
 void fs_print_archivos();
 int fs_marcar_nodo_como_desconectado(t_nodo* nodo);
 char* bloque_de_datos_traer_data(t_list* nodosBloque);
@@ -249,7 +253,11 @@ void fs_print_archivos() {
 	printf("FIN ARCHIVOS DEL FS ***********************\n");
 }
 
-bool fs_existe_dir(int dir_id) {
+bool fs_existe_dir(char* nombre, int padre) {
+	return dir_buscar_por_nombre(fs.directorios, nombre, padre) != NULL;
+}
+
+bool fs_existe_dir_por_id(int dir_id) {
 	return dir_buscar_por_id(fs.directorios, dir_id) != NULL;
 }
 
@@ -335,6 +343,8 @@ void fs_cargar(){
 
 	if (file_exists(FILE_DIRECTORIO))
 		fd_leer_dirs(fs.directorios);
+	else
+		dir_formatear();
 
 	if (file_exists(FILE_ARCHIVO) && file_get_size(FILE_ARCHIVO) > 0)
 		fd_leer_archivos(fs.archivos);
@@ -510,6 +520,102 @@ bool fs_existe_en_archivo_nodos(t_nodo_base base){
 		return false;//si el tamaño es cero no hay ningun nodo guardado
 }
 
+
+int fs_dir_get_padre(int dir_id){
+
+	if(dir_id == 0 ) return 0;
+
+	t_directorio* dir = dir_buscar_por_id(fs.directorios, dir_id);
+	return dir->padre;
+}
+
+int fs_dir_get_index(char* path, int padre){
+	//si solo pasa el / le devuelvo directamente el raiz
+	if(strcmp(path, "/")==0){
+		return 0;
+	}
+
+	//verifico si esta usando / en el primer char, si es asi uso a padre = 0;
+	if(path[0]=='/')
+		padre = 0;
+
+	int rs;
+	char** nombres = string_split(path, "/");
+	char* map = file_get_mapped(FILE_DIRECTORIO);
+	int i=0;
+	t_directorio* dir = NULL;
+	while(nombres[i]!=NULL){
+		printf("%s\n", nombres[i]);
+
+		bool _buscar_en_dirs(t_directorio* dir){
+			return string_equals_ignore_case(dir->nombre, nombres[i])  && dir->padre == padre;
+		}
+
+		dir = list_find(fs.directorios, (void*)_buscar_en_dirs);
+		if(dir==NULL){
+			rs = -1;
+			break;
+		}else{
+			//asigno el nuevo padre
+			padre = dir->index;
+			rs = dir->index;
+		}
+
+		i++;
+	}
+	file_mmap_free(map, FILE_DIRECTORIO);
+	//limpio el resutlado del split
+	i = 0;
+	while (nombres[i] != NULL) {
+		FREE_NULL(nombres[i]);
+		i++;
+	}
+	FREE_NULL(nombres);
+
+	return rs;
+}
+char* fs_dir_get_path(int dir_index){
+
+	char* path = string_new();
+
+	if(dir_index==0){
+		string_append(&path, "/");
+		return path;
+	}
+
+
+	//////////////////////////////////////////
+	t_directorio* dir = NULL;
+	int i=0;
+	do{
+		dir = dir_buscar_por_id(fs.directorios, dir_index);
+
+		string_append(&path, dir->nombre);
+		string_append(&path, "/");
+
+		dir_index = dir->padre;
+		i++;
+	}while(dir->padre!=0);
+
+	char** path_split = string_split(path, "/");
+	free(path);path = NULL;
+	char *rs = string_new();
+	int j;
+	for(j=1;j<=i;j++){
+		string_append(&rs, "/");
+		string_append(&rs, path_split[i-j]);
+	}
+
+	i = 0;
+	while (path_split[i] != NULL) {
+		FREE_NULL(path_split[i]);
+		i++;
+	}
+	FREE_NULL(path_split);
+
+	return rs;
+}
+
 int fs_agregar_nodo(int id_nodo) {
 	//busco el id_nodo en la lista de nodos_nuevos
 	bool _buscar_nodo_por_id(t_nodo* nodo) {
@@ -531,10 +637,11 @@ int fs_agregar_nodo(int id_nodo) {
 		//si no existe lo agrego
 
 		t_nodo_base nb;
+
 		//cargo la estructura para guardarla en el file
 		nb.id = nodo->base.id;
 		memset(nb.ip, 0, sizeof(nb.ip));	//setteo a  \0 por las d uda
-		strcpy(nb.ip, nodo->base.ip);
+		memcpy(nb.ip, nodo->base.ip, sizeof(nb.ip));
 		nb.puerto = nodo->base.puerto;
 		nb.cant_bloques = nodo->base.cant_bloques;
 
@@ -557,7 +664,9 @@ int fs_agregar_nodo(int id_nodo) {
 		list_add(fs.nodos, nodo);
 		nn = nodo;//se lo asigno para poder hacer el printf y el conectado = true;
 	}
-
+	nn->conectado = true;//si descomento lo de abajo comento esta linea
+	//le aviso al nodo que esta conectado
+	/*
 	int fd = client_socket(nn->base.ip, nn->base.puerto);
 	if((fd<0)){
 		printf("No se pudo conectar con el nodo. %s:%d\n", nn->base.ip, nn->base.puerto);
@@ -570,6 +679,7 @@ int fs_agregar_nodo(int id_nodo) {
 		destroy_message(msg);
 		nn->conectado = true;
 	}
+	*/
 
 	printf("El nodo fue agregado al fs: \n");
 	nodo_print_info(nn);
@@ -708,7 +818,7 @@ t_list* fs_importar_archivo(char* archivo) {
 	int c_registros = cant_registros(registros);
 	printf("cant registros: %d\n", c_registros);
 */
-	int i;
+	//int i;
 	size_t bytes_leidos = 0, offset = 0;
 
 	int len_hasta_enter(char* strings){
@@ -1108,8 +1218,7 @@ void fd_leer_dirs(t_list* dirs) {
 	int i = 0;
 	for (i = 0; i < DIR_CANT_MAX; i++) {
 
-		dir = memcpy(dir, map + (i * sizeof(t_directorio)),
-				sizeof(t_directorio));
+		dir = memcpy(dir, map + (i * sizeof(t_directorio)),	sizeof(t_directorio));
 		if (dir->index != 0) { //si es igual a 0 esta disponible
 			list_add(dirs, (void*) dir);
 			dir = malloc(sizeof *dir);
@@ -1122,7 +1231,7 @@ void fd_leer_dirs(t_list* dirs) {
 void fs_destroy() {
 	list_destroy_and_destroy_elements(fs.nodos, (void*) nodo_destroy);
 	list_destroy_and_destroy_elements(fs.nodos_no_agregados, (void*) nodo_destroy);
-	list_destroy(fs.directorios);
+	list_destroy_and_destroy_elements(fs.directorios, (void*)dir_destroy);
 	list_destroy_and_destroy_elements(fs.archivos, (void*)arch_destroy);
 }
 

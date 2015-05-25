@@ -29,7 +29,7 @@ char FILE_LOG[1024] ="/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/proces
 t_log* logger;
 t_config* config;
 
-
+void print_directorio_actual();
 void iniciar_consola();
 void procesar_mensaje_nodo(int fd, t_msg* msg);
 void inicializar();

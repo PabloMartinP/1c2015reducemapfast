@@ -35,9 +35,12 @@ e_comando getComando(char* comando) {
 	if (string_equals_ignore_case(comando, "fileinfo"))
 		return ARCHIVO_INFO;
 	if (string_equals_ignore_case(comando, "lsfile"))
-			return ARCHIVO_LISTAR;
+		return ARCHIVO_LISTAR;
 	if (string_equals_ignore_case(comando, "filevb"))
-			return ARCHIVO_VERBLOQUE;
+		return ARCHIVO_VERBLOQUE;
+	if (string_equals_ignore_case(comando, "cd"))
+		return CAMBIAR_DIRECTORIO;
+
 
 	return NADA;
 }

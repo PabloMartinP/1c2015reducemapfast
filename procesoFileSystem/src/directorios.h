@@ -31,14 +31,28 @@ typedef struct {
 
 void dir_print(t_directorio* dir);
 uint16_t dir_obtenerUltimoIndex() ;
-void dir_crear(t_list* dirs, char* nombre, uint16_t padre);
+int dir_crear(t_list* dirs, char* nombre, uint16_t padre);
 void dir_formatear();
 t_directorio* dir_buscar_por_id(t_list* dirs, int id);
+t_directorio* dir_buscar_por_nombre(t_list* dirs, char* nombre, int padre);
+void dir_destroy(t_directorio* dir);
+
 /*
  * *********************************************************
  */
 
+void dir_destroy(t_directorio* dir){
+	free(dir);
+	dir=NULL;
+}
 
+
+t_directorio* dir_buscar_por_nombre(t_list* dirs, char* nombre, int padre){
+	bool _dir_buscar_por_nombre(t_directorio* dir){
+		return string_equals_ignore_case(dir->nombre, nombre) && dir->padre == padre;
+	}
+	return list_find(dirs, (void*)_dir_buscar_por_nombre);
+}
 
 t_directorio* dir_buscar_por_id(t_list* dirs, int id){
 	bool _dir_buscar_por_id(t_directorio* dir){
@@ -51,6 +65,8 @@ t_directorio* dir_buscar_por_id(t_list* dirs, int id){
  * obtengo un indice libre, si no entran mas devuelve -1;
  */
 uint16_t dir_obtenerUltimoIndex() {
+
+
 	char* map = file_get_mapped(FILE_DIRECTORIO);
 	int index_new = -1;
 
@@ -77,11 +93,11 @@ void dir_print(t_directorio* dir) {
 	printf("Index: %d, Padre: %d, Nombre: %s\n", dir->index, dir->padre, dir->nombre);
 }
 
-void dir_crear(t_list* dirs, char* nombre, uint16_t padre) {
+int dir_crear(t_list* dirs, char* nombre, uint16_t padre) {
 	int index = dir_obtenerUltimoIndex();
 	if (index == -1) {
 		printf("No se pueden crear mas de %d directorios\n", DIR_CANT_MAX);
-		return;
+		return -1;
 	}
 
 	t_directorio* dir = malloc(sizeof *dir);
@@ -98,7 +114,7 @@ void dir_crear(t_list* dirs, char* nombre, uint16_t padre) {
 
 	printf("se creo el directorio %s con padre %d e indice %d\n", dir->nombre,dir->padre, dir->index);
 
-
+	return 0;
 }
 
 void dir_formatear() {
@@ -122,6 +138,7 @@ void dir_formatear() {
 	file_mmap_free(map, FILE_DIRECTORIO);
 
 }
+
 
 
 

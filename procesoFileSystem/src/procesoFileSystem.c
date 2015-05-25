@@ -11,6 +11,8 @@
 #include "procesoFileSystem.h"
 
 bool OPERATIVO = false;
+int DIR_ACTUAL = 0;//0 raiz /
+//int DIR_ANTERIOR = 0;
 
 int main(void) {
 
@@ -58,10 +60,17 @@ void agregar_nodo_al_fs(int id_nodo) {
 	}
 }
 
+void print_directorio_actual(){
+	char* dir_actual = fs_dir_get_path(DIR_ACTUAL);
+	printf("Dir Actual: %s - ", dir_actual);
+	free(dir_actual);
+	dir_actual = NULL;
+}
+
 void iniciar_consola() {
 	//int i;
 	int nodo_id;
-	int dir_id;
+	int dir_id, dir_padre;
 	char* archivo_nombre;
 	char* dir_nombre;
 	int nro_bloque;
@@ -73,7 +82,9 @@ void iniciar_consola() {
 	bool fin = false;
 	while (!fin) {
 
-		printf("\nINGRESAR COMANDO: ");
+		printf("\nINGRESAR COMANDO: \n");
+		print_directorio_actual();
+
 
 		leer_comando_consola(comando);
 
@@ -180,16 +191,37 @@ void iniciar_consola() {
 				printf("el nodo %d  se ha eliminado del fs. Paso a la lista de nodos no agregados\n", nodo_id);
 				fs_print_nodos_no_agregados();
 				break;
+			case CAMBIAR_DIRECTORIO: //changedir ej. cd /home
+
+				if (strcmp(input_user[1], "..") == 0) { //si ingreso cd ..
+					//dir_id = fs_dir_get_index(input_user[1], DIR_ACTUAL);
+					DIR_ACTUAL= fs_dir_get_padre(DIR_ACTUAL);
+
+				} else {
+
+					dir_id = fs_dir_get_index(input_user[1], DIR_ACTUAL);
+					if (dir_id >= 0) {
+						//DIR_ANTERIOR = DIR_ACTUAL;
+						DIR_ACTUAL = dir_id;
+					} else {
+						printf("Directorio %d no existente\n", dir_id);
+					}
+				}
+
+				//free(dirs);
+				//dirs = NULL;
+				break;
 			case DIRECTORIO_CREAR:			//ej: mkdir carpetauno 0
 				dir_nombre = input_user[1];			//nombre
 				//segundo_param_int = atoi(input_user[2]);//padre
-				dir_id = atoi(input_user[2]);			//el padre
+				//dir_id = atoi(input_user[2]);			//el padre
+				dir_padre = DIR_ACTUAL;
 
-				if (!fs_existe_dir(dir_id)) {
-					dir_crear(fs.directorios, dir_nombre, dir_id);
+				if (!fs_existe_dir(dir_nombre, dir_padre)) {
+					dir_crear(fs.directorios, dir_nombre, dir_padre);
 					printf("El directorio se creo.\n");
 				} else
-					printf("el directorio ya existe. lsdir para ver los dirs creados\n");
+					printf("El directorio ya existe. lsdir para ver los dirs creados\n");
 
 				break;
 			case DIRECTORIO_LISTAR:			//lsdir
@@ -333,7 +365,7 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 		//ESTO NO VA PERO LO AGREGO PARA NO TENER QUE ESTAR AGREGANDO EL NODO CADA VEZ QUE LEVANTO EL FS
 		//agregar_nodo_al_fs(nodo->id);
 
-		//agregar_nodo_al_fs(nodo->base.id);
+		agregar_nodo_al_fs(nodo->base.id);
 
 
 		break;

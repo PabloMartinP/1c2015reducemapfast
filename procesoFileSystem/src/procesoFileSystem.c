@@ -10,6 +10,7 @@
 
 #include "procesoFileSystem.h"
 
+pthread_mutex_t mutex;
 bool OPERATIVO = false;
 int DIR_ACTUAL = 0;//0 raiz /
 
@@ -98,67 +99,99 @@ void iniciar_consola() {
 			case ARCHIVO_VERBLOQUE:	//filevb nombre dir nro_bloque
 				archivo_nombre = input_user[1];
 				nro_bloque = atoi(input_user[3]);
+				pthread_mutex_lock(&mutex);
 				archivo_ver_bloque(archivo_nombre, nro_bloque);
+				pthread_mutex_unlock(&mutex);
 				break;
 			case ARCHIVO_LISTAR:	//lsfile
+				pthread_mutex_lock(&mutex);
 				fs_print_archivos();
+				pthread_mutex_unlock(&mutex);
 				break;
 			case ARCHIVO_INFO:	//info
 				//ej:fileinfo
 				archivo_nombre = input_user[1];
+				pthread_mutex_lock(&mutex);
 				archivo_info(archivo_nombre);
+				pthread_mutex_unlock(&mutex);
 				break;
 			case NODO_AGREGAR:			//addnodo 1
 				//printf("comando ingresado: agregar nodo\n");
 				nodo_id = atoi(input_user[1]);
+				pthread_mutex_lock(&mutex);
 				nodo_agregar(nodo_id);
+				pthread_mutex_unlock(&mutex);
 				break;
 			case ARCHIVO_COPIAR_MDFS_A_LOCAL:
 				//ej: copytolocal 3registros.txt 0 /home/utnso/Escritorio/
 				archivo_nombre = input_user[1];
 				dir_nombre = input_user[3];
+				pthread_mutex_lock(&mutex);
 				archivo_copiar_mdfs_a_local(archivo_nombre, dir_nombre);
+				pthread_mutex_unlock(&mutex);
 				break;
 			case ARCHIVO_COPIAR_LOCAL_A_MDFS:
 				//ejemplo: copy /home/utnso/Escritorio/uno.txt 1
 				//donde 1 es un directorio existente en el fs, 0 es el raiz
 				archivo_nombre = input_user[1];
+
 				archivo_copiar_local_a_mdfs(archivo_nombre);
+
 				break;
 			case NODO_LISTAR_NO_AGREGADOS:			//lsnodop
 				//printf("listar nodos no agregados al fs, falta hacerle un addNodo\n");
+				pthread_mutex_lock(&mutex);
 				fs_print_nodos_no_agregados();
+				pthread_mutex_unlock(&mutex);
 				break;
 			case NODO_ELIMINAR:
 				//printf("comando ingresado: elimnar nodo\n");
 				nodo_id = atoi(input_user[1]);
+				pthread_mutex_lock(&mutex);
 				nodo_eliminar(nodo_id);
+				pthread_mutex_unlock(&mutex);
 				break;
 			case CAMBIAR_DIRECTORIO: //changedir ej. cd /home
+				pthread_mutex_lock(&mutex);
 				cambiar_directorio(input_user[1]);
+				pthread_mutex_unlock(&mutex);
 				break;
 			case DIRECTORIO_CREAR:			//ej: mkdir carpetauno 0
 				dir_nombre = input_user[1];			//nombre
+				pthread_mutex_lock(&mutex);
 				directorio_crear(dir_nombre);
+				pthread_mutex_unlock(&mutex);
 				break;
 			case DIRECTORIO_RENOMBRAR://renamedir hola holados
+				pthread_mutex_lock(&mutex);
 				directorio_renombrar(input_user[1], input_user[2]);
+				pthread_mutex_unlock(&mutex);
 				break;
 			case DIRECTORIO_ELIMINAR:
 				dir_nombre = input_user[1];
+				pthread_mutex_lock(&mutex);
 				directorio_eliminar(dir_nombre);
+				pthread_mutex_unlock(&mutex);
 				break;
 			case DIRECTORIO_LISTAR:			//lsdir
+				pthread_mutex_lock(&mutex);
 				fs_print_dirs();
+				pthread_mutex_unlock(&mutex);
 				break;
 			case FORMATEAR:			//format
+				pthread_mutex_lock(&mutex);
 				fs_formatear();
+				pthread_mutex_unlock(&mutex);
 				break;
 			case FS_INFO:			//info
+				pthread_mutex_lock(&mutex);
 				fs_print_info();
+				pthread_mutex_unlock(&mutex);
 				break;
 			case SALIR:			//exit
+				pthread_mutex_lock(&mutex);
 				fs_desconectarse();
+				pthread_mutex_unlock(&mutex);
 				fin = true;
 				break;
 			default:
@@ -222,6 +255,7 @@ void nodo_eliminar(int nodo_id){
 	fs_print_nodos_no_agregados();
 }
 void archivo_copiar_local_a_mdfs(char*file_local){
+	pthread_mutex_lock(&mutex);
 	if (file_exists(file_local)) {
 		//verifico que exista en archivo en el fs y dentro de la carpeta
 		if (!fs_existe_archivo(file_local, DIR_ACTUAL)) {
@@ -231,6 +265,7 @@ void archivo_copiar_local_a_mdfs(char*file_local){
 		}
 	} else
 		printf("el archvo no existe: %s\n", file_local);
+	pthread_mutex_unlock(&mutex);
 }
 
 void cambiar_directorio(char* path){
@@ -277,7 +312,6 @@ void archivo_ver_bloque(char* nombre, int nro_bloque){
 			log_info(logger, "ver bloque nro %d en archivo %s en dir %d ",
 					nro_bloque, nombre, DIR_ACTUAL);
 		}
-
 	else
 		printf("el archivo no existe: %s\n", nombre);
 }
@@ -319,6 +353,7 @@ void set_cwd(){
 void inicializar() {
 	int rs;
 
+	pthread_mutex_init(&mutex, NULL);
 	//comento para que siempre que ejecute tome el mismo cwd
 	//set_cwd();
 
@@ -365,6 +400,7 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 		//print_msg(msg);
 
 		t_nodo* nodo ;
+		pthread_mutex_lock(&mutex);
 		if(fs_existe_nodo_por_ip_puerto(msg->stream, msg->argv[0])){
 			//si ya existe lo busco
 			nodo = fs_buscar_nodo_por_ip_puerto(msg->stream, msg->argv[0]);
@@ -380,16 +416,13 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 			list_add(fs.nodos_no_agregados, (void*) nodo);
 		}
 
-
-
 		printf("Se conecto el nodo %d,  %s:%d | %s\n", nodo->base.id,nodo->base.ip, nodo->base.puerto, nodo_isNew(nodo));
 		log_info(logger, "Se conecto el nodo %d,  %s:%d | %s", nodo->base.id,nodo->base.ip, nodo->base.puerto, nodo_isNew(nodo));
 
 		//ESTO NO VA PERO LO AGREGO PARA NO TENER QUE ESTAR AGREGANDO EL NODO CADA VEZ QUE LEVANTO EL FS
-		//agregar_nodo_al_fs(nodo->id);
-
 		nodo_agregar(nodo->base.id);
 
+		pthread_mutex_unlock(&mutex);
 
 		break;
 	default:

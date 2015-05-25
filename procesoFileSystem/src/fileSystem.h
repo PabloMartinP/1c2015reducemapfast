@@ -367,6 +367,7 @@ int fs_create() {
 }
 void fs_cargar(){
 
+
 	if (file_exists(FILE_DIRECTORIO))
 		fd_leer_dirs(fs.directorios);
 	else

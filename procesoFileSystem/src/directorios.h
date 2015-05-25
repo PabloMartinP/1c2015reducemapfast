@@ -36,10 +36,38 @@ void dir_formatear();
 t_directorio* dir_buscar_por_id(t_list* dirs, int id);
 t_directorio* dir_buscar_por_nombre(t_list* dirs, char* nombre, int padre);
 void dir_destroy(t_directorio* dir);
-
+int dir_eliminar_por_id(t_list* list, int id);
+int dir_eliminar_por_nombre(char* nombre, int padre);
 /*
  * *********************************************************
  */
+
+int dir_eliminar_por_id(t_list* dirs, int id){
+
+	char* map = file_get_mapped(FILE_DIRECTORIO);
+
+	t_directorio* dir = malloc(sizeof*dir);
+	//leo la info
+	memcpy(dir, map + ((id-1)*sizeof(t_directorio)), sizeof(t_directorio));
+	dir_print(dir);
+	dir->index=0;
+	memset(dir->nombre, 0, sizeof(dir->nombre));
+	dir->padre = -1;
+	//grabo
+	memcpy(map + ((id-1)*sizeof(t_directorio)), dir, sizeof(t_directorio));
+
+	//limpio
+	free(dir);dir = NULL;
+	file_mmap_free(map, FILE_DIRECTORIO);
+
+	bool _dir_buscar_por_id(t_directorio* dir){
+		return dir->index == id;
+	}
+	list_remove_and_destroy_by_condition(dirs, (void*)_dir_buscar_por_id, (void*)dir_destroy);
+
+
+	return 0;
+}
 
 void dir_destroy(t_directorio* dir){
 	free(dir);
@@ -76,8 +104,7 @@ uint16_t dir_obtenerUltimoIndex() {
 	int i = 0;
 	for (i = 0; i < DIR_CANT_MAX; i++) {
 
-		dir = memcpy(dir, map + (i * sizeof(t_directorio)),
-				sizeof(t_directorio));
+		dir = memcpy(dir, map + (i * sizeof(t_directorio)),	sizeof(t_directorio));
 		if (dir->index == 0) { //si es igual a 0 esta disponible
 			index_new = i + 1; //guardo la posicion para devolverla
 			break;

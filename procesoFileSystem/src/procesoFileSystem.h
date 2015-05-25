@@ -36,7 +36,7 @@ void inicializar();
 void set_cwd();
 void finalizar();
 void iniciar_server_nodos_nuevos();
-
+void directorio_eliminar(char* nombre);
 void archivo_ver_bloque(char* archivo_nombre, int nro_bloque);
 void archivo_info(char* nombre);
 void archivo_copiar_mdfs_a_local(char* nombre, char* destino);

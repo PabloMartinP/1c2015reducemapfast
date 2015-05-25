@@ -12,7 +12,6 @@
 
 bool OPERATIVO = false;
 int DIR_ACTUAL = 0;//0 raiz /
-//int DIR_ANTERIOR = 0;
 
 int main(void) {
 
@@ -142,6 +141,10 @@ void iniciar_consola() {
 				dir_nombre = input_user[1];			//nombre
 				directorio_crear(dir_nombre);
 				break;
+			case DIRECTORIO_ELIMINAR:
+				dir_nombre = input_user[1];
+				directorio_eliminar(dir_nombre);
+				break;
 			case DIRECTORIO_LISTAR:			//lsdir
 				fs_print_dirs();
 				break;
@@ -162,6 +165,24 @@ void iniciar_consola() {
 		}
 		free_split(input_user);
 	}
+}
+
+void directorio_eliminar(char* nombre){
+
+	if (!fs_existe_dir(nombre, DIR_ACTUAL)) {
+		printf("El directorio no existe\n");
+		return;
+	}
+	int id = fs_buscar_directorio_id_por_nombre(nombre, DIR_ACTUAL);
+
+	if(!fs_dir_esta_vacio(id)){
+		printf("El directorio no esta vacio\n");
+		return ;
+	}
+	//borro tod0!
+	fs_dir_eliminar_por_id(id);
+
+	printf("Eliminado!\n");
 }
 
 void directorio_crear(char* nombre){

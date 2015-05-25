@@ -79,10 +79,12 @@ void fd_leer_archivos(t_list* archivo);
 int fs_copiar_archivo_local_al_fs(char* archivo,int dir_padre);
 void fs_print_archivo(char* nombre, int dir_id);
 t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre,	int dir_id);
+int fs_buscar_directorio_id_por_nombre(char* nombre, int padre);
 bool fs_existe_archivo(char* nombre, int dir_id);
-void fs_copiar_mdfs_a_local(char* nombre, int dir_id,
-		char* destino);
+bool fs_dir_esta_vacio(int id);
+void fs_copiar_mdfs_a_local(char* nombre, int dir_id,char* destino);
 bool fs_existe_dir(char* nombre,int dir_id);
+int fs_dir_eliminar_por_id(int id);
 bool fs_existe_dir_por_id(int dir_id);
 void fs_print_archivos();
 int fs_marcar_nodo_como_desconectado(t_nodo* nodo);
@@ -254,9 +256,17 @@ void fs_print_archivos() {
 	printf("FIN ARCHIVOS DEL FS ***********************\n");
 }
 
+int fs_dir_eliminar_por_id(int id){
+
+	dir_eliminar_por_id(fs.directorios, id);
+
+	return 0;
+}
+
 bool fs_existe_dir(char* nombre, int padre) {
 	return dir_buscar_por_nombre(fs.directorios, nombre, padre) != NULL;
 }
+
 
 bool fs_existe_dir_por_id(int dir_id) {
 	return dir_buscar_por_id(fs.directorios, dir_id) != NULL;
@@ -312,8 +322,16 @@ bool fs_existe_archivo(char* nombre, int dir_id) {
 	return fs_buscar_archivo_por_nombre(fs.archivos, nombre, dir_id) != NULL;
 }
 
-t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre,
-		int dir_id) {
+bool fs_dir_esta_vacio(int id){
+	return true;
+}
+
+int fs_buscar_directorio_id_por_nombre(char* nombre, int padre){
+	t_directorio* dir =  dir_buscar_por_nombre(fs.directorios, nombre, padre);
+	return dir->index;
+}
+
+t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre, int dir_id) {
 	t_archivo* archivo = NULL;
 	bool _buscar_archivo_por_nombre(t_archivo* archivo) {
 		return string_equals_ignore_case(archivo->info->nombre, nombre)

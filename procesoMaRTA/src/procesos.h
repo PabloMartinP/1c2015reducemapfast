@@ -69,8 +69,6 @@ void procesar (int socket, t_msg*msg){
 	switch (msg->header.id) {
 		case JOB_HOLA://cuando llega un job nuevo
 			//la idea es que le pida al job todos los datos basicos que quiere,
-
-
 			destroy_message(msg);
 
 			printf("enviandole respuesta al JOB\n");
@@ -81,8 +79,6 @@ void procesar (int socket, t_msg*msg){
 				printf("no se pudo responder el mensaje al job\n");
 				break;
 			}
-
-
 
 			//le pido al job los archivos que quiere procesar (asumo que ya estan almacenados en el fs)
 

@@ -16,11 +16,10 @@
 #include <commons/temporal.h>
 
 
-char FILE_NODOS[1024] =	"/mdfs_nodos.bin";
-//char FILE_NODOS[1024] =	"/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/mdfs_nodos.bin";
-//#define FILE_NODOS "mdfs_nodos.bin"
+//char FILE_NODOS[1024] =	"/mdfs_nodos.bin";
+char FILE_NODOS[1024] =	"/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/mdfs_nodos.bin";
+
 #define ID_NODO_INIT 1
-//int ID_NODO_NUEVO = 0;
 
 typedef struct {
 	int id_nodo_nuevo;
@@ -209,8 +208,8 @@ char* fs_archivo_get_bloque(char* nombre, int dir_id, int n_bloque) {
 				//print_msg(msg);
 
 				//copy los datos del stream a una copia para devolver
-				datos_bloque = malloc(msg->header.length);
-				memccpy(datos_bloque, msg->stream, 1, msg->header.length);
+				datos_bloque = malloc(msg->header.length+1);
+				memccpy(datos_bloque, msg->stream, 1, msg->header.length+1);
 
 				destroy_message(msg);
 
@@ -428,6 +427,15 @@ void fs_desconectarse() {
 void fs_enviar_mensaje_desconexion(t_list* nodos) {
 	list_iterate(nodos, (void*) nodo_mensaje_desconexion);
 }
+
+bool fs_existe_nodo_por_ip_puerto(char* ip, int puerto){
+	bool _buscar_por_ip_puerto(t_nodo* nodo){
+		return strcmp(nodo->base.ip, ip)==0 && nodo->base.puerto == puerto;
+	}
+
+	return list_find(fs.nodos, (void*)_buscar_por_ip_puerto)!=NULL;
+}
+
 bool fs_existe_nodo_por_id(int nodo_id) {
 	return fs_buscar_nodo_por_id(nodo_id) != NULL;
 }
@@ -522,21 +530,18 @@ int fs_agregar_nodo(int id_nodo) {
 	if (!fs_existe_en_archivo_nodos(nodo->base)) {
 		//si no existe lo agrego
 
-		t_nodo_base* nb = calloc(sizeof*nb,sizeof*nb);
+		t_nodo_base nb;
 		//cargo la estructura para guardarla en el file
-		nb->id = nodo->base.id;
-		//memset(nb->ip, 0, sizeof(nb->ip));//setteo a  \0 por las d uda
-		memcpy(nb->ip, nodo->base.ip, strlen(nodo->base.ip));
-		nb->puerto = nodo->base.puerto;
-		nb->cant_bloques = nodo->base.cant_bloques;
-
+		nb.id = nodo->base.id;
+		memset(nb.ip, 0, sizeof(nb.ip));	//setteo a  \0 por las d uda
+		strcpy(nb.ip, nodo->base.ip);
+		nb.puerto = nodo->base.puerto;
+		nb.cant_bloques = nodo->base.cant_bloques;
 
 		//grabo en el archivo de nodos
-		FILE* file =NULL;
-		file = fopen(FILE_NODOS, "r");
+		FILE* file = fopen(FILE_NODOS, "a");
 		fwrite(&nb, sizeof(t_nodo_base), 1, file);
 		fclose(file);
-		free(nb);
 	}
 
 	//loborro de la lista de nodos nuevos
@@ -1025,8 +1030,7 @@ void fd_leer_archivos(t_list* archivos) {
 
 		//leo la info del archivo, donde me dice tambien cuantos bloques son
 		info = malloc(sizeof *info);
-		memcpy(info, mapFile + (i * sizeof(t_archivo_info)),
-				sizeof(t_archivo_info));
+		memcpy(info, mapFile + (i * sizeof(t_archivo_info)),sizeof(t_archivo_info));
 
 		//lo guardo en el archivo
 		archivo->info = info;

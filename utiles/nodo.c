@@ -115,7 +115,8 @@ void nodo_print_info(t_nodo* nodo){
 
 void nodo_destroy(t_nodo* nodo) {
 	list_destroy_and_destroy_elements(nodo->bloques, free);
-	FREE_NULL(nodo);
+	free(nodo);
+	nodo = NULL;
 	//printf("%s", nodo->ip);
 }
 
@@ -137,7 +138,7 @@ t_bloque* nodo_buscar_bloque(t_nodo* nodo, int n_bloque){
 	return list_find(nodo->bloques, (void*)_buscar_bloque);
 }
 
-t_nodo* nodo_new(char* ip, uint16_t port, bool isNew, uint16_t cant_bloques) {
+t_nodo* nodo_new(char* ip, int port, bool isNew, int cant_bloques) {
 	t_nodo* new = malloc(sizeof *new);
 
 	memset(new->base.ip, '\0', 15);

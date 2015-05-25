@@ -15,9 +15,10 @@
 #include <util.h>
 #include <libgen.h>
 
-char FILE_ARCHIVO[1024] ="/mdfs_archivos.bin";
-char FILE_ARCHIVO_BLOQUES[1024] ="/mdfs_bloques.bin";
-
+char FILE_ARCHIVO[1024] ="/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/mdfs_archivos.bin";
+char FILE_ARCHIVO_BLOQUES[1024] ="/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/mdfs_bloques.bin";
+//char FILE_ARCHIVO[1024] ="/mdfs_archivos.bin";
+//char FILE_ARCHIVO_BLOQUES[1024] ="/mdfs_bloques.bin";
 
 //#define FILE_ARCHIVO "mdfs_archivos.bin"
 //#define FILE_ARCHIVO_BLOQUES "mdfs_bloques.bin"
@@ -104,7 +105,7 @@ void arch_print_info(t_archivo_info* info){
 }
 
 void bloque_de_datos_destroy(t_bloque_de_datos* bloque_de_datos){
-	list_destroy(bloque_de_datos->nodosbloque);
+	list_destroy_and_destroy_elements(bloque_de_datos->nodosbloque, free);
 	FREE_NULL(bloque_de_datos);
 }
 

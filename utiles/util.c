@@ -99,6 +99,8 @@ void* file_get_mapped(char* filename) {
 	close(fd);
 
 	if (mapped == MAP_FAILED) {
+		if(size==0)
+			printf("el archivo tiene tamaño 0. Imposible mappear");
 		handle_error("mmap");
 	}
 

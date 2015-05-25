@@ -57,7 +57,7 @@ typedef struct {
 	int n_bloque;
 } t_nodo_bloque;
 
-t_nodo* nodo_new(char* ip, uint16_t port, bool isNew, uint16_t cant_bloques);
+t_nodo* nodo_new(char* ip, int port, bool isNew, int cant_bloques);
 void print_nodo(t_nodo* nodo);
 
 bool bloque_esta_usado(t_bloque* bloque);

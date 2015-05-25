@@ -265,7 +265,7 @@ void inicializar() {
 	int rs;
 
 	//comento para que siempre que ejecute tome el mismo cwd
-	set_cwd();
+	//set_cwd();
 
 	//inicializo el log
 
@@ -297,6 +297,7 @@ void inicializar() {
 void procesar_mensaje_nodo(int fd, t_msg* msg) {
 	//leer el msg recibido
 	//print_msg(msg);
+	int id_nodo;
 
 	switch (msg->header.id) {
 	case NODO_CONECTAR_CON_FS: //primer mensaje del nodo
@@ -307,15 +308,24 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 
 		msg = recibir_mensaje(fd);
 		//print_msg(msg);
-		t_nodo* nodo = nodo_new(msg->stream, (uint16_t) msg->argv[0],(bool) msg->argv[1], msg->argv[2]); //0 puerto, 1 si es nuevo o no, 2 es la cant bloques
 
-		//tengo que ver si ya existe la lista de nodos del fs
-		nodo->base.id = fs_get_nodo_id_en_archivo_nodos(msg->stream, msg->argv[0]);
+		t_nodo* nodo ;
+		if(fs_existe_nodo_por_ip_puerto(msg->stream, msg->argv[0])){
+			//si ya existe lo busco
+			nodo = fs_buscar_nodo_por_ip_puerto(msg->stream, msg->argv[0]);
+			//si existe lo borro y lo paso a la lista de nodos_no_agregados
+			fs_eliminar_nodo(nodo->base.id);
+		}
+		else{
+			nodo = nodo_new(msg->stream,  msg->argv[0],(bool) msg->argv[1], msg->argv[2]); //0 puerto, 1 si es nuevo o no, 2 es la cant bloques
+			id_nodo = fs_get_nodo_id_en_archivo_nodos(msg->stream, msg->argv[0]);
+			//tengo que ver si ya existe la lista de nodos del fs
+			nodo->base.id =id_nodo;
+			//agrego el nodo a la lista de nodos nuevos
+			list_add(fs.nodos_no_agregados, (void*) nodo);
+		}
 
-		//print_nodo(nodo);
 
-		//agrego el nodo a la lista de nodos nuevos
-		list_add(fs.nodos_no_agregados, (void*) nodo);
 
 		printf("Se conecto el nodo %d,  %s:%d | %s\n", nodo->base.id,nodo->base.ip, nodo->base.puerto, nodo_isNew(nodo));
 		log_info(logger, "Se conecto el nodo %d,  %s:%d | %s", nodo->base.id,nodo->base.ip, nodo->base.puerto, nodo_isNew(nodo));

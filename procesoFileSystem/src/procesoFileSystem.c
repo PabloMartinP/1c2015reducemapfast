@@ -51,7 +51,7 @@ void iniciar_server_nodos_nuevos() {
 	//pthread_detach(th_nuevosNodos);
 }
 
-void agregar_nodo_al_fs(int id_nodo) {
+void nodo_agregar(int id_nodo) {
 	fs_agregar_nodo(id_nodo);
 
 	//si no esta operativo verifico si ahora lo esta
@@ -68,9 +68,8 @@ void print_directorio_actual(){
 }
 
 void iniciar_consola() {
-	//int i;
 	int nodo_id;
-	int dir_id, dir_padre;
+	//int dir_id, dir_padre;
 	char* archivo_nombre;
 	char* dir_nombre;
 	int nro_bloque;
@@ -81,44 +80,26 @@ void iniciar_consola() {
 
 	bool fin = false;
 	while (!fin) {
-
 		printf("\nINGRESAR COMANDO: \n");
 		print_directorio_actual();
 
-
 		leer_comando_consola(comando);
 
-		//separo todo en espacios ej: [copiar, archivo1, directorio0]
+		//separo todoo en espacios ej: [copiar, archivo1, directorio0]
 		char** input_user = separar_por_espacios(comando);
 		e_comando cmd = getComando(input_user[0]);
 
 		if (cmd != NODO_AGREGAR && cmd!=SALIR && !OPERATIVO) {
 			if(!OPERATIVO){
-				printf("FS no operativo. \n");
-				printf("Cantidad minima de nodos conectados: %d\n", fs.cant_nodos_minima);
-				printf("Cantidad de nodos conectados: %d\n", list_size(fs.nodos));
-				printf("Cantidad de nodos no conectados: %d\n", list_size(fs.nodos_no_agregados));
+				fs_print_no_operativo();
 				fs_print_nodos_no_agregados();
-				//OPERATIVO = false;
 			}
 		} else {
 			switch (cmd) {
 			case ARCHIVO_VERBLOQUE:	//filevb nombre dir nro_bloque
 				archivo_nombre = input_user[1];
-				dir_id = atoi(input_user[2]);
 				nro_bloque = atoi(input_user[3]);
-
-				if (fs_existe_archivo(archivo_nombre, dir_id))
-
-					if(fs_archivo_ver_bloque(archivo_nombre, dir_id, nro_bloque)<0){
-						log_info(logger, "No se pudo obtener el bloque %d del archivo %s dir %d", nro_bloque, archivo_nombre, dir_id);
-					}
-					else{
-						log_info(logger, "ver bloque nro %d en archivo %s en dir %d ", nro_bloque, archivo_nombre, dir_id);
-					}
-
-				else
-					printf("el archivo no existe: %s\n", archivo_nombre);
+				archivo_ver_bloque(archivo_nombre, nro_bloque);
 				break;
 			case ARCHIVO_LISTAR:	//lsfile
 				fs_print_archivos();
@@ -126,137 +107,138 @@ void iniciar_consola() {
 			case ARCHIVO_INFO:	//info
 				//ej:fileinfo
 				archivo_nombre = input_user[1];
-				dir_id = atoi(input_user[2]);
-				//dir_id = 0;
-
-				if (fs_existe_archivo(archivo_nombre, dir_id))
-					fs_print_archivo(archivo_nombre, dir_id);
-				else
-					printf("el archivo no existe: %s\n", archivo_nombre);
-
+				archivo_info(archivo_nombre);
 				break;
 			case NODO_AGREGAR:			//addnodo 1
 				//printf("comando ingresado: agregar nodo\n");
 				nodo_id = atoi(input_user[1]);
-				agregar_nodo_al_fs(nodo_id);
-
+				nodo_agregar(nodo_id);
 				break;
-
 			case ARCHIVO_COPIAR_MDFS_A_LOCAL:
 				//ej: copytolocal 3registros.txt 0 /home/utnso/Escritorio/
 				archivo_nombre = input_user[1];
-				//archivo_nombre = "/home/utnso/Escritorio/3registros.txt";
-				dir_id = atoi(input_user[2]);
 				dir_nombre = input_user[3];
-
-				//verifico que exista el archivo en el mdfs
-				if (fs_existe_archivo(archivo_nombre, dir_id)) {
-					fs_copiar_mdfs_a_local(archivo_nombre, dir_id, dir_nombre);
-				} else
-					printf("EL archivo no existe en el mdfs: %s\n",	archivo_nombre);
-
+				archivo_copiar_mdfs_a_local(archivo_nombre, dir_nombre);
 				break;
 			case ARCHIVO_COPIAR_LOCAL_A_MDFS:
 				//ejemplo: copy /home/utnso/Escritorio/uno.txt 1
 				//donde 1 es un directorio existente en el fs, 0 es el raiz
-
 				archivo_nombre = input_user[1];
-
-				//dir_id = 0;//directorio raiz
-				dir_id = atoi(input_user[2]);
-
-				if (file_exists(archivo_nombre)) {
-					//verifico que exista en archivo en el fs y dentro de la carpeta
-					if (!fs_existe_archivo(archivo_nombre, dir_id)) {
-						fs_copiar_archivo_local_al_fs(archivo_nombre, dir_id);
-					} else {
-						printf("el archivo [%s] con dir:%d YA EXISTE en el mdfs. lsfiles para ver los archivos \n",	archivo_nombre, dir_id);
-					}
-				} else
-					printf("el archvo no existe: %s\n", archivo_nombre);
-
+				archivo_copiar_local_a_mdfs(archivo_nombre);
 				break;
 			case NODO_LISTAR_NO_AGREGADOS:			//lsnodop
 				//printf("listar nodos no agregados al fs, falta hacerle un addNodo\n");
 				fs_print_nodos_no_agregados();
-
 				break;
-
 			case NODO_ELIMINAR:
 				//printf("comando ingresado: elimnar nodo\n");
 				nodo_id = atoi(input_user[1]);
-				//elimino el nodo y vuelve a la lista de nodos_no_conectados
-				fs_eliminar_nodo(nodo_id);
-
-				printf("el nodo %d  se ha eliminado del fs. Paso a la lista de nodos no agregados\n", nodo_id);
-				fs_print_nodos_no_agregados();
+				nodo_eliminar(nodo_id);
 				break;
 			case CAMBIAR_DIRECTORIO: //changedir ej. cd /home
-
-				if (strcmp(input_user[1], "..") == 0) { //si ingreso cd ..
-					//dir_id = fs_dir_get_index(input_user[1], DIR_ACTUAL);
-					DIR_ACTUAL= fs_dir_get_padre(DIR_ACTUAL);
-
-				} else {
-
-					dir_id = fs_dir_get_index(input_user[1], DIR_ACTUAL);
-					if (dir_id >= 0) {
-						//DIR_ANTERIOR = DIR_ACTUAL;
-						DIR_ACTUAL = dir_id;
-					} else {
-						printf("Directorio %d no existente\n", dir_id);
-					}
-				}
-
-				//free(dirs);
-				//dirs = NULL;
+				cambiar_directorio(input_user[1]);
 				break;
 			case DIRECTORIO_CREAR:			//ej: mkdir carpetauno 0
 				dir_nombre = input_user[1];			//nombre
-				//segundo_param_int = atoi(input_user[2]);//padre
-				//dir_id = atoi(input_user[2]);			//el padre
-				dir_padre = DIR_ACTUAL;
-
-				if (!fs_existe_dir(dir_nombre, dir_padre)) {
-					dir_crear(fs.directorios, dir_nombre, dir_padre);
-					printf("El directorio se creo.\n");
-				} else
-					printf("El directorio ya existe. lsdir para ver los dirs creados\n");
-
+				directorio_crear(dir_nombre);
 				break;
 			case DIRECTORIO_LISTAR:			//lsdir
 				fs_print_dirs();
-
 				break;
 			case FORMATEAR:			//format
 				fs_formatear();
 				break;
 			case FS_INFO:			//info
-				//printf("Mostrar info actual del fs del fileSystem\n");
 				fs_print_info();
-
 				break;
 			case SALIR:			//exit
-				printf("comando ingresado: salir\n");
-
 				fs_desconectarse();
-
 				fin = true;
 				break;
 			default:
-				printf("comando desconocido\n");
+				printf("Comando desconocido\n");
 				break;
 			}
 		}
-
-		//free(*input_user);
-		int i = 0;
-		while (input_user[i] != NULL) {
-			FREE_NULL(input_user[i]);
-			i++;
-		}
-		FREE_NULL(input_user);
+		free_split(input_user);
 	}
+}
+
+void directorio_crear(char* nombre){
+	if (!fs_existe_dir(nombre, DIR_ACTUAL)) {
+		dir_crear(fs.directorios, nombre, DIR_ACTUAL);
+		printf("El directorio se creo.\n");
+	} else
+		printf("El directorio ya existe. lsdir para ver los dirs creados\n");
+}
+
+
+void nodo_eliminar(int nodo_id){
+	//elimino el nodo y vuelve a la lista de nodos_no_conectados
+	fs_eliminar_nodo(nodo_id);
+
+	printf(	"el nodo %d  se ha eliminado del fs. Paso a la lista de nodos no agregados\n",	nodo_id);
+	fs_print_nodos_no_agregados();
+}
+void archivo_copiar_local_a_mdfs(char*file_local){
+	if (file_exists(file_local)) {
+		//verifico que exista en archivo en el fs y dentro de la carpeta
+		if (!fs_existe_archivo(file_local, DIR_ACTUAL)) {
+			fs_copiar_archivo_local_al_fs(file_local, DIR_ACTUAL);
+		} else {
+			printf(	"el archivo [%s] con dir:%d YA EXISTE en el mdfs. lsfiles para ver los archivos \n",file_local, DIR_ACTUAL);
+		}
+	} else
+		printf("el archvo no existe: %s\n", file_local);
+}
+
+void cambiar_directorio(char* path){
+	int dir_id;
+	if (strcmp(path, "..") == 0) { //si ingreso cd ..
+		DIR_ACTUAL = fs_dir_get_padre(DIR_ACTUAL);
+	} else {
+		dir_id = fs_dir_get_index(path, DIR_ACTUAL);
+		if (dir_id >= 0) {
+			//DIR_ANTERIOR = DIR_ACTUAL;
+			DIR_ACTUAL = dir_id;
+		} else {
+			printf("Directorio %d no existente\n", dir_id);
+		}
+	}
+}
+
+void archivo_copiar_mdfs_a_local(char* nombre, char* destino){
+
+	//verifico que exista el archivo en el mdfs
+	if (fs_existe_archivo(nombre, DIR_ACTUAL)) {
+		fs_copiar_mdfs_a_local(nombre, DIR_ACTUAL, destino);
+	} else
+		printf("EL archivo no existe en el mdfs: %s\n",	nombre);
+}
+
+void archivo_info(char* nombre){
+
+	if (fs_existe_archivo(nombre, DIR_ACTUAL))
+		fs_print_archivo(nombre, DIR_ACTUAL);
+	else
+		printf("el archivo no existe: %s\n", nombre);
+
+}
+
+void archivo_ver_bloque(char* nombre, int nro_bloque){
+	if (fs_existe_archivo(nombre, DIR_ACTUAL))
+
+		if (fs_archivo_ver_bloque(nombre, DIR_ACTUAL, nro_bloque) < 0) {
+			log_info(logger,
+					"No se pudo obtener el bloque %d del archivo %s dir %d",
+					nro_bloque, nombre, DIR_ACTUAL);
+		} else {
+			log_info(logger, "ver bloque nro %d en archivo %s en dir %d ",
+					nro_bloque, nombre, DIR_ACTUAL);
+		}
+
+	else
+		printf("el archivo no existe: %s\n", nombre);
 }
 
 void finalizar() {
@@ -365,7 +347,7 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 		//ESTO NO VA PERO LO AGREGO PARA NO TENER QUE ESTAR AGREGANDO EL NODO CADA VEZ QUE LEVANTO EL FS
 		//agregar_nodo_al_fs(nodo->id);
 
-		agregar_nodo_al_fs(nodo->base.id);
+		nodo_agregar(nodo->base.id);
 
 
 		break;

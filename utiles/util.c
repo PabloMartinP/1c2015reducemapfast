@@ -759,4 +759,11 @@ char* convertir_path_absoluto(char* file){
 	return destino;
 }
 
-
+void free_split(char** splitted){
+	int i = 0;
+	while (splitted[i] != NULL) {
+		FREE_NULL(splitted[i]);
+		i++;
+	}
+	FREE_NULL(splitted);
+}

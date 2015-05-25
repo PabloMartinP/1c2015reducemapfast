@@ -227,4 +227,7 @@ void print_msg(t_msg *msg);
 char *id_string(t_msg_id id);
 //int convertir_path_absoluto(char** destino, char* file);
 char* convertir_path_absoluto(char* file);
+
+void free_split(char** splitted);
+
 #endif /* UTIL_H_ */

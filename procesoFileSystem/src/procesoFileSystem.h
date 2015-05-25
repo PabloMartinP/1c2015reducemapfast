@@ -37,5 +37,14 @@ void set_cwd();
 void finalizar();
 void iniciar_server_nodos_nuevos();
 
+void archivo_ver_bloque(char* archivo_nombre, int nro_bloque);
+void archivo_info(char* nombre);
+void archivo_copiar_mdfs_a_local(char* nombre, char* destino);
+void archivo_copiar_local_a_mdfs(char*file_local);
+void cambiar_directorio(char* path);
+void nodo_agregar(int id_nodo);
+void nodo_eliminar(int nodo_id);
+void directorio_crear(char* nombre);
+
 
 #endif /* PROCESOFILESYSTEM_H_ */

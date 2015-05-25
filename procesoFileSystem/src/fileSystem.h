@@ -69,6 +69,7 @@ void fs_eliminar_nodo(int id_nodo);
 t_nodo* fs_buscar_nodo_por_id(int id_nodo);
 bool fs_existe_en_archivo_nodos(t_nodo_base nodo);
 void fs_print_nodos_no_agregados();
+void fs_print_no_operativo();
 void fs_desconectarse();
 void fs_enviar_mensaje_desconexion(t_list* nodos);
 void fs_print_dirs();
@@ -938,6 +939,14 @@ void fs_guardar_bloque(t_nodo_bloque* nb, char* bloque, size_t tamanio_real) {
 	close(fd);
 
 	printf("transferencia realizada OK\n");
+}
+
+void fs_print_no_operativo(){
+	printf("FS no operativo. \n");
+	printf("Cantidad minima de nodos conectados: %d\n", fs.cant_nodos_minima);
+	printf("Cantidad de nodos conectados: %d\n", list_size(fs.nodos));
+	printf("Cantidad de nodos no conectados: %d\n",
+			list_size(fs.nodos_no_agregados));
 }
 
 void fs_print_nodos_no_agregados() {

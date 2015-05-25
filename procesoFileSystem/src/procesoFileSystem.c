@@ -157,10 +157,7 @@ void iniciar_consola() {
 				if (file_exists(archivo_nombre)) {
 					//verifico que exista en archivo en el fs y dentro de la carpeta
 					if (!fs_existe_archivo(archivo_nombre, dir_id)) {
-						if(fs_copiar_archivo_local_al_fs(archivo_nombre, dir_id)<0){
-							printf("No se pudo copiar el archivo\n");
-						}else
-							printf("archivo copiado y agregado al fs----------------------------\n");
+						fs_copiar_archivo_local_al_fs(archivo_nombre, dir_id);
 					} else {
 						printf("el archivo [%s] con dir:%d YA EXISTE en el mdfs. lsfiles para ver los archivos \n",	archivo_nombre, dir_id);
 					}

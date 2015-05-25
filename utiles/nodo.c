@@ -114,7 +114,7 @@ void nodo_print_info(t_nodo* nodo){
 }
 
 void nodo_destroy(t_nodo* nodo) {
-	list_destroy(nodo->bloques);
+	list_destroy_and_destroy_elements(nodo->bloques, free);
 	FREE_NULL(nodo);
 	//printf("%s", nodo->ip);
 }

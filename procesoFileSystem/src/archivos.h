@@ -137,10 +137,11 @@ int arch_get_new_id(){
 t_archivo_info* arch_get_info(char* nombre, int dir_padre) {
 	t_archivo_info* new = malloc(sizeof *new);
 	//el id es siempre incremental
+	new->id = 0;
 	new->id = arch_get_new_id();
 	new->disponible = true;
 	strcpy(new->nombre, basename(nombre));
-	memset(new->nombre, ' ', 128);//aca hay que guardar solo el nombre, no el path completo
+	memset(new->nombre, ' ', sizeof(new->nombre));//aca hay que guardar solo el nombre, no el path completo
 	strcpy(new->nombre, basename(nombre));
 	//strcpy(new->nombre, nombre);
 	new->tamanio = file_get_size(nombre);
@@ -150,7 +151,7 @@ t_archivo_info* arch_get_info(char* nombre, int dir_padre) {
 }
 
 void arch_agregar(t_archivo* archivo) {
-	FILE* file = txt_open_for_append(FILE_ARCHIVO);
+	FILE* file = fopen(FILE_ARCHIVO, "a");
 
 	//FILE* file = fopen(archivo->info->nombre, "wb");
 
@@ -159,7 +160,7 @@ void arch_agregar(t_archivo* archivo) {
 
 	//grabo la info
 	fwrite(archivo->info, sizeof(t_archivo_info), 1, file);
-	txt_close_file(file);
+	fclose(file);
 
 	//grabo todo lo siguiente en el archivo que contiene la info de cada bloque
 	file = txt_open_for_append(FILE_ARCHIVO_BLOQUES);

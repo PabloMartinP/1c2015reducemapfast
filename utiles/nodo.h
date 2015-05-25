@@ -33,7 +33,7 @@ typedef struct {
 typedef struct {
 	int id;
 	char ip[15];
-	uint16_t puerto;
+	int puerto;
 	int cant_bloques;
 }t_nodo_base;
 typedef struct {

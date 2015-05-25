@@ -522,19 +522,21 @@ int fs_agregar_nodo(int id_nodo) {
 	if (!fs_existe_en_archivo_nodos(nodo->base)) {
 		//si no existe lo agrego
 
-		t_nodo_base nb;
+		t_nodo_base* nb = calloc(sizeof*nb,sizeof*nb);
 		//cargo la estructura para guardarla en el file
-		nb.id = nodo->base.id;
-		memset(nb.ip, '\0', sizeof(nb.ip));//setteo a  \0 por las d uda
-		strcpy(nb.ip, nodo->base.ip);
-		nb.puerto = nodo->base.puerto;
-		nb.cant_bloques = nodo->base.cant_bloques;
+		nb->id = nodo->base.id;
+		//memset(nb->ip, 0, sizeof(nb->ip));//setteo a  \0 por las d uda
+		memcpy(nb->ip, nodo->base.ip, strlen(nodo->base.ip));
+		nb->puerto = nodo->base.puerto;
+		nb->cant_bloques = nodo->base.cant_bloques;
 
 
 		//grabo en el archivo de nodos
-		FILE* file = txt_open_for_append(FILE_NODOS);
+		FILE* file =NULL;
+		file = fopen(FILE_NODOS, "r");
 		fwrite(&nb, sizeof(t_nodo_base), 1, file);
-		txt_close_file(file);
+		fclose(file);
+		free(nb);
 	}
 
 	//loborro de la lista de nodos nuevos
@@ -560,6 +562,7 @@ int fs_agregar_nodo(int id_nodo) {
 	else{
 		t_msg* msg = string_message(FS_AGREGO_NODO, "", 1, nn->base.id);
 		enviar_mensaje(fd, msg);
+		destroy_message(msg);
 		nn->conectado = true;
 	}
 
@@ -596,7 +599,7 @@ int fs_copiar_archivo_local_al_fs(char* nombre, int dir_padre) {
 	}
 
 	//obtengo info del archivo
-	t_archivo_info* info = arch_get_info(nombre, dir_padre);
+	t_archivo_info* info = NULL;info = arch_get_info(nombre, dir_padre);
 
 	//creo el archivo para agregarlo al fs
 	t_archivo* archivo = malloc(sizeof *archivo);
@@ -609,7 +612,7 @@ int fs_copiar_archivo_local_al_fs(char* nombre, int dir_padre) {
 	//finalmente agrego el archivo a la lista de archivos   DESPUES DE TANTO !!!!!!!!!!!
 	list_add(fs.archivos, archivo);
 
-	printf("el archivo se agrego con id: %d\n", archivo->info->id);
+	//printf("el archivo se agrego con id: %d\n", archivo->info->id);
 
 	return 0;
 }
@@ -715,7 +718,7 @@ t_list* fs_importar_archivo(char* archivo) {
 		len_aux = len_hasta_enter(mapped+bytes_leidos+offset);
 		if (bytes_leidos + len_aux < TAMANIO_BLOQUE_B) {
 			bytes_leidos += len_aux ;
-			i++;
+			//i++;
 		} else {
 			//si supera el tamaño de bloque grabo
 
@@ -758,7 +761,7 @@ t_bloque_de_datos* guardar_bloque(char* bloque_origen,size_t bytes_a_copiar) {
 	//t_bloque* bloque_usado;
 	//genero el bloque a copiar
 	//t_nodo* nodo;
-	char* bloque = malloc(bytes_a_copiar);
+	char* bloque = malloc(bytes_a_copiar+1);
 	memcpy(bloque, bloque_origen, bytes_a_copiar);
 	bloque[bytes_a_copiar] = '\0';
 	t_nodo_bloque** nb = NULL;
@@ -785,7 +788,7 @@ t_bloque_de_datos* guardar_bloque(char* bloque_origen,size_t bytes_a_copiar) {
 		//agrego el bloquenodo a la lista, al final del for quedaria con las tres copias y faltaria settear el nro_bloque
 		list_add(new->nodosbloque, (void*) nb[i]);
 	}
-	//free(nb)
+	free(nb);
 	//hacer free de lam matriz
 
 	FREE_NULL(bloque);

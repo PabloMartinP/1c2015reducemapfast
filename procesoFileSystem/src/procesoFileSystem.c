@@ -141,6 +141,9 @@ void iniciar_consola() {
 				dir_nombre = input_user[1];			//nombre
 				directorio_crear(dir_nombre);
 				break;
+			case DIRECTORIO_RENOMBRAR://renamedir hola holados
+				directorio_renombrar(input_user[1], input_user[2]);
+				break;
 			case DIRECTORIO_ELIMINAR:
 				dir_nombre = input_user[1];
 				directorio_eliminar(dir_nombre);
@@ -165,6 +168,23 @@ void iniciar_consola() {
 		}
 		free_split(input_user);
 	}
+}
+
+void directorio_renombrar(char* nombre, char* nuevo_nombre){
+	if (!fs_existe_dir(nombre, DIR_ACTUAL)) {
+		printf("El directorio %s no existe\n", nombre);
+		return;
+	}
+	int id = fs_buscar_directorio_id_por_nombre(nombre, DIR_ACTUAL);
+
+	//verifico si ya existe el dir con nuevo_nombre
+	if(fs_existe_dir(nuevo_nombre, DIR_ACTUAL)){
+		printf("EL directorio %s ya existe\n", nuevo_nombre);
+		return;
+	}
+	////////////////////////////////////////////
+	fs_dir_renombrar(id, nuevo_nombre);
+
 }
 
 void directorio_eliminar(char* nombre){

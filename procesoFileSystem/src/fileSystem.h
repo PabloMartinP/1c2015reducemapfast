@@ -84,6 +84,7 @@ bool fs_existe_archivo(char* nombre, int dir_id);
 bool fs_dir_esta_vacio(int id);
 void fs_copiar_mdfs_a_local(char* nombre, int dir_id,char* destino);
 bool fs_existe_dir(char* nombre,int dir_id);
+int fs_dir_renombrar(int id, char* nuevo_nombre);
 int fs_dir_eliminar_por_id(int id);
 bool fs_existe_dir_por_id(int dir_id);
 void fs_print_archivos();
@@ -259,6 +260,12 @@ void fs_print_archivos() {
 int fs_dir_eliminar_por_id(int id){
 
 	dir_eliminar_por_id(fs.directorios, id);
+
+	return 0;
+}
+
+int fs_dir_renombrar(int id, char* nuevo_nombre){
+	dir_renombrar(fs.directorios, id, nuevo_nombre);
 
 	return 0;
 }

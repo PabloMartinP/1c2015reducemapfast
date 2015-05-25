@@ -42,7 +42,8 @@ e_comando getComando(char* comando) {
 		return CAMBIAR_DIRECTORIO;
 	if (string_equals_ignore_case(comando, "rmdir"))
 		return DIRECTORIO_ELIMINAR;
-
+	if (string_equals_ignore_case(comando, "renamedir"))
+		return DIRECTORIO_RENOMBRAR;
 
 
 	return NADA;

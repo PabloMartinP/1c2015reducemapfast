@@ -35,6 +35,7 @@ int dir_crear(t_list* dirs, char* nombre, uint16_t padre);
 void dir_formatear();
 t_directorio* dir_buscar_por_id(t_list* dirs, int id);
 t_directorio* dir_buscar_por_nombre(t_list* dirs, char* nombre, int padre);
+int dir_renombrar(t_list* dirs, int id, char* nuevo_nombre);
 void dir_destroy(t_directorio* dir);
 int dir_eliminar_por_id(t_list* list, int id);
 int dir_eliminar_por_nombre(char* nombre, int padre);
@@ -49,7 +50,7 @@ int dir_eliminar_por_id(t_list* dirs, int id){
 	t_directorio* dir = malloc(sizeof*dir);
 	//leo la info
 	memcpy(dir, map + ((id-1)*sizeof(t_directorio)), sizeof(t_directorio));
-	dir_print(dir);
+	//dir_print(dir);
 	dir->index=0;
 	memset(dir->nombre, 0, sizeof(dir->nombre));
 	dir->padre = -1;
@@ -74,6 +75,30 @@ void dir_destroy(t_directorio* dir){
 	dir=NULL;
 }
 
+int dir_renombrar(t_list* dirs, int id, char* nuevo_nombre){
+
+	char* map = file_get_mapped(FILE_DIRECTORIO);
+
+	t_directorio* dir = malloc(sizeof *dir);
+	//leo la info
+	memcpy(dir, map + ((id - 1) * sizeof(t_directorio)), sizeof(t_directorio));
+	//dir_print(dir);
+	//modifico el nombre
+	strcpy(dir->nombre, nuevo_nombre);
+	//grabo
+	memcpy(map + ((id - 1) * sizeof(t_directorio)), dir, sizeof(t_directorio));
+
+	//limpio
+	free(dir);
+	dir = NULL;
+	file_mmap_free(map, FILE_DIRECTORIO);
+
+
+	dir = dir_buscar_por_id(dirs, id);
+	strcpy(dir->nombre, nuevo_nombre);
+
+	return 0;
+}
 
 t_directorio* dir_buscar_por_nombre(t_list* dirs, char* nombre, int padre){
 	bool _dir_buscar_por_nombre(t_directorio* dir){

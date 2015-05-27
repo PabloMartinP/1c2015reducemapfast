@@ -10,9 +10,6 @@
 
 #include "procesoFileSystem.h"
 
-pthread_mutex_t mutex;
-bool OPERATIVO = false;
-int DIR_ACTUAL = 0;//0 raiz /
 
 int main(void) {
 
@@ -57,8 +54,10 @@ void nodo_agregar(int id_nodo) {
 	//si no esta operativo verifico si ahora lo esta
 	if(!OPERATIVO){
 		OPERATIVO = fs_esta_operativo();
+
 	}
 }
+
 
 void print_directorio_actual(){
 	char* dir_actual = fs_dir_get_path(DIR_ACTUAL);
@@ -390,6 +389,18 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 	int id_nodo;
 
 	switch (msg->header.id) {
+	case MARTA_HOLA:
+		//aviso si esta operativo o no
+		destroy_message(msg);
+
+		//envio el bool operativo
+		msg = string_message(FS_OPERATIVO, "", OPERATIVO);
+
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+		break;
+
+
 	case NODO_CONECTAR_CON_FS: //primer mensaje del nodo
 		destroy_message(msg);
 		msg = string_message(FS_NODO_QUIEN_SOS, "", 0);

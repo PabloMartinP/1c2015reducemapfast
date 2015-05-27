@@ -8,28 +8,17 @@
  ============================================================================
  */
 
-#include <libgen.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <commons/log.h>
-#include <commons/collections/list.h>
-#include <pthread.h>
-#include <util.h>
-
-#include "procesos.h"
+#include "procesoMaRTA.h"
 
 int main(void) {
 	config = config_create(FILE_CONFIG);
+	marta_create();
 
 	int tamanio = 0;
 	int cantidad = 0;
 	bool soporta;
 	t_list* lista;
 
-	if(probar_conexion_filesystem()<0){
-		printf("Imposible conectar con el fs en %s:%d\n", MaRTA_IP(), MaRTA_PUERTO());
-		return -1;
-	}
 
 	//iniciar_thread_server_MaRTA();
 	iniciar_servidor();//bloqueante, para no bloquear usar a iniciar_thread_server_MaRTA()

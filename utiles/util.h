@@ -78,7 +78,11 @@ typedef enum {
 	JOB_MAP_TERMINO,
 	JOB_REDUCE_TERMINO,
 	NODO_GET_FILECONTENT,
-	FS_AGREGO_NODO
+	FS_AGREGO_NODO,
+	FS_OPERATIVO,               //para saber si el FS esta operativo o no
+	JOB_ARCHIVO,              //le paso los archivos a marta para que me de devuelva los nodos y bloques donde aplicar el mapreduce
+	MARTA_JOB_ID,               //marta le pasa el id asignado al job para que se comunique con ese id
+	JOB_INFO         //paso si es combiner o no, el archivo destino del resultado yla cantidad de archivos a procesar
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/
@@ -229,5 +233,7 @@ char *id_string(t_msg_id id);
 char* convertir_path_absoluto(char* file);
 
 void free_split(char** splitted);
+int split_count(char** splitted);
+
 
 #endif /* UTIL_H_ */

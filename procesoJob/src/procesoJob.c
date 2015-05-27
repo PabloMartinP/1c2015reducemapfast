@@ -8,6 +8,8 @@
  ============================================================================
  */
 
+#include "procesoJob.h"
+
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,7 +17,6 @@
 #include <commons/collections/list.h>
 #include <pthread.h>
 
-#include "procesos.h"
 #include "config_job.h"
 
 typedef struct {
@@ -35,6 +36,7 @@ int main(int argc, char *argv[]) {
 	conectar_con_marta();
 
 	//finalizo el programa para que no intente conectar con el nodo
+	return 0;
 
 	crearHiloMapper();
 

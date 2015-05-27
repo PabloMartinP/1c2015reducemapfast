@@ -1,11 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <libgen.h>
+#include <commons/log.h>
+#include <commons/collections/list.h>
+#include <pthread.h>
+#include <util.h>
+
 #include "config_MaRTA.h"
+#include "marta.h"
 
 void iniciar_thread_server_MaRTA();
 void iniciar_servidor();
-void procesar (int socket, t_msg*msg);
+void procesar (int fd, t_msg*msg);
 int archivo_a_usar();
 t_list* nodos_usados();
 int hilos_de_mapper();
@@ -15,30 +22,7 @@ int rutina_sin_combiner();
 void enviar_rutina_reduce();
 int probar_conexion_filesystem();
 
-typedef struct{
-	char* ip;//para conectarme con el nodo
-	int puerto;//para conectarme con el nodo
-	int n_bloque;//para saber que bloque tengo que aplicarle el map
-	char* resultado;//el nombre del archivo ya mapeado(solo el nombre porque siempre lo va buscar en el tmp del nodo)
-	bool termino;//para saber si termino
-}t_map;
 
-typedef struct{
-	char* ip;//para conectarme con el nodo
-	int puerto;//para conectarme con el nodo
-	char* resultado;//el archivo del resultado de reduce(se guarda en el tmp del nodo)
-	bool termino;
-}t_reduce;
-
-typedef struct {
-	t_list* mappers;
-	t_list* reducers;
-}t_job;
-
-typedef struct {
-	t_list* jobs;//guarda estructuras t_job
-	char* resultado;//el nombre del archivo resultado final
-}t_MaRTA;
 
 void iniciar_thread_server_MaRTA() {
 	/*
@@ -62,8 +46,11 @@ void iniciar_servidor () {
 	server_socket_select(MaRTA_PUERTO(),	(void*) procesar);
 }
 
-void procesar (int socket, t_msg*msg){
-	int res = 0;
+void procesar (int fd, t_msg*msg){
+	int res = 0, i;
+	int cant_archivos;
+	char* archivo;
+
 	print_msg(msg);
 
 	switch (msg->header.id) {
@@ -72,8 +59,9 @@ void procesar (int socket, t_msg*msg){
 			destroy_message(msg);
 
 			printf("enviandole respuesta al JOB\n");
-			msg = string_message(MARTA_HOLA, "hola job soy marta", 0);
-			res = enviar_mensaje(socket, msg);
+			JOB_ID++;//sumo uno en el contador y se lo paso al job
+			msg = string_message(MARTA_JOB_ID, "hola job soy marta te paso el id", 1,JOB_ID);
+			res = enviar_mensaje(fd, msg);
 			destroy_message(msg);
 			if(res==-1){
 				printf("no se pudo responder el mensaje al job\n");
@@ -81,8 +69,25 @@ void procesar (int socket, t_msg*msg){
 			}
 
 			//le pido al job los archivos que quiere procesar (asumo que ya estan almacenados en el fs)
+			//primero me envia la cantidad de archivos
+			//aca me pasa el archivo resultdo, si siporta o no combiner y la cantidad de archivos a proces
+			msg = recibir_mensaje(fd);
+			//creo el job
+			t_job* job = marta_create_job(msg->stream, msg->argv[0]);//el archivo resultado y si soporta combiner
+			cant_archivos = msg->argv[1];
+			destroy_message(msg);
+			for(i=0;i<cant_archivos;i++){
+				msg = recibir_mensaje(fd);
+				print_msg(msg);
+				//agrego el archivo a procesar
+				list_add(job->archivos, msg->stream);
+				destroy_message(msg);
+			}
+			//agrego el job a la lista de jobs
+			list_add(marta.jobs, (void*) job);
 
-			//busco en el fs los nodos y bloques de los archivos
+			//busco en el fs los nodos y bloques de los archivos qu eme paso el job
+
 
 			//primero hay que aplicar el map
 			//planifico la mejor forma dependiendo si es combiner o no combiner

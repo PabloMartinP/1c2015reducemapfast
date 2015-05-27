@@ -34,7 +34,7 @@ typedef struct {
 t_fileSystem fs;
 
 //const int BLOQUE_CANT_COPIAS = 3;
-#define BLOQUE_CANT_COPIAS 3
+
 
 void fs_print_dirs();
 int fs_agregar_nodo(int id_nodo);
@@ -463,6 +463,26 @@ void fs_desconectarse() {
 
 void fs_enviar_mensaje_desconexion(t_list* nodos) {
 	list_iterate(nodos, (void*) nodo_mensaje_desconexion);
+}
+
+t_archivo* fs_buscar_archivo_por_nombre_absoluto(char* path_abs){
+	char* dir = malloc(strlen(path_abs)+1);
+	char* name = malloc(strlen(path_abs)+1);
+
+	strcpy(dir, path_abs);
+	strcpy(name, path_abs);
+
+	dir =	dirname(dir);
+
+	name = basename(name);
+
+	int dir_id = fs_dir_get_index(dir, 0);
+
+	free(dir);dir=NULL;
+	//free(name);name=NULL;
+
+	t_archivo* archivo = fs_buscar_archivo_por_nombre(fs.archivos, name, dir_id);
+	return archivo;
 }
 
 bool fs_existe_nodo_por_ip_puerto(char* ip, int puerto){

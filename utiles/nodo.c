@@ -44,6 +44,12 @@ void nodo_mensaje_desconexion(t_nodo* nodo){
 
 }
 
+t_bloque_de_datos* bloque_de_datos_crear(){
+	t_bloque_de_datos* new = malloc(sizeof*new);
+	new->nodosbloque = list_create();
+	return new;
+}
+
 bool bloque_esta_usado(t_bloque* bloque){
 	return !bloque->libre;
 }

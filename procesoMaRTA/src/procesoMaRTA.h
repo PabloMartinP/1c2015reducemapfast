@@ -22,6 +22,7 @@ int rutina_sin_combiner();
 void enviar_rutina_reduce();
 int probar_conexion_filesystem();
 t_job* crear_job(int fd);
+void verificar_fs_operativo();
 
 
 bool FS_OPERATIVO = false;
@@ -48,6 +49,23 @@ void iniciar_servidor () {
 	server_socket_select(MaRTA_PUERTO(),	(void*) procesar);
 }
 
+void verificar_fs_operativo(){
+	int fd = client_socket(MaRTA_IP_FS(), MaRTA_PUERTO_FS());
+	//
+	if(fd<0){
+		return ;
+	}
+	t_msg* msg;
+	msg = argv_message(MARTA_HOLA, 0);
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
+	msg = recibir_mensaje(fd);
+	if(msg->header.id == FS_ESTA_OPERATIVO){
+		FS_OPERATIVO =msg->argv[0];
+	}
+	destroy_message(msg);
+}
+
 void procesar (int fd, t_msg*msg){
 	int res = 0, i;
 
@@ -70,14 +88,7 @@ void procesar (int fd, t_msg*msg){
 			}
 
 			//verifico si el fs esta operativo
-			msg = argv_message(MARTA_HOLA, 0);
-			enviar_mensaje(fd, msg);
-			destroy_message(msg);
-			msg = recibir_mensaje(fd);
-			if(msg->header.id == FS_ESTA_OPERATIVO){
-				FS_OPERATIVO =msg->argv[0];
-			}
-			destroy_message(msg);
+			verificar_fs_operativo();
 
 			if(!FS_OPERATIVO){
 				printf("FS no operativo\n");
@@ -154,7 +165,7 @@ void procesar (int fd, t_msg*msg){
 }
 
 t_archivo* crear_archivo(char* archivo_nombre){
-	int i, cant_bloques;
+	int i,j, cant_bloques;
 	t_archivo* archivo ;
 	t_msg* msg;
 
@@ -163,7 +174,7 @@ t_archivo* crear_archivo(char* archivo_nombre){
 	archivo = marta_create_archivo(archivo_nombre);
 
 	//me conecto con el fs
-	int fd = client_socket(MaRTA_IP_FS(), MaRTA_PUERTO());
+	int fd = client_socket(MaRTA_IP_FS(), MaRTA_PUERTO_FS());
 
 	//le pido al fs que me devuelva donde esta el archivos
 	msg = string_message(MARTA_ARCHIVO_GET_NODOBLOQUE, archivo_nombre, 0);
@@ -173,17 +184,30 @@ t_archivo* crear_archivo(char* archivo_nombre){
 	msg = recibir_mensaje(fd);
 	cant_bloques = msg->argv[0];		//es la cantidad de bloques del archivo
 	destroy_message(msg);
-	t_conexion_nodo_bloque* nb;
+	t_bloque_de_datos* bloque_datos;
+	t_conexion_nodo_bloque* cnb;
 	printf("recibiendo lista de bloques del archivo %s - cant_bloques: %d\n", archivo_nombre, cant_bloques);
-	for (i = 0, cant_bloques = 0; i < cant_bloques; i++) {
-		//me pasa el ip:puerto y el numero_bloque en el nodo
+	for (i = 0; i < cant_bloques; i++) {
+		bloque_datos = bloque_de_datos_crear();
+		//primero me paso el nro_bloque del archivo
 		msg = recibir_mensaje(fd);
 		print_msg(msg);
-		nb = marta_create_nodo_bloque(msg->stream, msg->argv[0], msg->argv[1]);//ip:port:nro_bloque
-
-		//agrego el bloque(ip-puerto-nro_bloque) a la lista de bloques del archivo
-		list_add(archivo->bloque_de_datos, nb);
+		bloque_datos->n_bloque = msg->argv[0];
+		printf("bloque nro: %d\n", bloque_datos->n_bloque);
 		destroy_message(msg);
+
+		for(j=0;j<BLOQUE_CANT_COPIAS;j++){
+			msg = recibir_mensaje(fd);
+			print_msg(msg);
+			//me pasa en este orden ip:puerto y el numero_bloque en el nodo
+
+			cnb = marta_create_nodo_bloque(msg->stream, msg->argv[0], msg->argv[1]);//ip:port:nro_bloque
+			//agrego el bloque(ip-puerto-nro_bloque) a la lista de bloques del archivo
+			list_add(archivo->bloque_de_datos, cnb);
+
+			destroy_message(msg);
+		}
+
 	}
 
 	return archivo;
@@ -212,7 +236,7 @@ t_job* crear_job(int fd){
 
 		//agrego el archivo a procesar
 		list_add(job->archivos, archivo);
-		destroy_message(msg);
+		//destroy_message(msg);
 	}
 
 

@@ -385,17 +385,52 @@ void inicializar() {
 
 void procesar_mensaje_nodo(int fd, t_msg* msg) {
 	//leer el msg recibido
-	//print_msg(msg);
+	print_msg(msg);
+	int i;
+	//char* archivo;
+	t_archivo* archivo ;
+	char*aux;
 	int id_nodo;
-
 	switch (msg->header.id) {
 
+	case FS_ESTA_OPERATIVO:
+		destroy_message(msg);
+		msg = argv_message(FS_ESTA_OPERATIVO, OPERATIVO);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+		break;
 	case MARTA_ARCHIVO_GET_NODOBLOQUE:
+		//busco el archivo en el fs
+		archivo = fs_buscar_archivo_por_nombre_absoluto(msg->stream);
+		if(archivo==NULL){
+			printf("El archivo %s no existe en el fs \n", msg->stream);
+
+			break;
+		}
 		destroy_message(msg);
 		//primero le paso la cantidad de bloques que componen el archivo
-		//fs.archivos
+		msg = argv_message(MARTA_ARCHIVO_GET_NODOBLOQUE, 1, list_size(archivo->bloques_de_datos));
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+		//ahora le envio donde estan cada una de las copias de los bloques
+		void _enviar_info_bloques(t_bloque_de_datos* bd){
 
-		msg = argv_message(MARTA_ARCHIVO_GET_NODOBLOQUE, 1, 3);
+			//primero envio el nro_bloque del archivo
+			msg = argv_message(MARTA_ARCHIVO_GET_NODOBLOQUE, 1, bd->n_bloque);
+			enviar_mensaje(fd, msg);
+			destroy_message(msg);
+
+			void _enviar_info_conexion_nodo_bloque(t_nodo_bloque* nb){
+				//creo msg con ip, puerto y nro_bloque en el nodo
+				msg = string_message(MARTA_ARCHIVO_GET_NODOBLOQUE, nb->nodo->base.ip,2, nb->nodo->base.puerto, nb->n_bloque);
+				enviar_mensaje(fd, msg);
+				destroy_message(msg);
+			}
+			list_iterate(bd->nodosbloque, (void*)_enviar_info_conexion_nodo_bloque);
+
+		}
+		list_iterate(archivo->bloques_de_datos, (void*)_enviar_info_bloques);
+
 
 		break;
 	case MARTA_HOLA:
@@ -442,6 +477,7 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 		//ESTO NO VA PERO LO AGREGO PARA NO TENER QUE ESTAR AGREGANDO EL NODO CADA VEZ QUE LEVANTO EL FS
 		nodo_agregar(nodo->base.id);
 
+		destroy_message(msg);
 		pthread_mutex_unlock(&mutex);
 
 		break;
@@ -449,6 +485,5 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 		printf("mensaje desconocido\n");
 		break;
 	}
-	destroy_message(msg);
 }
 

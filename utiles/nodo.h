@@ -24,6 +24,8 @@ typedef struct{
 	int numero_bloque;
 }t_conexion_nodo_bloque;
 
+#define BLOQUE_CANT_COPIAS 3
+
 #define TAMANIO_BLOQUE_MB 20
 #define TAMANIO_BLOQUE_B  (1024 * 1024 * 20) //20mb
 
@@ -67,6 +69,9 @@ typedef struct {
 
 t_nodo* nodo_new(char* ip, int port, bool isNew, int cant_bloques);
 void print_nodo(t_nodo* nodo);
+
+t_bloque_de_datos* bloque_de_datos_crear();
+
 
 bool bloque_esta_usado(t_bloque* bloque);
 bool bloque_esta_libre(t_bloque* bloque);

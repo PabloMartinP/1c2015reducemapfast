@@ -17,12 +17,12 @@ t_config* config;
 int MaRTA_PUERTO();
 char* MaRTA_IP();
 char* MaRTA_IP_FS();
-int MaRTA_IP_PUERTO();
+int MaRTA_PUERTO_FS();
 
 char* MaRTA_IP_FS(){
 	return config_get_string_value(config, "IP_FS");
 }
-int MaRTA_IP_PUERTO(){
+int MaRTA_PUERTO_FS(){
 	return config_get_int_value(config, "PUERTO_FS");
 }
 

@@ -18,11 +18,19 @@
 
 #include "util.h"
 
-
+typedef struct{
+	char ip[15];
+	int puerto;
+	int numero_bloque;
+}t_conexion_nodo_bloque;
 
 #define TAMANIO_BLOQUE_MB 20
 #define TAMANIO_BLOQUE_B  (1024 * 1024 * 20) //20mb
 
+typedef struct { //estructura que tiene las tres copias del bloque
+	int n_bloque; //numero de bloque
+	t_list* nodosbloque; //tiene tres estructuras t_nodo_bloque
+} t_bloque_de_datos;
 
 typedef struct {
 	uint32_t posicion;

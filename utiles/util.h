@@ -51,11 +51,6 @@
  */
 #define max(n, m) (n > m ? n : m)
 
-/*
- * Sleep en microsegundos.
- */
-#define msleep(usecs) usleep(usecs * 1000)
-
 /* FIN Funciones Macro */
 
 /****************** IDS DE MENSAJES. ******************/
@@ -79,10 +74,11 @@ typedef enum {
 	JOB_REDUCE_TERMINO,
 	NODO_GET_FILECONTENT,
 	FS_AGREGO_NODO,
-	FS_OPERATIVO,               //para saber si el FS esta operativo o no
+	FS_ESTA_OPERATIVO,               //para saber si el FS esta operativo o no
 	JOB_ARCHIVO,              //le paso los archivos a marta para que me de devuelva los nodos y bloques donde aplicar el mapreduce
 	MARTA_JOB_ID,               //marta le pasa el id asignado al job para que se comunique con ese id
-	JOB_INFO         //paso si es combiner o no, el archivo destino del resultado yla cantidad de archivos a procesar
+	JOB_INFO,         //paso si es combiner o no, el archivo destino del resultado yla cantidad de archivos a procesar
+	MARTA_ARCHIVO_GET_NODOBLOQUE   //marta pide que le den donde esta guardado el archivo
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/

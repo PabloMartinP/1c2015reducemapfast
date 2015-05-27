@@ -23,10 +23,7 @@ char FILE_ARCHIVO_BLOQUES[1024] ="/home/utnso/Escritorio/git/tp-2015-1c-dalemart
 //#define FILE_ARCHIVO "mdfs_archivos.bin"
 //#define FILE_ARCHIVO_BLOQUES "mdfs_bloques.bin"
 
-typedef struct { //estructura que tiene las tres copias del bloque
-	int n_bloque; //numero de bloque
-	t_list* nodosbloque; //tiene tres estructuras t_nodo_bloque
-} t_bloque_de_datos;
+
 
 typedef struct {
 	int id;

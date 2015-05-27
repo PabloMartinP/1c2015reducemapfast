@@ -389,12 +389,21 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 	int id_nodo;
 
 	switch (msg->header.id) {
+
+	case MARTA_ARCHIVO_GET_NODOBLOQUE:
+		destroy_message(msg);
+		//primero le paso la cantidad de bloques que componen el archivo
+		//fs.archivos
+
+		msg = argv_message(MARTA_ARCHIVO_GET_NODOBLOQUE, 1, 3);
+
+		break;
 	case MARTA_HOLA:
 		//aviso si esta operativo o no
 		destroy_message(msg);
 
 		//envio el bool operativo
-		msg = string_message(FS_OPERATIVO, "", OPERATIVO);
+		msg = argv_message(FS_ESTA_OPERATIVO, 1, OPERATIVO);
 
 		enviar_mensaje(fd, msg);
 		destroy_message(msg);

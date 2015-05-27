@@ -8,6 +8,8 @@
 #ifndef MARTA_H_
 #define MARTA_H_
 
+#include <nodo.h>
+
 typedef struct{
 	int id;
 	char* ip;//para conectarme con el nodo
@@ -26,7 +28,10 @@ typedef struct{
 	t_mapreduce info;
 }t_reduce;
 
-
+typedef struct{
+	char* nombre;
+	t_list* bloque_de_datos;//guardo ip:puerto y nro_bloque -> t_marta_nodo_bloque
+}t_archivo;
 typedef struct {
 	int id;
 	t_list* mappers;
@@ -47,13 +52,37 @@ int JOB_REDUCE_ID=0;
 
 t_MaRTA marta;
 
-
+t_job* marta_create_job(char* resultado, bool combiner);
 int marta_create();
+t_archivo* marta_create_archivo(char* nombre);
+t_conexion_nodo_bloque*  marta_create_nodo_bloque(char* ip, int puerto, int numero_bloque);
+
 
 int marta_create(){
 	marta.jobs = list_create();
 	return 0;
 }
+
+t_conexion_nodo_bloque*  marta_create_nodo_bloque(char* ip, int puerto, int numero_bloque){
+	t_conexion_nodo_bloque* new = malloc(sizeof*new);
+
+	strcpy(new->ip, ip);
+	new->puerto = puerto;
+	new->numero_bloque = numero_bloque;
+
+	return new;
+}
+
+t_archivo* marta_create_archivo(char* nombre){
+	t_archivo* new = malloc(sizeof*new);
+	new->nombre = malloc(strlen(nombre)+1);
+	strcpy(new->nombre, nombre);
+
+	new->bloque_de_datos = list_create();
+
+	return new;
+}
+
 t_job* marta_create_job(char* resultado, bool combiner){
 	t_job* new = malloc(sizeof*new);
 

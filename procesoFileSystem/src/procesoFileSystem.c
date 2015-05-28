@@ -422,7 +422,7 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 
 			void _enviar_info_conexion_nodo_bloque(t_nodo_bloque* nb){
 				//creo msg con ip, puerto y nro_bloque en el nodo
-				msg = string_message(MARTA_ARCHIVO_GET_NODOBLOQUE, nb->nodo->base.ip,2, nb->nodo->base.puerto, nb->n_bloque);
+				msg = string_message(MARTA_ARCHIVO_GET_NODOBLOQUE, nb->nodo->base.ip,3, nb->nodo->base.puerto, nb->n_bloque, nb->nodo->base.id);
 				enviar_mensaje(fd, msg);
 				destroy_message(msg);
 			}

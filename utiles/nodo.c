@@ -180,5 +180,5 @@ t_nodo* nodo_new(char* ip, int port, bool isNew, int cant_bloques) {
 
 
 bool nodo_base_igual_a(t_nodo_base nb, t_nodo_base otro_nb){
-	return nb.cant_bloques == otro_nb.cant_bloques && nb.id == otro_nb.id && nb.puerto == otro_nb.puerto && strcmp(nb.ip, otro_nb.ip) ==0;
+	return /*nb.cant_bloques == otro_nb.cant_bloques && */nb.id == otro_nb.id && nb.puerto == otro_nb.puerto && strcmp(nb.ip, otro_nb.ip) ==0;
 }

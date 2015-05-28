@@ -42,7 +42,15 @@ typedef struct {
 }t_job;
 
 typedef struct {
+	int id;
+	bool empezo;
+	bool aplicando_map;
+	bool aplicando_reduce;
+}t_nodo_estado;
+
+typedef struct {
 	t_list* jobs;//guarda estructuras t_job
+	t_list* nodos;
 }t_MaRTA;
 
 //a medida que se asignan nuevos jobs voy sumando 1
@@ -55,18 +63,30 @@ t_MaRTA marta;
 t_job* marta_create_job(char* resultado, bool combiner);
 int marta_create();
 t_archivo* marta_create_archivo(char* nombre);
-t_conexion_nodo_bloque*  marta_create_nodo_bloque(char* ip, int puerto, int numero_bloque);
+t_conexion_nodo_bloque*  marta_create_nodo_bloque(char* ip, int puerto, int numero_bloque, int nodo_id);
 
 
 int marta_create(){
 	marta.jobs = list_create();
+	marta.nodos = list_create();
 	return 0;
 }
 
-t_conexion_nodo_bloque*  marta_create_nodo_bloque(char* ip, int puerto, int numero_bloque){
+t_nodo_estado* marta_create_nodo_estado(){
+	t_nodo_estado* new = malloc(sizeof*new);
+
+	new->empezo = false;
+	new->aplicando_map = false;
+	new->aplicando_reduce = false;
+	return new;
+}
+
+
+t_conexion_nodo_bloque*  marta_create_nodo_bloque(char* ip, int puerto, int numero_bloque, int nodo_id){
 	t_conexion_nodo_bloque* new = malloc(sizeof*new);
 
 	strcpy(new->ip, ip);
+	new->id = nodo_id;
 	new->puerto = puerto;
 	new->numero_bloque = numero_bloque;
 

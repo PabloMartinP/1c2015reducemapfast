@@ -19,6 +19,7 @@
 #include "util.h"
 
 typedef struct{
+	int id;
 	char ip[15];
 	int puerto;
 	int numero_bloque;

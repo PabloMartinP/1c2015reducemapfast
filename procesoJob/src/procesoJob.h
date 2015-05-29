@@ -12,6 +12,15 @@
 #include <stdio.h>
 #include "config_job.h"
 #include <commons/collections/list.h>
+#include <pthread.h>
+
+#include <libgen.h>
+#include <stdlib.h>
+#include <commons/log.h>
+
+
+#include "config_job.h"
+
 
 typedef struct {
 	char ip[15];
@@ -25,6 +34,54 @@ t_list* mappers;
 int JOB_ID;
 int conectar_con_marta();
 t_list* recibir_mappers(int fd);
+void crearHiloMapper();
+int funcionMapping(t_map* map);
+int enviar_script_mapper(int fd);
+
+int funcionMapping(t_map* map){
+	//printf("%s:%d\n", map->ip, map->puerto);
+	int fd = client_socket(map->ip, map->puerto);
+	t_msg* msg;
+	printf("%s\n", JOB_SCRIPT_MAPPER());
+	size_t tam = file_get_size(JOB_SCRIPT_MAPPER());
+	//envio el bloque a mapear y el nombre del archivo donde almacena el resultado y al final el tamaño del script
+	msg = string_message(JOB_MAPPER, map->archivo_tmp, 2, map->numero_bloque, tam);
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
+
+	enviar_script_mapper(fd);
+
+	msg = recibir_mensaje(fd);
+	if(msg->header.id==MAPPER_TERMINO){
+		printf("El mapper termino OK\n");
+		//log_trace(logger, "El mapper termino OK");
+	}
+
+	close(fd);
+	return 0;
+}
+
+int enviar_script_mapper(int fd){
+
+	char* script = file_get_mapped(JOB_SCRIPT_MAPPER());
+
+	//size_t tam = file_get_size(JOB_SCRIPT_MAPPER());
+	//enviar_mensaje_sin_header(fd, tam, script);
+	t_msg* msg = string_message(JOB_MAPPER, script, 0);
+	enviar_mensaje(fd, msg);
+
+	file_mmap_free(script, JOB_SCRIPT_MAPPER());
+	return 0;
+}
+
+void crearHiloMapper(t_map* map){
+	pthread_t idHilo;
+
+	pthread_create(&idHilo, NULL, (void*)funcionMapping, (void*)map); //que párametro  ponemos??
+	pthread_join(idHilo, NULL); //el proceso espera a que termine el hilo
+
+}
+
 
 int conectar_con_marta(){
 	int res, i;
@@ -112,7 +169,8 @@ int conectar_con_marta(){
 	//primero me manda la cantidad de mappers
 	mappers = recibir_mappers(fd);
 
-
+	//creo los hilos mappers
+	list_iterate(mappers, (void*)crearHiloMapper);
 
 
 

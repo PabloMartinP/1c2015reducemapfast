@@ -53,6 +53,8 @@ void probar_conexion_fs();
 void iniciar_server_thread();
 int NODO_CANT_BLOQUES();
 void procesar_mensaje(int fd, t_msg* msg);
+char* generar_nombre_tmp();
+char* generar_nombre_script();
 void incicar_server();
 void agregar_cwd(char* file);
 

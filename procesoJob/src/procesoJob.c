@@ -10,19 +10,8 @@
 
 #include "procesoJob.h"
 
-#include <libgen.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <commons/log.h>
-#include <commons/collections/list.h>
-#include <pthread.h>
-
-#include "config_job.h"
 
 
-
-void funcionMapping(t_map*);
-void crearHiloMapper();
 
 int main(int argc, char *argv[]) {
 	jobConfig = config_create(FILE_CONFIG);
@@ -35,9 +24,7 @@ int main(int argc, char *argv[]) {
 	//finalizo el programa para que no intente conectar con el nodo
 	return 0;
 
-	crearHiloMapper();
 
-	return 0;
 	/////////////////////////////////////////////////
 	//TEST CONEXION CON NODO
 	int socketjob = client_socket("127.0.0.1", 6001);
@@ -55,19 +42,4 @@ int main(int argc, char *argv[]) {
 
 
 
-void funcionMapping(t_map* map){
-	printf("%s:%d\n", map->ip, map->puerto);
-}
-
-void crearHiloMapper(){
-	pthread_t idHilo;
-
-	t_map* map = malloc(sizeof(t_map));
-	strcpy(map->ip, "127.0.0.1");
-	map->puerto = 1234;
-
-	pthread_create(&idHilo, NULL, (void*)funcionMapping, (void*)map); //que párametro  ponemos??
-	pthread_join(idHilo, NULL); //el proceso espera a que termine el hilo
-	free(map);
-}
 

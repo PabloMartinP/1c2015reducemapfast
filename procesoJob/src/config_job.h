@@ -34,6 +34,10 @@ int JOB_COMBINER(){
 	return config_get_int_value(jobConfig, "COMBINER");
 }
 
+char* JOB_SCRIPT_MAPPER(){
+	return config_get_string_value(jobConfig, "MAPPER");
+}
+
 int JOB_PUERTO_MARTA(){
 	return config_get_int_value(jobConfig, "PUERTO_MARTA");
 }

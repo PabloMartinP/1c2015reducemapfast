@@ -80,7 +80,8 @@ typedef enum {
 	JOB_INFO,         //paso si es combiner o no, el archivo destino del resultado yla cantidad de archivos a procesar
 	MARTA_ARCHIVO_GET_NODOBLOQUE,   //marta pide que le den donde esta guardado el archivo
 	JOB_CANT_MAPPERS,  //le devuelvo la cantidad de mappers necesarios para la lista de archivos a procesar(sumo ambas)
-	JOB_MAPPER
+	JOB_MAPPER,
+	MAPPER_TERMINO  //cuando el mapper termino aviso
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/

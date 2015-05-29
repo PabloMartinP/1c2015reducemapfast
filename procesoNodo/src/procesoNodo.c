@@ -396,7 +396,6 @@ char* convertir_a_temp_path_filename(char* filename) {
 }
 
 int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
-
 	int _aplicar_map() {
 		int res = 0;
 		int count;
@@ -404,15 +403,14 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		// Write to child’s stdin
 		char* stdinn = getBloque(n_bloque);
 		size_t len = strlen(stdinn) + 1;
-		//stdinn[len - 1] = '\0';
-		//stdinn[len - 2] = '\n';
+		stdinn[len - 1] = '\0';
+		stdinn[len - 2] = '\n';
 		write(PARENT_WRITE_FD, stdinn, len);
 		close(PARENT_WRITE_FD);
 		FREE_NULL(stdinn);
 
 		// Read from child’s stdout
-		char* new_file_map_disorder = convertir_a_temp_path_filename(
-				filename_result);
+		char* new_file_map_disorder = convertir_a_temp_path_filename(filename_result);
 		string_append(&new_file_map_disorder, "-disorder.tmp");
 		FILE* file_disorder = txt_open_for_append(new_file_map_disorder);
 
@@ -495,13 +493,76 @@ void iniciar_server_thread() {
 
 }
 
+char* generar_nombre_script(){
+	char* timenow = temporal_get_string_time();
+	char* file_map1 = string_new();
+	string_append(&file_map1, "job_script_map_");
+	string_append(&file_map1, timenow);
+	string_append(&file_map1, ".sh");
+	free(timenow);
+	return file_map1;
+}
+
+char* generar_nombre_tmp(){
+	char* timenow = temporal_get_string_time();
+
+	char* file_map1 = string_new();
+	string_append(&file_map1, "job_script_map_");
+	string_append(&file_map1, timenow);
+	string_append(&file_map1, ".sh");
+
+	char* tmp ;
+	tmp = convertir_a_temp_path_filename(file_map1);
+	free(file_map1);
+	free(timenow);
+
+	return tmp;
+}
+
+
 void procesar_mensaje(int fd, t_msg* msg) {
 	//int rs;
-	print_msg(msg);
+	//print_msg(msg);
+	char* filename_script;
+	FILE* file;
+	char* filename_result;
+	char* script;
+	size_t tam_script;
 	int n_bloque = 0;
 	//char* buff;
 	char* file_data;
 	switch (msg->header.id) {
+	case JOB_MAPPER:
+		//recibo el numero bloque y el nombre del archivo donde guardar el resultado
+		print_msg(msg);
+		filename_result = string_new();string_append(&filename_result, msg->stream);
+		n_bloque = msg->argv[0];
+		tam_script = msg->argv[1];
+		destroy_message(msg);
+		//recibo el script
+		script = malloc(tam_script);
+		msg = recibir_mensaje(fd);
+		print_msg(msg);
+		memcpy(script, msg->stream, tam_script);
+		destroy_message(msg);
+		//recibir_mensaje_flujo(fd, (void*)&script);
+		filename_script = generar_nombre_tmp();
+		//grabo el script en tmp
+		write_file(filename_script,script, tam_script);
+		free(script);
+
+		//settear permisos de ejecucion
+		chmod(filename_script, S_IRWXU);
+
+		aplicar_map(n_bloque, filename_script, filename_result);
+		free(filename_script);
+		free(filename_result);
+
+		msg = argv_message(MAPPER_TERMINO, 0);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+
+		break;
 	case FS_AGREGO_NODO:
 		log_info(logger, "El nodo se agrego al fs con id %d", msg->argv[0]);
 		destroy_message(msg);

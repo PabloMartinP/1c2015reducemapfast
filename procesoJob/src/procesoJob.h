@@ -91,6 +91,10 @@ int conectar_con_marta(){
 		enviar_mensaje(fd, msg);
 		destroy_message(msg);
 	}
+
+	//libero archivos
+	free_split(archivos);
+
 	//hasta aca ya le envie los archivos a marta
 	//ahora me tiene que contestar donde estan(nodo) y que blqoues para lanzar los mappers
 

@@ -30,7 +30,7 @@ typedef struct{
 
 typedef struct{
 	char* nombre;
-	t_list* bloque_de_datos;//guardo ip:puerto y nro_bloque -> t_marta_nodo_bloque
+	t_list* bloque_de_datos;//guardo t_conexion_nodo_bloque
 }t_archivo;
 typedef struct {
 	int id;

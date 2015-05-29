@@ -13,6 +13,7 @@
 int main(void) {
 	config = config_create(FILE_CONFIG);
 	marta_create();
+	logger = log_create(FILE_LOG, "MaRTA", true, LOG_LEVEL_TRACE);
 
 	int tamanio = 0;
 	int cantidad = 0;
@@ -51,6 +52,7 @@ int main(void) {
 	lIBERAR_JOB();
 	*/
 
+	log_destroy(logger);
 	config_destroy(config);
 	return EXIT_SUCCESS;
 }

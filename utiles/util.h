@@ -78,7 +78,9 @@ typedef enum {
 	JOB_ARCHIVO,              //le paso los archivos a marta para que me de devuelva los nodos y bloques donde aplicar el mapreduce
 	MARTA_JOB_ID,               //marta le pasa el id asignado al job para que se comunique con ese id
 	JOB_INFO,         //paso si es combiner o no, el archivo destino del resultado yla cantidad de archivos a procesar
-	MARTA_ARCHIVO_GET_NODOBLOQUE   //marta pide que le den donde esta guardado el archivo
+	MARTA_ARCHIVO_GET_NODOBLOQUE,   //marta pide que le den donde esta guardado el archivo
+	JOB_CANT_MAPPERS,  //le devuelvo la cantidad de mappers necesarios para la lista de archivos a procesar(sumo ambas)
+	JOB_MAPPER
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/

@@ -3,10 +3,6 @@
 	<name>procesoMaRTA</name>
 	<comment></comment>
 	<projects>
-		<project>procesoFileSystem</project>
-		<project>procesoJob</project>
-		<project>procesoMaRTA</project>
-		<project>procesoNodo</project>
 		<project>utiles</project>
 	</projects>
 	<buildSpec>

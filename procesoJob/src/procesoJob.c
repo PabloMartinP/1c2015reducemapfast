@@ -19,10 +19,7 @@
 
 #include "config_job.h"
 
-typedef struct {
-	char ip[15];
-	int puerto;
-}t_map;
+
 
 void funcionMapping(t_map*);
 void crearHiloMapper();

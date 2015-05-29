@@ -6,7 +6,7 @@
 #include <commons/collections/list.h>
 #include <pthread.h>
 #include <util.h>
-
+#include <commons/temporal.h>
 #include "config_MaRTA.h"
 #include "marta.h"
 
@@ -28,11 +28,13 @@ void enviar_rutina_reduce();
 int probar_conexion_filesystem();
 t_job* crear_job(int fd);
 void verificar_fs_operativo();
-int planificar_mappers(t_list* bloques_de_datos);
-int obtener_nodo_id_disponible_para_map(t_list* nodos_bloque);
+int planificar_mappers(int job_id, t_list* bloques_de_datos);
+int obtener_numero_copia_disponible_para_map(t_list* nodos_bloque);
 t_nodo_estado* marta_buscar_nodo(int id);
 int marta_contar_nodo(int id);
 t_nodo_estado* marta_create_nodo();
+int marta_job_cant_mappers(t_list* archivos);
+char* generar_nombre_map(t_job* job);
 //t_list* planificar_mappers_con_combiner(t_list* bloques);
 //t_list* planificar_mappers_sin_combiner(t_list* bloques);
 
@@ -118,12 +120,48 @@ void procesar (int fd, t_msg*msg){
 			t_job* job = crear_job(fd);
 			log_trace(logger, "Job creado OK");
 
+			//empiezo a planificar mappers
+			void _planificar_mappers(t_archivo* archivo){
+				log_trace(logger, "Empezando planificacion archivo %s", archivo->nombre);
+				//aca agrega los mappers a la lista marta.nodos con prop empezado = false
+				planificar_mappers(job->id, archivo->bloque_de_datos);
+				log_trace(logger, "Terminado planificacion archivo %s", archivo->nombre);
+			}
+			list_iterate(job->archivos, (void*)_planificar_mappers);
+
+			//hasta aca tengo creada la planificacion de los mappers
+			//ahora tengo que pasarle los marta.nodos.where(!empezado) al job para que empiece a lanzar los hilos mappers
+			msg = argv_message(JOB_CANT_MAPPERS,1, marta_job_cant_mappers(job->archivos));
+			enviar_mensaje(fd, msg);
+			log_trace(logger, "Le paso al job la cantidad de mappers que son(suma de todos los archivos): %d", msg->argv[0]);
+			destroy_message(msg);
+			log_trace(logger, "Comienzo a enviar los mappers que tiene lanzar el job");
+
+			void _enviar_map_a_job(t_nodo_estado* ne){
+				//envio el nombre del archivo
+				char* nombre_temp_map = generar_nombre_map(job);
+				msg = string_message(JOB_MAPPER, nombre_temp_map, 0);
+				enviar_mensaje(fd, msg);
+				destroy_message(msg);
+				free(nombre_temp_map);
+
+				//2 args, puerto, numero_bloque
+				msg = string_message(JOB_MAPPER, ne->nodo->ip, 2, ne->nodo->puerto, ne->nodo->numero_bloque);
+				enviar_mensaje(fd, msg);
+				destroy_message(msg);
+
+
+				ne->aplicando_map = true;
+				ne->empezo = true;
+				log_trace(logger, "Mapper enviado al job %d", job->id);
+			}
+			list_iterate(marta.nodos, (void*)_enviar_map_a_job);
 
 			//agrego el job a la lista de jobs
 			list_add(marta.jobs, (void*) job);
 
-			//hasta aca tengo creada la planificacion de los mappers
-			//ahora tengo que pasarle los marta.nodos.where(!empezado) al job para que empiece a lanzar los hilos mappers
+
+
 
 
 			//primero hay que aplicar el map
@@ -177,11 +215,36 @@ void procesar (int fd, t_msg*msg){
 	}
 }
 
+char* generar_nombre_map(t_job* job){
+	char* file_map1 = string_new();
+	string_append(&file_map1, "job_");
+	char str[2];
+	sprintf(str, "%d", job->id);
+	string_append(&file_map1, str);
+	string_append(&file_map1, "_");
+	string_append(&file_map1, "map_");
+	char* timenow = temporal_get_string_time();
+	string_append(&file_map1, timenow);
+	free(timenow);
+	string_append(&file_map1, ".txt");
+	return file_map1;
+}
+
+int marta_job_cant_mappers(t_list* archivos){
+	int i=0;
+
+	void _contar(t_archivo* archivo){
+		i = i + list_size(archivo->bloque_de_datos);
+	}
+	list_iterate(archivos, (void*)_contar);
+
+	return i;
+}
+
 t_archivo* crear_archivo(char* archivo_nombre){
 	int i,j, cant_bloques;
 	t_archivo* archivo ;
 	t_msg* msg;
-
 
 	//creo el archivo con el nombre
 	archivo = marta_create_archivo(archivo_nombre);
@@ -212,7 +275,6 @@ t_archivo* crear_archivo(char* archivo_nombre){
 
 		for(j=0;j<BLOQUE_CANT_COPIAS;j++){
 			msg = recibir_mensaje(fd);
-			//print_msg(msg);
 			//me pasa en este orden ip:puerto y el numero_bloque en el nodo y tambien el id_nodo
 
 			cnb = marta_create_nodo_bloque(msg->stream, msg->argv[0], msg->argv[1], msg->argv[2]);//ip:port:nro_bloque:nodo_id
@@ -260,12 +322,6 @@ t_job* crear_job(int fd){
 
 		list_add(job->archivos, archivo);
 
-		log_trace(logger, "Empezando planificacion archivo %s", archivo->nombre);
-		planificar_mappers(archivo->bloque_de_datos);
-		log_trace(logger, "Terminado planificacion archivo %s", archivo->nombre);
-
-
-
 	}
 
 
@@ -275,23 +331,23 @@ t_job* crear_job(int fd){
 
 t_nodo_estado* marta_buscar_nodo(int id){
 	bool _buscar_nodo(t_nodo_estado* ne){
-		return ne->id == id;
+		return ne->nodo->id == id;
 	}
 	return list_find(marta.nodos, (void*)_buscar_nodo);
 }
 
 int marta_contar_nodo(int id){
 	bool _contar(t_nodo_estado* ne){
-		return ne->id==id;
+		return ne->nodo->id==id;
 	}
 	return list_count_satisfying(marta.nodos, (void*)_contar);
 }
 
 /*
  * primero intento obtener el de la c3, sino la c2, en ultima instancia la c1
- * en caso de que todas se esten usando devuelvo el nodo que tenga menos uso
+ * en caso de que todas se esten usando devuelvo el numero de copia con menos cantidad de veces que este usando marta
  */
-int  obtener_nodo_id_disponible_para_map(t_list* nodos_bloque){//lista de t_conexion_nodo_bloque
+int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque){//lista de t_conexion_nodo_bloque
 	int n_copia;
 	t_conexion_nodo_bloque* cnb;
 
@@ -304,8 +360,8 @@ int  obtener_nodo_id_disponible_para_map(t_list* nodos_bloque){//lista de t_cone
 			copia_cant_veces_usada[n_copia-1] = marta_contar_nodo(cnb->id);
 			log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", cnb->id, cnb->ip, cnb->puerto, copia_cant_veces_usada[n_copia-1]);
 			if(copia_cant_veces_usada[n_copia-1]==0){//si es igual a 0 no se esta usando, se termino la busqueda de un nodo no usado
-				log_trace(logger, "Devuelvo el nodo_id %d correspondiente a la copia %d", cnb->id, n_copia);
-				return cnb->id;//id nodo dispnible
+				log_trace(logger, "nodo_id %d correspondiente a la copia %d", cnb->id, n_copia);
+				return n_copia;//
 			}
 		} else{
 			log_trace(logger, "Nodo id:%d, %s:%d no disponible", cnb->id, cnb->ip, cnb->puerto);
@@ -330,7 +386,7 @@ int  obtener_nodo_id_disponible_para_map(t_list* nodos_bloque){//lista de t_cone
 		//paso el nodo
 		cnb = list_get(nodos_bloque, copia_menos_usada);//
 		log_trace(logger, "La copia menos usada es %d con nodo_id:%d", copia_menos_usada, cnb->id);
-		return cnb->id;
+		return copia_menos_usada;
 	} else {
 		//errror todos los bloques
 		return -1;
@@ -338,19 +394,20 @@ int  obtener_nodo_id_disponible_para_map(t_list* nodos_bloque){//lista de t_cone
 }
 
 
-int planificar_mappers(t_list* bloques_de_datos){
+int planificar_mappers(int job_id, t_list* bloques_de_datos){
 	t_list* nodos = list_create();
 	int nodo_id;
+	int numero_copia;
 	int i;
+	t_conexion_nodo_bloque* cnb;
 	t_bloque_de_datos* bloque;
 	for (i = 0; i < list_size(bloques_de_datos); i++) {
 		bloque = list_get(bloques_de_datos, i);
-
-		nodo_id = obtener_nodo_id_disponible_para_map(bloque->nodosbloque);
-		log_trace(logger, "obtener_nodo_id_disponible_para_map: %d", nodo_id);
-		if (nodo_id > 0) {
-			t_nodo_estado* ne = marta_create_nodo_estado();
-			ne->id = nodo_id;
+		numero_copia = obtener_numero_copia_disponible_para_map(bloque->nodosbloque);
+		cnb =  list_get(bloque->nodosbloque, numero_copia);
+		if (cnb!=NULL) {
+			log_trace(logger, "obtener_numero_copia_disponible_para_map: %d en %s:%d", cnb->id, cnb->ip, cnb->puerto);
+			t_nodo_estado* ne = marta_create_nodo_estado(cnb);
 			//agrego el nodo a la lista de nodos
 			list_add(nodos, ne);
 		} else {

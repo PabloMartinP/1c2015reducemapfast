@@ -37,7 +37,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/utiles/Debug}&quot;"/>
 								</option>
 								<option id="gnu.c.link.option.libs.1275798895" name="Libraries (-l)" superClass="gnu.c.link.option.libs" valueType="libs">
-									<listOptionValue builtIn="false" value="utiles"/>
+									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="utiles"/>
 									<listOptionValue builtIn="false" value="pthread"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.linker.input.1087035499" superClass="cdt.managedbuild.tool.gnu.c.linker.input">
@@ -60,10 +60,6 @@
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings">
-				<externalSettings containerId="procesoFileSystem;" factoryId="org.eclipse.cdt.core.cfg.export.settings.sipplier"/>
-				<externalSettings containerId="procesoJob;" factoryId="org.eclipse.cdt.core.cfg.export.settings.sipplier"/>
-				<externalSettings containerId="procesoMaRTA;cdt.managedbuild.config.gnu.exe.release.244070143" factoryId="org.eclipse.cdt.core.cfg.export.settings.sipplier"/>
-				<externalSettings containerId="procesoNodo;" factoryId="org.eclipse.cdt.core.cfg.export.settings.sipplier"/>
 				<externalSettings containerId="utiles;" factoryId="org.eclipse.cdt.core.cfg.export.settings.sipplier">
 					<externalSetting>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="includePath" name="/utiles"/>

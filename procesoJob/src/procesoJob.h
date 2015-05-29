@@ -11,9 +11,20 @@
 #include <util.h>
 #include <stdio.h>
 #include "config_job.h"
+#include <commons/collections/list.h>
+
+typedef struct {
+	char ip[15];
+	int puerto;
+	int numero_bloque;
+	char* archivo_tmp;
+}t_map;
+
+t_list* mappers;
 
 int JOB_ID;
 int conectar_con_marta();
+t_list* recibir_mappers(int fd);
 
 int conectar_con_marta(){
 	int res, i;
@@ -80,8 +91,8 @@ int conectar_con_marta(){
 	//paso si es combiner o no, el archivo destino del resultado yla cantidad de archivos a procesar
 	msg = string_message(JOB_INFO, JOB_RESULTADO(), 2, JOB_COMBINER(), cant_archivos);
 
-
 	enviar_mensaje(fd, msg);
+	//print_msg(msg);
 	destroy_message(msg);
 
 	//empiezo a enviar los archivos uno por uno
@@ -98,11 +109,48 @@ int conectar_con_marta(){
 	//hasta aca ya le envie los archivos a marta
 	//ahora me tiene que contestar donde estan(nodo) y que blqoues para lanzar los mappers
 
+	//primero me manda la cantidad de mappers
+	mappers = recibir_mappers(fd);
+
+
+
 
 
 	return 0;
 }
 
+t_list* recibir_mappers(int fd){
+	t_list* lista = list_create();
+	t_msg* msg;
+	msg = recibir_mensaje(fd);
+	print_msg(msg);
+	int cant_mappers = msg->argv[0];
+	destroy_message(msg);
+	int i;
+	t_map* map = NULL;
+	for (i = 0; i < cant_mappers; i++) {
+
+		map = malloc(sizeof(t_map));
+		//recibo primero el nombre del archivo que va usar para guardar en el tmp del nodo
+		msg = recibir_mensaje(fd);
+		print_msg(msg);
+		map->archivo_tmp = string_new();
+		string_append(&(map->archivo_tmp), msg->stream);
+		destroy_message(msg);
+
+		//recibo el ip, puerto y nrobloque
+		msg = recibir_mensaje(fd);
+		print_msg(msg);
+		strcpy(map->ip, msg->stream);
+		map->puerto = msg->argv[0];
+		map->numero_bloque = msg->argv[1];
+		destroy_message(msg);
+
+		list_add(lista, (void*)map);
+	}
+
+	return lista;
+}
 
 
 #endif /* PROCESOJOB_H_ */

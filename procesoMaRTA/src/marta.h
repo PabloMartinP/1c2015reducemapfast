@@ -34,15 +34,13 @@ typedef struct{
 }t_archivo;
 typedef struct {
 	int id;
-	t_list* mappers;
-	t_list* reducers;
 	t_list* archivos;//lista de archivos a procesar
 	bool combiner;
 	char* resultado;//el nombre del archivo resultado final
 }t_job;
 
 typedef struct {
-	int id;
+	t_conexion_nodo_bloque* nodo;
 	bool empezo;
 	bool aplicando_map;
 	bool aplicando_reduce;
@@ -64,7 +62,7 @@ t_job* marta_create_job(char* resultado, bool combiner);
 int marta_create();
 t_archivo* marta_create_archivo(char* nombre);
 t_conexion_nodo_bloque*  marta_create_nodo_bloque(char* ip, int puerto, int numero_bloque, int nodo_id);
-
+t_nodo_estado* marta_create_nodo_estado(t_conexion_nodo_bloque* cnb);
 
 int marta_create(){
 	marta.jobs = list_create();
@@ -72,8 +70,10 @@ int marta_create(){
 	return 0;
 }
 
-t_nodo_estado* marta_create_nodo_estado(){
+t_nodo_estado* marta_create_nodo_estado(t_conexion_nodo_bloque* cnb){
 	t_nodo_estado* new = malloc(sizeof*new);
+
+	new->nodo= cnb;
 
 	new->empezo = false;
 	new->aplicando_map = false;
@@ -106,8 +106,6 @@ t_archivo* marta_create_archivo(char* nombre){
 t_job* marta_create_job(char* resultado, bool combiner){
 	t_job* new = malloc(sizeof*new);
 
-	new->mappers = list_create();
-	new->reducers = list_create();
 	new->archivos = list_create();
 
 	new->resultado = malloc(strlen(resultado)+1);

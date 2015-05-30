@@ -619,7 +619,7 @@ void procesar_mensaje(int fd, t_msg* msg) {
 
 		//recibo el mensaje con el bloque a grabar, y la posiocion en el arg 0
 		msg = recibir_mensaje(fd);
-		print_msg(msg);
+		//print_msg(msg);
 
 		char* bloque = malloc(TAMANIO_BLOQUE_B);
 		memcpy(bloque, msg->stream, msg->argv[1]);	//1 es el tamaño real

@@ -17,14 +17,6 @@
 #include <stdint.h>
 
 #include "util.h"
-
-typedef struct{
-	int id;
-	char ip[15];
-	int puerto;
-	int numero_bloque;
-}t_conexion_nodo_bloque;
-
 #define BLOQUE_CANT_COPIAS 3
 
 #define TAMANIO_BLOQUE_MB 20
@@ -32,7 +24,7 @@ typedef struct{
 
 
 typedef struct { //estructura que tiene las tres copias del bloque
-	int n_bloque; //numero de bloque
+	int numero_bloque; //numero de bloque
 	t_list* nodosbloque; //tiene tres estructuras t_archivo_nodo_bloque
 } t_archivo_bloque_con_copias;
 
@@ -58,17 +50,9 @@ typedef struct {
 
 typedef struct{
 	t_nodo_base* base;
-	int n_bloque;
+	int numero_bloque;
 }t_archivo_nodo_bloque; //
 
-
-/*
-typedef struct {
-	//t_nodo* nodo;
-	int nodo_id;
-	int n_bloque;
-} t_nodo_bloque;
-*/
 t_nodo* nodo_new(char* ip, int port, bool isNew, int cant_bloques, int id);
 void print_nodo(t_nodo* nodo);
 
@@ -80,7 +64,8 @@ bool bloque_esta_libre(t_bloque* bloque);
 
 t_bloque* nodo_get_bloque_libre(t_nodo* nodo);
 t_bloque* nodo_get_bloque_para_copiar(t_nodo* nodo);
-
+t_nodo_base* nodo_base_new(int id, char* ip, int puerto);
+t_archivo_nodo_bloque* archivo_nodo_bloque_new(char* ip, int port, int numero_bloque, int id);
 int nodo_cant_bloques_libres(t_nodo* nodo);
 int nodo_cant_bloques_usados(t_nodo* nodo);
 int nodo_cant_bloques(t_nodo* nodo);

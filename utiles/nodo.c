@@ -127,9 +127,7 @@ void nodo_destroy(t_nodo* nodo) {
 	//printf("%s", nodo->ip);
 }
 
-void nodo_set_ip(t_nodo* nodo, char* ip){
-	memcpy(nodo->base->red.ip, ip, strlen(ip));
-}
+
 
 void nodo_marcar_bloque_como_usado(t_nodo* nodo, int n_bloque){
 	t_bloque* bloque = NULL;
@@ -145,25 +143,34 @@ t_bloque* nodo_buscar_bloque(t_nodo* nodo, int n_bloque){
 	return list_find(nodo->bloques, (void*)_buscar_bloque);
 }
 
-t_nodo* nodo_new(char* ip, int port, bool isNew, int cant_bloques, int id) {
-	t_nodo* new = malloc(sizeof *new);
-	new->base = malloc(sizeof(t_nodo_base));
+t_nodo_base* nodo_base_new(int id, char* ip, int puerto){
+	t_nodo_base* new = malloc(sizeof*new);
+	new->id = id;
+	strcpy(new->red.ip, ip);
+	new->red.puerto = puerto;
+	return new;
+}
 
-	memset(new->base->red.ip, '\0', 15);
+t_archivo_nodo_bloque* archivo_nodo_bloque_new(char* ip, int puerto, int numero_bloque, int id){
+	t_archivo_nodo_bloque* new = malloc(sizeof*new);
+
+	new->numero_bloque = numero_bloque;
+	new->base = nodo_base_new(id, ip, puerto);
+
+	return new	;
+}
+
+t_nodo* nodo_new(char* ip, int puerto, bool isNew, int cant_bloques, int id) {
+	t_nodo* new = malloc(sizeof *new);
+	new->base = nodo_base_new(id, ip, puerto);
 
 	//le asigno un nuevo id solo si es nuevo
-	nodo_set_ip(new, ip);
+	//nodo_set_ip(new, ip);
 
-	//new->ip = string_duplicate(ip);
-	new->base->red.puerto = port;
 	new->cant_bloques = cant_bloques;
 	new->esNuevo = isNew;
 	new->conectado = false;
 
-	new->base->id = id;
-
-	//reservo el espacio para la cantidad de bloques
-	//new->bloques = malloc(cant_bloques*(sizeof(t_bloque)));
 	new->bloques = list_create();
 
 	t_bloque* bloque;

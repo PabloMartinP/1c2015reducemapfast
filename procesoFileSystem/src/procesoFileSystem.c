@@ -370,12 +370,7 @@ void inicializar() {
 
 void procesar_mensaje_nodo(int fd, t_msg* msg) {
 	//leer el msg recibido
-	print_msg(msg);
-	int i;
-	//char* archivo;
 	t_archivo* archivo ;
-	char*aux;
-	int id_nodo;
 	switch (msg->header.id) {
 
 	case FS_ESTA_OPERATIVO:
@@ -401,14 +396,14 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 		void _enviar_info_bloques(t_archivo_bloque_con_copias* bd){
 
 			//primero envio el nro_bloque del archivo
-			msg = argv_message(MARTA_ARCHIVO_GET_NODOBLOQUE, 1, bd->n_bloque);
+			msg = argv_message(MARTA_ARCHIVO_GET_NODOBLOQUE, 1, bd->numero_bloque);
 			enviar_mensaje(fd, msg);
 			destroy_message(msg);
 
 			void _enviar_info_conexion_nodo_bloque(t_archivo_nodo_bloque* nb){
 				//creo msg con ip, puerto y nro_bloque en el nodo
 
-				msg = string_message(MARTA_ARCHIVO_GET_NODOBLOQUE, nb->base->red.ip,3, nb->base->red.puerto, nb->n_bloque, nb->base->id);
+				msg = string_message(MARTA_ARCHIVO_GET_NODOBLOQUE, nb->base->red.ip,3, nb->base->red.puerto, nb->numero_bloque, nb->base->id);
 				enviar_mensaje(fd, msg);
 				destroy_message(msg);
 			}

@@ -50,7 +50,7 @@ t_archivo_bloque_con_copias* arch_buscar_bloque(t_archivo* archivo, int numero_b
 	t_archivo_bloque_con_copias* bloque = NULL;
 
 	bool _buscar_bloque(t_archivo_bloque_con_copias* bloque){
-		return bloque->n_bloque == numero_bloque;
+		return bloque->numero_bloque == numero_bloque;
 	}
 
 	bloque = list_find(archivo->bloques_de_datos, (void*)_buscar_bloque);
@@ -66,11 +66,11 @@ void arch_print(t_archivo* archivo){
 void arch_print_bloques(t_list* bloques_de_datos){
 
 	void print_bloque_datos(t_archivo_bloque_con_copias* bloque_datos){
-		printf(">> >> Bloque Nro: %d\n", bloque_datos->n_bloque);
+		printf(">> >> Bloque Nro: %d\n", bloque_datos->numero_bloque);
 
 		int i=1;
 		void print_nodo_bloque(t_archivo_nodo_bloque* nodo_bloque){
-			printf(" >> >> >> Copia %d: nodo_id: %d, bloque-nro: %d\n", i, nodo_bloque->base->id, nodo_bloque->n_bloque);
+			printf(" >> >> >> Copia %d: nodo_id: %d, bloque-nro: %d\n", i, nodo_bloque->base->id, nodo_bloque->numero_bloque);
 			i++;
 		}
 

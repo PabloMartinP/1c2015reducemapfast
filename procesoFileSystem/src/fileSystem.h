@@ -54,7 +54,7 @@ size_t fs_tamanio_bytes();
 int fs_cant_bloques_libres();
 int fs_cant_bloques_usados();
 int cant_bloques_necesarios(char* archivo);
-char* file_obtener_bloque(char* mapped, int n_bloque);
+char* file_obtener_bloque(char* mapped, int numero_bloque);
 int nodo_get_new_nodo_id();
 size_t fs_tamanio_usado_bytes();
 size_t fs_tamanio_libre_bytes();
@@ -92,8 +92,8 @@ bool fs_existe_dir_por_id(int dir_id);
 void fs_print_archivos();
 int fs_marcar_nodo_como_desconectado(t_nodo* nodo);
 char* bloque_de_datos_traer_data(t_list* nodosBloque);
-char* fs_archivo_get_bloque(char* nombre, int dir_id,	int n_bloque);
-int fs_archivo_ver_bloque(char* nombre, int dir_id,	int n_bloque);
+char* fs_archivo_get_bloque(char* nombre, int dir_id,	int numero_bloque);
+int fs_archivo_ver_bloque(char* nombre, int dir_id,	int numero_bloque);
 bool fs_esta_operativo();
 bool fs_existe_nodo_por_id(int nodo_id);
 void fs_cargar_nodo_base(t_nodo_base* destino, int nodo_id);
@@ -139,14 +139,14 @@ bool fs_esta_operativo() {
 	return list_size(fs.nodos)>=fs.cant_nodos_minima;
 }
 
-int fs_archivo_ver_bloque(char* nombre, int dir_id, int n_bloque) {
+int fs_archivo_ver_bloque(char* nombre, int dir_id, int numero_bloque) {
 	char* datos_bloque = NULL;
 
-	if ((datos_bloque = fs_archivo_get_bloque(nombre, dir_id, n_bloque))	!= NULL) {
-		printf("Inicio bloque %d del archivo %s\n", n_bloque, nombre);
+	if ((datos_bloque = fs_archivo_get_bloque(nombre, dir_id, numero_bloque))	!= NULL) {
+		printf("Inicio bloque %d del archivo %s\n", numero_bloque, nombre);
 		printf("%s", datos_bloque);
 		printf("\n***********************************************");
-		printf("Fin bloque %d del archivo %s\n", n_bloque, nombre);
+		printf("Fin bloque %d del archivo %s\n", numero_bloque, nombre);
 
 		return 0;
 	}
@@ -158,7 +158,7 @@ int fs_archivo_ver_bloque(char* nombre, int dir_id, int n_bloque) {
 
 }
 
-char* fs_archivo_get_bloque(char* nombre, int dir_id, int n_bloque) {
+char* fs_archivo_get_bloque(char* nombre, int dir_id, int numero_bloque) {
 	int i;
 	//busco el archivo
 	t_archivo* archivo = NULL;
@@ -166,7 +166,7 @@ char* fs_archivo_get_bloque(char* nombre, int dir_id, int n_bloque) {
 
 	//busco el bloque
 	t_archivo_bloque_con_copias* bloque = NULL;
-	bloque = arch_buscar_bloque(archivo, n_bloque);
+	bloque = arch_buscar_bloque(archivo, numero_bloque);
 
 	//tengo que verificar si alguno de los nodos que tiene la copia esta disponible
 	//hardcodeo ip y puerto
@@ -193,8 +193,8 @@ char* fs_archivo_get_bloque(char* nombre, int dir_id, int n_bloque) {
 
 				//me conecto con el nodo
 				int fd = client_socket(nb->base->red.ip, nb->base->red.puerto);
-				//le pido el bloque n_bloque
-				t_msg* msg = argv_message(NODO_GET_BLOQUE, 1,	nb->n_bloque);
+				//le pido el bloque numero_bloque
+				t_msg* msg = argv_message(NODO_GET_BLOQUE, 1,	nb->numero_bloque);
 				enviar_mensaje(fd, msg);
 				destroy_message(msg);
 				msg = recibir_mensaje(fd);
@@ -284,7 +284,6 @@ void fs_copiar_mdfs_a_local(char* nombre, int dir_id, char* destino) {
 	clean_file(nombre_nuevo_archivo);
 	FILE* file = txt_open_for_append(nombre_nuevo_archivo);
 
-	//t_archivo_bloque_con_copias* bloque_de_datos = NULL;
 	char* datos_bloque;
 	for (i = 0; i < archivo->info->cant_bloques; i++) {/**/
 		//bloque_de_datos = NULL;
@@ -606,16 +605,16 @@ int fs_agregar_nodo(int id_nodo) {
 
 		//si esta conectado verifico si hay algun archivo en el fs que use el nodo para marcar a sus bloques como usados
 		void _verificar_uso_de_nodo_en_archivo(t_archivo* archivo){
-			void _verificar_uso_de_nodo_en_bloque(t_archivo_bloque_con_copias* bloque_de_datos){
+			void _verificar_uso_de_nodo_enumero_bloque(t_archivo_bloque_con_copias* bloque_de_datos){
 				void _verificar_uso_de_nodo_en_copia(t_archivo_nodo_bloque* nodobloque){
 					if(nodobloque->base->id == nodo->base->id){
-						nodo_marcar_bloque_como_usado(nodo, nodobloque->n_bloque);
+						nodo_marcar_bloque_como_usado(nodo, nodobloque->numero_bloque);
 					}
 
 				}
 				list_iterate(bloque_de_datos->nodosbloque, (void*)_verificar_uso_de_nodo_en_copia);//en teoria son 3
 			}
-			list_iterate(archivo->bloques_de_datos, (void*)_verificar_uso_de_nodo_en_bloque);
+			list_iterate(archivo->bloques_de_datos, (void*)_verificar_uso_de_nodo_enumero_bloque);
 		}
 		list_iterate(fs.archivos, (void*)_verificar_uso_de_nodo_en_archivo);
 	}
@@ -706,7 +705,7 @@ t_list* fs_importar_archivo(char* archivo) {
 
 			//si supera el tamaño del bloque, grabo
 			bd = guardar_bloque(bloque, bytes_leidos);
-			bd->n_bloque = nro_bloque;
+			bd->numero_bloque = nro_bloque;
 			nro_bloque++;
 			list_add(new, bd);
 
@@ -720,7 +719,7 @@ t_list* fs_importar_archivo(char* archivo) {
 		bd = guardar_bloque(bloque, bytes_leidos);
 
 		//setteo el nro de bloque
-		bd->n_bloque = nro_bloque;
+		bd->numero_bloque = nro_bloque;
 		nro_bloque++;
 		//agrego el bloquededatos a la lista
 		list_add(new, bd);
@@ -778,7 +777,7 @@ t_list* fs_importar_archivo(char* archivo) {
 			//si supera el tamaño de bloque grabo
 
 			bd = guardar_bloque(mapped + offset, bytes_leidos);
-			bd->n_bloque = nro_bloque;
+			bd->numero_bloque = nro_bloque;
 			nro_bloque++;
 			list_add(new, bd);
 
@@ -791,7 +790,7 @@ t_list* fs_importar_archivo(char* archivo) {
 		bd = guardar_bloque(mapped + offset, bytes_leidos);
 
 		//setteo el nro de bloque
-		bd->n_bloque = nro_bloque;
+		bd->numero_bloque = nro_bloque;
 		nro_bloque++;
 		//agrego el bloquededatos a la lista
 		list_add(new, bd);
@@ -827,10 +826,10 @@ t_archivo_bloque_con_copias* guardar_bloque(char* bloque_origen,size_t bytes_a_c
 
 		t_nodo* nodo = fs_buscar_nodo_por_id(nb[i]->base->id);
 
-		nodo_marcar_bloque_como_usado(nodo, nb[i]->n_bloque);
+		nodo_marcar_bloque_como_usado(nodo, nb[i]->numero_bloque);
 		/*
 		bool buscar_bloque(t_bloque* bloque) {
-			return bloque->posicion == nb[i]->n_bloque;
+			return bloque->posicion == nb[i]->numero_bloque;
 		}
 		//busco el nodo por id para obtener su lista de bloques
 		nodo = fs_buscar_nodo_por_id(nb[i]->nodo->id);
@@ -840,7 +839,7 @@ t_archivo_bloque_con_copias* guardar_bloque(char* bloque_origen,size_t bytes_a_c
 		*/
 
 
-		printf("nodo %d bloque %d marcado como usado\n", nb[i]->base->id,nb[i]->n_bloque);
+		printf("nodo %d bloque %d marcado como usado\n", nb[i]->base->id,nb[i]->numero_bloque);
 
 		//agrego el bloquenodo a la lista, al final del for quedaria con las tres copias y faltaria settear el nro_bloque
 		list_add(new->nodosbloque, (void*) nb[i]);
@@ -857,7 +856,7 @@ void fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque, size_t tamanio_r
 	//me tengo que conectar con el nodo y pasarle el bloque
 	//obtengo info del bloque
 
-	printf("iniciando transferencia a Ip:%s:%d bloque %d\n", nb->base->red.ip,nb->base->red.puerto, nb->n_bloque);
+	printf("iniciando transferencia a Ip:%s:%d bloque %d\n", nb->base->red.ip,nb->base->red.puerto, nb->numero_bloque);
 	int fd = client_socket(nb->base->red.ip, nb->base->red.puerto);
 
 	t_msg* msg;
@@ -868,7 +867,7 @@ void fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque, size_t tamanio_r
 	if (msg->header.id == NODO_HOLA) {
 		destroy_message(msg);
 		//le digo que grabe el blque en el nodo n
-		msg = string_message(FS_GRABAR_BLOQUE, bloque, 2, nb->n_bloque,	tamanio_real);
+		msg = string_message(FS_GRABAR_BLOQUE, bloque, 2, nb->numero_bloque,	tamanio_real);
 
 		enviar_mensaje(fd, msg);
 	}
@@ -963,7 +962,7 @@ t_archivo_nodo_bloque** fs_get_tres_nodo_bloque_libres() {
 		new[i]->base->red.puerto = nodo->base->red.puerto;
 		*/
 
-		new[i]->n_bloque = bloque->posicion;
+		new[i]->numero_bloque = bloque->posicion;
 
 	}
 	list_destroy(nodos_destino);
@@ -975,7 +974,7 @@ t_archivo_nodo_bloque** fs_get_tres_nodo_bloque_libres() {
 /*
  * devuelvo 20mb con el pedazo de bloque leido hasta el \n
  */
-char* file_obtener_bloque(char* mapped, int n_bloque) {
+char* file_obtener_bloque(char* mapped, int numero_bloque) {
 	return NULL;
 }
 

@@ -81,7 +81,8 @@ void verificar_fs_operativo(){
 }
 
 void procesar (int fd, t_msg*msg){
-	int res = 0, i;
+	int res = 0;
+	//int i;
 
 	print_msg(msg);
 
@@ -146,7 +147,8 @@ void procesar (int fd, t_msg*msg){
 				free(nombre_temp_map);
 
 				//2 args, puerto, numero_bloque
-				msg = string_message(JOB_MAPPER, ne->nodo->ip, 2, ne->nodo->puerto, ne->nodo->numero_bloque);
+				//msg = string_message(JOB_MAPPER, ne->nodo->ip, 2, ne->nodo->puerto, ne->nodo->numero_bloque);
+				msg = string_message(JOB_MAPPER, ne->nodo->base->red.ip, 2, ne->nodo->base->red.puerto, ne->nodo->numero_bloque);
 				enviar_mensaje(fd, msg);
 				destroy_message(msg);
 
@@ -260,32 +262,32 @@ t_archivo* crear_archivo(char* archivo_nombre){
 	msg = recibir_mensaje(fd);
 	cant_bloques = msg->argv[0];		//es la cantidad de bloques del archivo
 	destroy_message(msg);
-	t_archivo_bloque_de_datos* bloque_datos;//para agregar a la lista de blopques del arachivo
-	t_conexion_nodo_bloque* cnb;//aca una de las copias
+	t_archivo_bloque_con_copias* bloque_datos;//para agregar a la lista de blopques del arachivo
+	t_archivo_nodo_bloque* anb;//aca una de las copias
 	printf("recibiendo lista de bloques del archivo %s - cant_bloques: %d\n", archivo_nombre, cant_bloques);
 	for (i = 0; i < cant_bloques; i++) {
 		bloque_datos = bloque_de_datos_crear();
 		//primero me paso el nro_bloque del archivo
 		msg = recibir_mensaje(fd);
 		//print_msg(msg);
-		bloque_datos->n_bloque = msg->argv[0];
-		//printf("bloque nro: %d\n", bloque_datos->n_bloque);
-		log_trace(logger, "Recibido bloque-nro: %d", bloque_datos->n_bloque);
+		bloque_datos->numero_bloque = msg->argv[0];
+		//printf("bloque nro: %d\n", bloque_datos->numero_bloque);
+		log_trace(logger, "Recibido bloque-nro: %d", bloque_datos->numero_bloque);
 		destroy_message(msg);
 
 		for(j=0;j<BLOQUE_CANT_COPIAS;j++){
 			msg = recibir_mensaje(fd);
 			//me pasa en este orden ip:puerto y el numero_bloque en el nodo y tambien el id_nodo
 
-			cnb = marta_create_nodo_bloque(msg->stream, msg->argv[0], msg->argv[1], msg->argv[2]);//ip:port:nro_bloque:nodo_id
-			log_trace(logger, "Recibido info bloque %d, %s:%d, nro_bloque(en el nodo): %d, nodo_id", bloque_datos->n_bloque, cnb->ip, cnb->puerto, cnb->numero_bloque, cnb->id);
+			anb = marta_create_nodo_bloque(msg->stream, msg->argv[0], msg->argv[1], msg->argv[2]);//ip:port:nro_bloque:nodo_id
+			log_trace(logger, "Recibido info bloque %d, %s:%d, nro_bloque(en el nodo): %d, nodo_id", bloque_datos->numero_bloque, anb->base->red.ip, anb->base->red.puerto, anb->numero_bloque, anb->base->id);
 			//agrego el bloque(ip-puerto-nro_bloque) a la lista de bloques del archivo
-			list_add(bloque_datos->nodosbloque, cnb);
+			list_add(bloque_datos->nodosbloque, anb);
 
 			destroy_message(msg);
 		}
 
-		log_trace(logger, "Terminado recepcion de copias del bloque %d", bloque_datos->n_bloque);
+		log_trace(logger, "Terminado recepcion de copias del bloque %d", bloque_datos->numero_bloque);
 		list_add(archivo->bloque_de_datos, (void*)bloque_datos);
 
 	}
@@ -331,14 +333,14 @@ t_job* crear_job(int fd){
 
 t_nodo_estado* marta_buscar_nodo(int id){
 	bool _buscar_nodo(t_nodo_estado* ne){
-		return ne->nodo->id == id;
+		return ne->nodo->base->id == id;
 	}
 	return list_find(marta.nodos, (void*)_buscar_nodo);
 }
 
 int marta_contar_nodo(int id){
 	bool _contar(t_nodo_estado* ne){
-		return ne->nodo->id==id;
+		return ne->nodo->base->id==id;
 	}
 	return list_count_satisfying(marta.nodos, (void*)_contar);
 }
@@ -347,24 +349,24 @@ int marta_contar_nodo(int id){
  * primero intento obtener el de la c3, sino la c2, en ultima instancia la c1
  * en caso de que todas se esten usando devuelvo el numero de copia con menos cantidad de veces que este usando marta
  */
-int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque){//lista de t_conexion_nodo_bloque
+int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque){//lista de t_archivo_nodo_bloque
 	int n_copia;
-	t_conexion_nodo_bloque* cnb;
+	t_archivo_nodo_bloque* anb;
 
 	int MAX = 9999;
 	//si no esta vivo busco alguna otra copia
 	int copia_cant_veces_usada[BLOQUE_CANT_COPIAS];	//inicializo en un nmero maximo para sacar el menor
 	for (n_copia = 1; n_copia <= BLOQUE_CANT_COPIAS; n_copia++) {//o tambien list_size(nodos_Bloque)
-		cnb = list_get(nodos_bloque, BLOQUE_CANT_COPIAS-n_copia);//tomo el 3, despues 2 y luego 1
-		if (nodo_esta_vivo(cnb->ip, cnb->puerto)) {
-			copia_cant_veces_usada[n_copia-1] = marta_contar_nodo(cnb->id);
-			log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", cnb->id, cnb->ip, cnb->puerto, copia_cant_veces_usada[n_copia-1]);
+		anb = list_get(nodos_bloque, BLOQUE_CANT_COPIAS-n_copia);//tomo el 3, despues 2 y luego 1
+		if (nodo_esta_vivo(anb->base->red.ip, anb->base->red.puerto)) {
+			copia_cant_veces_usada[n_copia-1] = marta_contar_nodo(anb->base->id);
+			log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", anb->base->id, anb->base->red.ip, anb->base->red.puerto, copia_cant_veces_usada[n_copia-1]);
 			if(copia_cant_veces_usada[n_copia-1]==0){//si es igual a 0 no se esta usando, se termino la busqueda de un nodo no usado
-				log_trace(logger, "nodo_id %d correspondiente a la copia %d", cnb->id, n_copia);
+				log_trace(logger, "nodo_id %d correspondiente a la copia %d", anb->base->id, n_copia);
 				return n_copia;//
 			}
 		} else{
-			log_trace(logger, "Nodo id:%d, %s:%d no disponible", cnb->id, cnb->ip, cnb->puerto);
+			log_trace(logger, "Nodo id:%d, %s:%d no disponible", anb->base->id, anb->base->red.ip, anb->base->red.puerto);
 			//en caso de que no este vivo le asigno un nro alto asi no lo tiene encuenta cuando saca el menor
 			copia_cant_veces_usada[n_copia-1] = MAX;
 		}
@@ -384,8 +386,8 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque){//lista de t
 	//me fijo si pudo seleccionar alguno
 	if (copia_menos_usada != MAX) {
 		//paso el nodo
-		cnb = list_get(nodos_bloque, copia_menos_usada);//
-		log_trace(logger, "La copia menos usada es %d con nodo_id:%d", copia_menos_usada, cnb->id);
+		anb = list_get(nodos_bloque, copia_menos_usada);//
+		log_trace(logger, "La copia menos usada es %d con nodo_id:%d", copia_menos_usada, anb->base->id);
 		return copia_menos_usada;
 	} else {
 		//errror todos los bloques
@@ -396,22 +398,22 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque){//lista de t
 
 int planificar_mappers(int job_id, t_list* bloques_de_datos){
 	t_list* nodos = list_create();
-	int nodo_id;
+	//int nodo_id;
 	int numero_copia;
 	int i;
-	t_conexion_nodo_bloque* cnb;
-	t_archivo_bloque_de_datos* bloque;
+	t_archivo_nodo_bloque* cnb;
+	t_archivo_bloque_con_copias* bloque;
 	for (i = 0; i < list_size(bloques_de_datos); i++) {
 		bloque = list_get(bloques_de_datos, i);
 		numero_copia = obtener_numero_copia_disponible_para_map(bloque->nodosbloque);
 		cnb =  list_get(bloque->nodosbloque, numero_copia);
 		if (cnb!=NULL) {
-			log_trace(logger, "obtener_numero_copia_disponible_para_map: %d en %s:%d", cnb->id, cnb->ip, cnb->puerto);
+			log_trace(logger, "obtener_numero_copia_disponible_para_map: %d en %s:%d", cnb->base->id, cnb->base->red.ip, cnb->base->red.puerto);
 			t_nodo_estado* ne = marta_create_nodo_estado(cnb);
 			//agrego el nodo a la lista de nodos
 			list_add(nodos, ne);
 		} else {
-			log_trace(logger, "ninguna copia disponible para el bloque %d", bloque->n_bloque);
+			log_trace(logger, "ninguna copia disponible para el bloque %d", bloque->numero_bloque);
 			return -1;
 		}
 	}

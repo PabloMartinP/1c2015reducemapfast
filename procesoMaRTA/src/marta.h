@@ -30,7 +30,7 @@ typedef struct{
 
 typedef struct{
 	char* nombre;
-	t_list* bloque_de_datos;//guardo t_conexion_nodo_bloque
+	t_list* bloque_de_datos;//guardo t_archivo_nodo_bloque
 }t_archivo;
 typedef struct {
 	int id;
@@ -40,7 +40,7 @@ typedef struct {
 }t_job;
 
 typedef struct {
-	t_conexion_nodo_bloque* nodo;
+	t_archivo_nodo_bloque* nodo;
 	bool empezo;
 	bool aplicando_map;
 	bool aplicando_reduce;
@@ -61,8 +61,8 @@ t_MaRTA marta;
 t_job* marta_create_job(char* resultado, bool combiner);
 int marta_create();
 t_archivo* marta_create_archivo(char* nombre);
-t_conexion_nodo_bloque*  marta_create_nodo_bloque(char* ip, int puerto, int numero_bloque, int nodo_id);
-t_nodo_estado* marta_create_nodo_estado(t_conexion_nodo_bloque* cnb);
+t_archivo_nodo_bloque*  marta_create_nodo_bloque(char* ip, int puerto, int numero_bloque, int nodo_id);
+t_nodo_estado* marta_create_nodo_estado(t_archivo_nodo_bloque* cnb);
 
 int marta_create(){
 	marta.jobs = list_create();
@@ -70,7 +70,7 @@ int marta_create(){
 	return 0;
 }
 
-t_nodo_estado* marta_create_nodo_estado(t_conexion_nodo_bloque* cnb){
+t_nodo_estado* marta_create_nodo_estado(t_archivo_nodo_bloque* cnb){
 	t_nodo_estado* new = malloc(sizeof*new);
 
 	new->nodo= cnb;
@@ -82,14 +82,9 @@ t_nodo_estado* marta_create_nodo_estado(t_conexion_nodo_bloque* cnb){
 }
 
 
-t_conexion_nodo_bloque*  marta_create_nodo_bloque(char* ip, int puerto, int numero_bloque, int nodo_id){
-	t_conexion_nodo_bloque* new = malloc(sizeof*new);
-
-	strcpy(new->ip, ip);
-	new->id = nodo_id;
-	new->puerto = puerto;
-	new->numero_bloque = numero_bloque;
-
+t_archivo_nodo_bloque*  marta_create_nodo_bloque(char* ip, int puerto, int numero_bloque, int nodo_id){
+	t_archivo_nodo_bloque* new = NULL;
+	new = archivo_nodo_bloque_new(ip, puerto, numero_bloque, nodo_id);
 	return new;
 }
 

@@ -12,8 +12,15 @@
 int NODO_PORT_FS(){
 	return config_get_int_value(config, "PUERTO_FS");
 }
+int NODO_ID(){
+	return config_get_int_value(config, "ID");
+}
 char* NODO_IP_FS(){
 	return config_get_string_value(config, "IP_FS");
+}
+
+int NODO_TAMANIO_DATA_DEFAULT_MB(){
+	return config_get_int_value(config, "SIZE_DATA_DEFAULT_MB");
 }
 char* NODO_ARCHIVOBIN(){
 	return config_get_string_value(config, "ARCHIVO_BIN");

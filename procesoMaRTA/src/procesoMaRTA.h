@@ -260,7 +260,7 @@ t_archivo* crear_archivo(char* archivo_nombre){
 	msg = recibir_mensaje(fd);
 	cant_bloques = msg->argv[0];		//es la cantidad de bloques del archivo
 	destroy_message(msg);
-	t_bloque_de_datos* bloque_datos;//para agregar a la lista de blopques del arachivo
+	t_archivo_bloque_de_datos* bloque_datos;//para agregar a la lista de blopques del arachivo
 	t_conexion_nodo_bloque* cnb;//aca una de las copias
 	printf("recibiendo lista de bloques del archivo %s - cant_bloques: %d\n", archivo_nombre, cant_bloques);
 	for (i = 0; i < cant_bloques; i++) {
@@ -400,7 +400,7 @@ int planificar_mappers(int job_id, t_list* bloques_de_datos){
 	int numero_copia;
 	int i;
 	t_conexion_nodo_bloque* cnb;
-	t_bloque_de_datos* bloque;
+	t_archivo_bloque_de_datos* bloque;
 	for (i = 0; i < list_size(bloques_de_datos); i++) {
 		bloque = list_get(bloques_de_datos, i);
 		numero_copia = obtener_numero_copia_disponible_para_map(bloque->nodosbloque);

@@ -122,9 +122,9 @@ void iniciar_consola() {
 				pthread_mutex_unlock(&mutex);
 				break;
 			case ARCHIVO_COPIAR_MDFS_A_LOCAL:
-				//ej: copytolocal 3registros.txt 0 /home/utnso/Escritorio/
-				archivo_nombre = input_user[1];
-				dir_nombre = input_user[3];
+				//ej: copytolocal 3registros.txt /home/utnso/Escritorio/
+				archivo_nombre = input_user[1];//toma como dir el dir actual
+				dir_nombre = input_user[2];//con barra al final
 				pthread_mutex_lock(&mutex);
 				archivo_copiar_mdfs_a_local(archivo_nombre, dir_nombre);
 				pthread_mutex_unlock(&mutex);
@@ -333,25 +333,14 @@ void set_cwd(){
 	aux = convertir_path_absoluto(FILE_CONFIG);
 	strcpy(FILE_CONFIG, aux);
 	free(aux);
-	aux = convertir_path_absoluto(FILE_ARCHIVO);
-	strcpy(FILE_ARCHIVO, aux);
-	free(aux);
-
-	aux = convertir_path_absoluto(FILE_ARCHIVO_BLOQUES);
-	strcpy(FILE_ARCHIVO_BLOQUES, aux);
-	free(aux);
 
 	aux = convertir_path_absoluto(FILE_DIRECTORIO);
 	strcpy(FILE_DIRECTORIO, aux);
 	free(aux);
 
-	aux = convertir_path_absoluto(FILE_NODOS);
-	strcpy(FILE_NODOS, aux);
-	free(aux);
+
 }
 void inicializar() {
-	int rs;
-
 	pthread_mutex_init(&mutex, NULL);
 	//comento para que siempre que ejecute tome el mismo cwd
 	//set_cwd();
@@ -371,14 +360,10 @@ void inicializar() {
 
 
 	//INICIO EL FS
-	if((rs = fs_create())<0){
-		log_info(logger, "No se pudo crear el fs");
-		handle_error("config");
-		//return -1;
-	}
+	fs_create();
 
 	//le cargo los nodos necesarios para que valide si puede estar operativo
-	fs.cant_nodos_minima = config_get_int_value(config, "CANT_NODOS_MINIMA");
+	fs.cant_nodos_minima = FILESYSTEM_CANTIDAD_MININA_NODOS();
 
 }
 
@@ -413,16 +398,17 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 		enviar_mensaje(fd, msg);
 		destroy_message(msg);
 		//ahora le envio donde estan cada una de las copias de los bloques
-		void _enviar_info_bloques(t_bloque_de_datos* bd){
+		void _enviar_info_bloques(t_archivo_bloque_con_copias* bd){
 
 			//primero envio el nro_bloque del archivo
 			msg = argv_message(MARTA_ARCHIVO_GET_NODOBLOQUE, 1, bd->n_bloque);
 			enviar_mensaje(fd, msg);
 			destroy_message(msg);
 
-			void _enviar_info_conexion_nodo_bloque(t_nodo_bloque* nb){
+			void _enviar_info_conexion_nodo_bloque(t_archivo_nodo_bloque* nb){
 				//creo msg con ip, puerto y nro_bloque en el nodo
-				msg = string_message(MARTA_ARCHIVO_GET_NODOBLOQUE, nb->nodo->base.ip,3, nb->nodo->base.puerto, nb->n_bloque, nb->nodo->base.id);
+
+				msg = string_message(MARTA_ARCHIVO_GET_NODOBLOQUE, nb->base->red.ip,3, nb->base->red.puerto, nb->n_bloque, nb->base->id);
 				enviar_mensaje(fd, msg);
 				destroy_message(msg);
 			}
@@ -456,28 +442,18 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 
 		t_nodo* nodo ;
 		pthread_mutex_lock(&mutex);
-		if(fs_existe_nodo_por_ip_puerto(msg->stream, msg->argv[0])){
-			//si ya existe lo busco
-			nodo = fs_buscar_nodo_por_ip_puerto(msg->stream, msg->argv[0]);
-			//si existe lo borro y lo paso a la lista de nodos_no_agregados
-			fs_eliminar_nodo(nodo->base.id);
-		}
-		else{
-			nodo = nodo_new(msg->stream,  msg->argv[0],(bool) msg->argv[1], msg->argv[2]); //0 puerto, 1 si es nuevo o no, 2 es la cant bloques
-			id_nodo = fs_get_nodo_id_en_archivo_nodos(msg->stream, msg->argv[0]);
-			//tengo que ver si ya existe la lista de nodos del fs
-			nodo->base.id =id_nodo;
-			//agrego el nodo a la lista de nodos nuevos
-			list_add(fs.nodos_no_agregados, (void*) nodo);
-		}
 
-		printf("Se conecto el nodo %d,  %s:%d | %s\n", nodo->base.id,nodo->base.ip, nodo->base.puerto, nodo_isNew(nodo));
-		log_info(logger, "Se conecto el nodo %d,  %s:%d | %s", nodo->base.id,nodo->base.ip, nodo->base.puerto, nodo_isNew(nodo));
+		nodo = nodo_new(msg->stream, msg->argv[0], (bool) msg->argv[1],	msg->argv[2], msg->argv[3]); //0 puerto, 1 si es nuevo o no, 2 es la cant bloques
+		destroy_message(msg);
+
+		list_add(fs.nodos_no_agregados, (void*) nodo);
+
+		//printf("Se conecto el nodo %d,  %s:%d | %s\n", nodo->base->id,nodo->base->red.ip, nodo->base->red.puerto, nodo_isNew(nodo));
+		log_info(logger, "Se conecto el nodo %d,  %s:%d | %s", nodo->base->id,nodo->base->red.ip, nodo->base->red.puerto, nodo_isNew(nodo));
 
 		//ESTO NO VA PERO LO AGREGO PARA NO TENER QUE ESTAR AGREGANDO EL NODO CADA VEZ QUE LEVANTO EL FS
-		nodo_agregar(nodo->base.id);
+		//nodo_agregar(nodo->base->id);
 
-		destroy_message(msg);
 		pthread_mutex_unlock(&mutex);
 
 		break;

@@ -85,6 +85,10 @@ typedef enum {
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/
+typedef struct{
+	char ip[15];
+	int puerto;
+}t_red;
 
 typedef struct {
 	int8_t type;

@@ -651,7 +651,7 @@ void probar_conexion_fs() {
 		printf("Conectado\n");
 		//t_msg* msg= id_message(NODO_CONECTAR_CON_FS);
 		t_msg* msg = NULL;
-		msg = string_message(NODO_CONECTAR_CON_FS, "hola soy el NodoA", 0);
+		msg = argv_message(NODO_CONECTAR_CON_FS,  0);
 		printf("enviavndo mensaje al fs\n");
 		if (enviar_mensaje(fs, msg) < 0) {
 			puts("ERROR: Se ha perdido la conexión con el fs.");
@@ -675,11 +675,9 @@ void probar_conexion_fs() {
 			 t_nodo* nodo = nodo_new(NODO_IP(), NODO_PORT(), NODO_NUEVO(), NODO_CANT_BLOQUES());
 			 enviar_mensaje_flujo(fs, 1, sizeof(t_nodo), nodo);*/
 
-			msg = string_message(RTA_FS_NODO_QUIEN_SOS, NODO_IP(), 3,
-					NODO_PORT(), NODO_NUEVO(), NODO_CANT_BLOQUES());
+			msg = string_message(RTA_FS_NODO_QUIEN_SOS, NODO_IP(), 4, NODO_PORT(), NODO_NUEVO(), NODO_CANT_BLOQUES(), NODO_ID());
 			if ((enviar_mensaje(fs, msg)) < 0) {
-				printf("No se pudo responder a %s",
-						id_string(FS_NODO_QUIEN_SOS));
+				printf("No se pudo responder a %s",	id_string(FS_NODO_QUIEN_SOS));
 				exit(EXIT_FAILURE);
 			}
 			destroy_message(msg);
@@ -708,14 +706,17 @@ void finalizar() {
 void inicializar() {
 
 
-
-	char*f;
-	f = convertir_path_absoluto(FILE_CONFIG);
+	config = config_create(FILE_CONFIG);
+	logger = log_create(FILE_LOG, "Nodo", true, LOG_LEVEL_TRACE);
+/*
+	char*f;	f = convertir_path_absoluto(FILE_CONFIG);
 	config = config_create(f);
 	free(f);
+
 	f = convertir_path_absoluto(FILE_LOG);
 	logger = log_create(f, "Nodo", true, LOG_LEVEL_INFO);
 	free(f);
+	*/
 
 	_data = data_get(NODO_ARCHIVOBIN());
 }
@@ -781,7 +782,7 @@ char* getBloque(int32_t numero) {
 void* data_get(char* filename) {
 
 	if (!file_exists(filename)) {
-		TAMANIO_DATA = 1024 * 1024 * 500; //100MB
+		TAMANIO_DATA = 1024 * 1024 * NODO_TAMANIO_DATA_DEFAULT_MB(); //100MB
 		FILE* file = NULL;
 		file = fopen(filename, "w+");
 		if (file == NULL) {

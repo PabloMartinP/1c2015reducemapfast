@@ -30,10 +30,12 @@ typedef struct{
 #define TAMANIO_BLOQUE_MB 20
 #define TAMANIO_BLOQUE_B  (1024 * 1024 * 20) //20mb
 
+
 typedef struct { //estructura que tiene las tres copias del bloque
 	int n_bloque; //numero de bloque
-	t_list* nodosbloque; //tiene tres estructuras t_nodo_bloque
-} t_bloque_de_datos;
+	t_list* nodosbloque; //tiene tres estructuras t_archivo_nodo_bloque
+} t_archivo_bloque_con_copias;
+
 
 typedef struct {
 	uint32_t posicion;
@@ -43,35 +45,34 @@ typedef struct {
 
 typedef struct {
 	int id;
-	char ip[15];
-	int puerto;
-	int cant_bloques;
+	t_red red;
 }t_nodo_base;
 typedef struct {
-	t_nodo_base base;
-	//int id;
-	//char ip[15];
-	//uint16_t puerto;
+	t_nodo_base* base;
+	int cant_bloques;
 	bool conectado;
 	bool esNuevo;
-	t_list* bloques;
+	t_list* bloques;//lista de t_bloque
 } t_nodo;
 
+
 typedef struct{
+	t_nodo_base* base;
+	int n_bloque;
+}t_archivo_nodo_bloque; //
+
+
+/*
+typedef struct {
+	//t_nodo* nodo;
 	int nodo_id;
 	int n_bloque;
-}t_nodo_id_n_bloque; //se usa para grabar en el archivo de bloques
-
-typedef struct {
-	t_nodo* nodo;
-	//int nodo_id;
-	int n_bloque;
 } t_nodo_bloque;
-
-t_nodo* nodo_new(char* ip, int port, bool isNew, int cant_bloques);
+*/
+t_nodo* nodo_new(char* ip, int port, bool isNew, int cant_bloques, int id);
 void print_nodo(t_nodo* nodo);
 
-t_bloque_de_datos* bloque_de_datos_crear();
+t_archivo_bloque_con_copias* bloque_de_datos_crear();
 
 
 bool bloque_esta_usado(t_bloque* bloque);

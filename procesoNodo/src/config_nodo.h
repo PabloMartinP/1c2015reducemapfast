@@ -18,6 +18,8 @@ int NODO_PORT();
 char* NODO_IP();
 char* NODO_DIRTEMP();
 bool NODO_NUEVO();
+int NODO_ID();
+int NODO_TAMANIO_DATA_DEFAULT_MB();
 
 /*
  * DEFINICIONES

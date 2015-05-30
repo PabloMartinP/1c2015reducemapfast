@@ -33,9 +33,9 @@ bool nodo_esta_vivo(char* ip, int puerto){
  */
 void nodo_mensaje_desconexion(t_nodo* nodo){
 
-	printf("Enviar msg de desconexion al nodo %d, ip:%s:%d\n", nodo->base.id, nodo->base.ip, nodo->base.puerto);
+	printf("Enviar msg de desconexion al nodo %d, ip:%s:%d\n", nodo->base->id, nodo->base->red.ip, nodo->base->red.puerto);
 	//me conecto al nodo
-	int fd = client_socket(nodo->base.ip, nodo->base.puerto);
+	int fd = client_socket(nodo->base->red.ip, nodo->base->red.puerto);
 
 	t_msg* msg = string_message(NODO_CHAU, "",0);
 
@@ -44,8 +44,8 @@ void nodo_mensaje_desconexion(t_nodo* nodo){
 
 }
 
-t_bloque_de_datos* bloque_de_datos_crear(){
-	t_bloque_de_datos* new = malloc(sizeof*new);
+t_archivo_bloque_con_copias* bloque_de_datos_crear(){
+	t_archivo_bloque_con_copias* new = malloc(sizeof*new);
 	new->nodosbloque = list_create();
 	return new;
 }
@@ -78,7 +78,7 @@ t_bloque* nodo_get_bloque_para_copiar(t_nodo* nodo){
 
 	b = list_find(nodo->bloques, (void*)bloque_esta_para_copiar);
 	if(b == NULL){
-		printf("El nodo %d no tiene bloques libres\n", nodo->base.id);
+		printf("El nodo %d no tiene bloques libres\n", nodo->base->id);
 		return NULL;
 	}
 	b->requerido_para_copia = true;
@@ -98,7 +98,7 @@ int nodo_cant_bloques(t_nodo* nodo){
 }
 
 void print_nodo(t_nodo* nodo){
-	printf("Id: %d, Nuevo: %d, Ip: %s, Puerto: %d\n", nodo->base.id, nodo->esNuevo, nodo->base.ip, nodo->base.puerto);
+	printf("Id: %d, Nuevo: %d, Ip: %s, Puerto: %d\n", nodo->base->id, nodo->esNuevo, nodo->base->red.ip, nodo->base->red.puerto);
 }
 
 void nodo_marcar_como_libre_total(t_nodo* nodo){
@@ -115,19 +115,20 @@ char* nodo_isNew(t_nodo* nodo) {
 }
 
 void nodo_print_info(t_nodo* nodo){
-	printf("id: %d, %s:%d\n", nodo->base.id, nodo->base.ip, nodo->base.puerto);
+	printf("id: %d, %s:%d\n", nodo->base->id, nodo->base->red.ip, nodo->base->red.puerto);
 	printf("cant_bloques: %d, cant_bloques_libres: %d, cant_bloques_usados: %d\n", nodo_cant_bloques(nodo), nodo_cant_bloques_libres(nodo), nodo_cant_bloques_usados(nodo));
 }
 
 void nodo_destroy(t_nodo* nodo) {
 	list_destroy_and_destroy_elements(nodo->bloques, free);
+	free(nodo->base);nodo->base = NULL;
 	free(nodo);
 	nodo = NULL;
 	//printf("%s", nodo->ip);
 }
 
 void nodo_set_ip(t_nodo* nodo, char* ip){
-	memcpy(nodo->base.ip, ip, strlen(ip));
+	memcpy(nodo->base->red.ip, ip, strlen(ip));
 }
 
 void nodo_marcar_bloque_como_usado(t_nodo* nodo, int n_bloque){
@@ -144,19 +145,22 @@ t_bloque* nodo_buscar_bloque(t_nodo* nodo, int n_bloque){
 	return list_find(nodo->bloques, (void*)_buscar_bloque);
 }
 
-t_nodo* nodo_new(char* ip, int port, bool isNew, int cant_bloques) {
+t_nodo* nodo_new(char* ip, int port, bool isNew, int cant_bloques, int id) {
 	t_nodo* new = malloc(sizeof *new);
+	new->base = malloc(sizeof(t_nodo_base));
 
-	memset(new->base.ip, '\0', 15);
+	memset(new->base->red.ip, '\0', 15);
 
 	//le asigno un nuevo id solo si es nuevo
 	nodo_set_ip(new, ip);
 
 	//new->ip = string_duplicate(ip);
-	new->base.puerto = port;
-	new->base.cant_bloques = cant_bloques;
+	new->base->red.puerto = port;
+	new->cant_bloques = cant_bloques;
 	new->esNuevo = isNew;
 	new->conectado = false;
+
+	new->base->id = id;
 
 	//reservo el espacio para la cantidad de bloques
 	//new->bloques = malloc(cant_bloques*(sizeof(t_bloque)));
@@ -180,5 +184,5 @@ t_nodo* nodo_new(char* ip, int port, bool isNew, int cant_bloques) {
 
 
 bool nodo_base_igual_a(t_nodo_base nb, t_nodo_base otro_nb){
-	return /*nb.cant_bloques == otro_nb.cant_bloques && */nb.id == otro_nb.id && nb.puerto == otro_nb.puerto && strcmp(nb.ip, otro_nb.ip) ==0;
+	return nb.id == otro_nb.id && nb.red.puerto == otro_nb.red.puerto && strcmp(nb.red.ip, otro_nb.red.ip) ==0;
 }

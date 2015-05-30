@@ -17,7 +17,8 @@
 #define DIR_CANT_MAX 1024
 
 //char FILE_DIRECTORIO[1024] = "/mdfs_directorios.bin";
-char FILE_DIRECTORIO[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/mdfs_directorios.bin";
+//char FILE_DIRECTORIO[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/mdfs_directorios.bin";
+char FILE_DIRECTORIO[1024];
 
 
 typedef struct {

@@ -84,7 +84,7 @@ void procesar (int fd, t_msg*msg){
 	int res = 0;
 	//int i;
 
-	print_msg(msg);
+	//print_msg(msg);
 
 	switch (msg->header.id) {
 		case JOB_HOLA://cuando llega un job nuevo
@@ -147,10 +147,10 @@ void procesar (int fd, t_msg*msg){
 				free(nombre_temp_map);
 
 				//2 args, puerto, numero_bloque
-				//msg = string_message(JOB_MAPPER, ne->nodo->ip, 2, ne->nodo->puerto, ne->nodo->numero_bloque);
 				msg = string_message(JOB_MAPPER, ne->nodo->base->red.ip, 2, ne->nodo->base->red.puerto, ne->nodo->numero_bloque);
 				enviar_mensaje(fd, msg);
 				destroy_message(msg);
+
 
 
 				ne->aplicando_map = true;
@@ -183,8 +183,12 @@ void procesar (int fd, t_msg*msg){
 
 
 			break;
-		case JOB_MAP_TERMINO:
+		case MAPPER_TERMINO:
 			//cuando un map termino el job le avisa al fs
+
+			log_trace(logger, "TERMINO UN MAP del job %d. Resultado: ", msg->argv[0], msg->argv[1]);
+			destroy_message(msg);
+
 			//marcaria el map del job como termino=true
 
 			//luego tengo que verificar si ya terminaron todos los map que tiene que hacer el job

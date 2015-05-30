@@ -441,7 +441,7 @@ int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {
 	string_append(&commando_ordenar, "/");
 	string_append(&commando_ordenar, destino);
 
-	printf("%s\n", commando_ordenar);
+	//printf("%s\n", commando_ordenar);
 
 	system(commando_ordenar);
 	FREE_NULL(commando_ordenar);
@@ -524,7 +524,6 @@ void procesar_mensaje(int fd, t_msg* msg) {
 	//int rs;
 	//print_msg(msg);
 	char* filename_script;
-	FILE* file;
 	char* filename_result;
 	char* script;
 	size_t tam_script;
@@ -533,33 +532,38 @@ void procesar_mensaje(int fd, t_msg* msg) {
 	char* file_data;
 	switch (msg->header.id) {
 	case JOB_MAPPER:
+
 		//recibo el numero bloque y el nombre del archivo donde guardar el resultado
-		print_msg(msg);
+		//print_msg(msg);
 		filename_result = string_new();string_append(&filename_result, msg->stream);
 		n_bloque = msg->argv[0];
 		tam_script = msg->argv[1];
+		log_trace(logger, "Inicio nuevo mapper a aplicar sobre el bloque %d, guardarlo con nombre: %s", n_bloque, msg->stream);
 		destroy_message(msg);
 		//recibo el script
 		script = malloc(tam_script);
 		msg = recibir_mensaje(fd);
-		print_msg(msg);
+		//print_msg(msg);
 		memcpy(script, msg->stream, tam_script);
 		destroy_message(msg);
 		//recibir_mensaje_flujo(fd, (void*)&script);
 		filename_script = generar_nombre_tmp();
 		//grabo el script en tmp
 		write_file(filename_script,script, tam_script);
+		log_trace(logger, "recibido script tamaño: %d, guardado con nombre: %s", tam_script, filename_script);
 		free(script);
 
 		//settear permisos de ejecucion
 		chmod(filename_script, S_IRWXU);
 
+		log_trace(logger, "Aplicando mapper %s sobre el bloque %d", filename_script, n_bloque);
 		aplicar_map(n_bloque, filename_script, filename_result);
+		log_trace(logger, "fin mapper guardado en %s", filename_result);
 		free(filename_script);
-		free(filename_result);
 
 		msg = argv_message(MAPPER_TERMINO, 0);
 		enviar_mensaje(fd, msg);
+		log_trace(logger, "Enviado MAPPER_TERMINO al job");
 		destroy_message(msg);
 
 		break;
@@ -632,7 +636,7 @@ void procesar_mensaje(int fd, t_msg* msg) {
 
 }
 void incicar_server() {
-	printf("Iniciado server nodo para FS y JOB. Puerto: %d\n", NODO_PORT());
+	log_trace(logger, "Iniciado server. Puerto: %d\n", NODO_PORT());
 
 	server_socket_select(NODO_PORT(), procesar_mensaje);
 }
@@ -789,7 +793,7 @@ void* data_get(char* filename) {
 			handle_error("fopen");
 		}
 
-		printf("creando archivo de %d bytes ...\n", TAMANIO_DATA);
+		log_trace(logger, "creando archivo de %d bytes ...\n", TAMANIO_DATA);
 		//lo creo con el tamaño maximo
 		void* dump = NULL;
 		dump = malloc(TAMANIO_DATA);
@@ -805,7 +809,8 @@ void* data_get(char* filename) {
 	TAMANIO_DATA = file_get_size(filename);
 	CANT_BLOQUES = TAMANIO_DATA / TAMANIO_BLOQUE_B;
 
-//el archivo ya esta creado con el size maximo
+	log_trace(logger, "Cant-bloques de 20mb: %d", CANT_BLOQUES);
+	//el archivo ya esta creado con el size maximo
 	return file_get_mapped(filename);
 }
 

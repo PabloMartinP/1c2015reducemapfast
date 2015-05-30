@@ -30,6 +30,7 @@ typedef struct {
 }t_map;
 
 t_list* mappers;
+t_log* logger;
 
 int JOB_ID;
 int conectar_con_marta();
@@ -39,23 +40,41 @@ int funcionMapping(t_map* map);
 int enviar_script_mapper(int fd);
 
 int funcionMapping(t_map* map){
+	bool resultado ;
 	//printf("%s:%d\n", map->ip, map->puerto);
+	log_trace(logger, "Conectando con nodo %s:%d", map->ip, map->puerto);
 	int fd = client_socket(map->ip, map->puerto);
 	t_msg* msg;
-	printf("%s\n", JOB_SCRIPT_MAPPER());
 	size_t tam = file_get_size(JOB_SCRIPT_MAPPER());
 	//envio el bloque a mapear y el nombre del archivo donde almacena el resultado y al final el tamaño del script
+	log_trace(logger, "Enviando %s, numero_bloque: %d", map->archivo_tmp, map->numero_bloque);
 	msg = string_message(JOB_MAPPER, map->archivo_tmp, 2, map->numero_bloque, tam);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
 
 	enviar_script_mapper(fd);
-
+	log_trace(logger, "Esperando respuesta a mapper en nodo %s:%d", map->ip, map->puerto);
 	msg = recibir_mensaje(fd);
+	log_trace(logger, "Respuesta recibida de mapper en nodo %s:%d", map->ip, map->puerto);
 	if(msg->header.id==MAPPER_TERMINO){
-		printf("El mapper termino OK\n");
-		//log_trace(logger, "El mapper termino OK");
+		log_trace(logger, "El mapper en nodo %s:%d termino OK", map->ip, map->puerto);
+		resultado = true;
 	}
+	else{
+		log_trace(logger, "El mapper en nodo %s:%d Termino CON ERRORES", map->ip, map->puerto);
+		resultado = false;
+	}
+
+	close(fd);
+
+	log_trace(logger, "Le aviso a Marta que el job finalizo");
+	//le tengo que avisar a marta que termino el map ya sea bien o mal
+	fd = client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA());
+	//paso el job_id asignado y el resultado
+	msg = argv_message(MAPPER_TERMINO, 2, JOB_ID, resultado);
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
+	log_trace(logger, "Mensaje enviado a marta con resultado: %d", resultado);
 
 	close(fd);
 	return 0;
@@ -68,6 +87,7 @@ int enviar_script_mapper(int fd){
 	//size_t tam = file_get_size(JOB_SCRIPT_MAPPER());
 	//enviar_mensaje_sin_header(fd, tam, script);
 	t_msg* msg = string_message(JOB_MAPPER, script, 0);
+	log_trace(logger, "Enviando script mapper");
 	enviar_mensaje(fd, msg);
 
 	file_mmap_free(script, JOB_SCRIPT_MAPPER());
@@ -77,6 +97,7 @@ int enviar_script_mapper(int fd){
 void crearHiloMapper(t_map* map){
 	pthread_t idHilo;
 
+	log_trace(logger, "Lanzando hilo mapper");
 	pthread_create(&idHilo, NULL, (void*)funcionMapping, (void*)map); //que párametro  ponemos??
 	pthread_join(idHilo, NULL); //el proceso espera a que termine el hilo
 
@@ -86,41 +107,33 @@ void crearHiloMapper(t_map* map){
 int conectar_con_marta(){
 	int res, i;
 	//conecto con marta
-	printf("conectando con marta\n");
+	log_trace(logger, "Conectando con marta");
 	int fd ;
 	if((fd= client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA()))==-1){
-		printf("No se pudo conectar con marta. MaRTA: %s:%d\n", JOB_IP_MARTA(), JOB_PUERTO_MARTA());
+		log_trace(logger, "No se pudo conectar con marta. MaRTA: %s:%d\n", JOB_IP_MARTA(), JOB_PUERTO_MARTA());
 		handle_error("client_socket");
 	}
-	printf("Conectado\n");
+	log_trace(logger, "Conectado con marta OK");
 
 	t_msg* msg;
-	msg = string_message(JOB_HOLA, "hola soy un job",0);
-
+	msg = argv_message(JOB_HOLA, 0);
 
 	//envio el mensaje
-	printf("enviando mensaje\n");
 	res = enviar_mensaje(fd, msg);
 	destroy_message(msg);
 	if(res==-1){
-		printf("no se pudo enviar mensaje a marta\n");
+		log_trace(logger, "no se pudo enviar mensaje a marta");
 		handle_error("enviar_mensaje");
 	}
-	printf("mensaje enviado\n");
-
-	printf("Esperando respuesta\n");
 	//recibo la respuesta
 	if((msg= recibir_mensaje(fd))==NULL){
 		handle_error("recibir_mensaje");
 	}
-	printf("Mensaje recibido\n");
-	//muestro el mensaje que me envio
-	print_msg(msg);
+
 	if(msg->header.id==MARTA_JOB_ID){
-		printf("COnexion co marta OK\n");
+		log_info(logger, "ID Job asignado por marta: %d", JOB_ID);
 		JOB_ID = msg->argv[0];//aca esta el id que asigno marta
 	}
-
 	destroy_message(msg);
 
 	/*
@@ -147,18 +160,20 @@ int conectar_con_marta(){
 	int cant_archivos = split_count(archivos);
 	//paso si es combiner o no, el archivo destino del resultado yla cantidad de archivos a procesar
 	msg = string_message(JOB_INFO, JOB_RESULTADO(), 2, JOB_COMBINER(), cant_archivos);
-
+	log_trace(logger, "Enviando archivos a marta para que me devuelva los bloques donde lanzar los hilos mappers");
+	log_trace(logger, "CantArchivos a enviar: %d", cant_archivos);
 	enviar_mensaje(fd, msg);
 	//print_msg(msg);
 	destroy_message(msg);
 
 	//empiezo a enviar los archivos uno por uno
 	for(i=0;archivos[i]!=NULL;i++){
-		printf("archivo %d: %s\n", i, archivos[i]);
+		log_trace(logger, "Archivo %d: %s\n", i, archivos[i]);
 		msg = string_message(JOB_ARCHIVO, archivos[i], 0);
 		enviar_mensaje(fd, msg);
 		destroy_message(msg);
 	}
+	log_trace(logger, "Fin envio archivos");
 
 	//libero archivos
 	free_split(archivos);
@@ -167,11 +182,14 @@ int conectar_con_marta(){
 	//ahora me tiene que contestar donde estan(nodo) y que blqoues para lanzar los mappers
 
 	//primero me manda la cantidad de mappers
+	log_trace(logger, "Comienzo a recibir los nodos-bloque donde lanzar los mappers");
 	mappers = recibir_mappers(fd);
+	log_trace(logger, "Fin recepcion de nodos-bloque para mappers");
 
 	//creo los hilos mappers
+	log_trace(logger, "Comienzo a crear hilos mappers");
 	list_iterate(mappers, (void*)crearHiloMapper);
-
+	log_trace(logger, "Fin de creacion de hilos mappers");
 
 
 	return 0;
@@ -181,19 +199,21 @@ t_list* recibir_mappers(int fd){
 	t_list* lista = list_create();
 	t_msg* msg;
 	msg = recibir_mensaje(fd);
-	print_msg(msg);
+	//print_msg(msg);
 	int cant_mappers = msg->argv[0];
+	log_trace(logger, "Cant. Mappers: %d", cant_mappers);
 	destroy_message(msg);
 	int i;
 	t_map* map = NULL;
 	for (i = 0; i < cant_mappers; i++) {
-
+		log_trace(logger, "Mapper %d", i);
 		map = malloc(sizeof(t_map));
 		//recibo primero el nombre del archivo que va usar para guardar en el tmp del nodo
 		msg = recibir_mensaje(fd);
-		print_msg(msg);
+		//print_msg(msg);
 		map->archivo_tmp = string_new();
 		string_append(&(map->archivo_tmp), msg->stream);
+		log_trace(logger, "Nombre archivo donde guardar el resultado(en tmp del nodo): %s", msg->stream);
 		destroy_message(msg);
 
 		//recibo el ip, puerto y nrobloque
@@ -202,6 +222,7 @@ t_list* recibir_mappers(int fd){
 		strcpy(map->ip, msg->stream);
 		map->puerto = msg->argv[0];
 		map->numero_bloque = msg->argv[1];
+		log_trace(logger, "Ubicacion: %s:%d numero_bloque: %d", map->ip, map->puerto, map->numero_bloque);
 		destroy_message(msg);
 
 		list_add(lista, (void*)map);

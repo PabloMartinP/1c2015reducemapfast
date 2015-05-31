@@ -690,37 +690,28 @@ int NODO_CANT_BLOQUES() {
 
 void probar_conexion_fs() {
 
-	log_trace(logger, "conectado al FS ... ");
+	log_trace(logger, "Conectado al FS ... ");
 
 	int fs;
 
 	if ((fs = client_socket(NODO_IP_FS(), NODO_PORT_FS())) > 0) {
-		printf("Conectado\n");
+		log_trace(logger, "Conectado");
 		//t_msg* msg= id_message(NODO_CONECTAR_CON_FS);
 		t_msg* msg = NULL;
 		msg = argv_message(NODO_CONECTAR_CON_FS,  0);
-		printf("enviavndo mensaje al fs\n");
 		if (enviar_mensaje(fs, msg) < 0) {
-			puts("ERROR: Se ha perdido la conexión con el fs.");
+			log_trace(logger, "Error al enviar mensaje al FS");
 			exit(EXIT_FAILURE);
 		}
 		destroy_message(msg);
 
-		printf("recibiendo respueta\n");
 		if ((msg = recibir_mensaje(fs)) == NULL) {
-			puts("ERROR: Se ha perdido la conexión con el fs.\n");
+			log_trace(logger, "Error al recibir mensaje del FS");
 			exit(EXIT_FAILURE);
 		}
 
-		print_msg(msg);
 		if (msg->header.id == FS_NODO_QUIEN_SOS) {
-			printf("el fs me pregunta quien soy, le digo mi ip y port\n");
-
 			destroy_message(msg);
-
-			/*
-			 t_nodo* nodo = nodo_new(NODO_IP(), NODO_PORT(), NODO_NUEVO(), NODO_CANT_BLOQUES());
-			 enviar_mensaje_flujo(fs, 1, sizeof(t_nodo), nodo);*/
 
 			msg = string_message(RTA_FS_NODO_QUIEN_SOS, NODO_IP(), 4, NODO_PORT(), NODO_NUEVO(), NODO_CANT_BLOQUES(), NODO_ID());
 			if ((enviar_mensaje(fs, msg)) < 0) {
@@ -729,17 +720,18 @@ void probar_conexion_fs() {
 			}
 			destroy_message(msg);
 
-			printf("mensaje de ip y puerto enviado\n");
+			log_trace(logger, "Info enviada al FS");
 
 		} else
-			printf("No se pudo conectar con el fs");
+			log_trace(logger, "No se pudo conectar con el fs");
 
 		//close(fs);
-		printf("Conectado con fs en %s:%d\n", NODO_IP_FS(), NODO_PORT_FS());
-	} else {
-		printf("No pudo iniciar la escucha al fs\n");
-	}
+		log_trace(logger, "Conectado con fs en %s:%d\n", NODO_IP_FS(), NODO_PORT_FS());
 
+		log_trace(logger, "Id: %d, %s:%d, Cant_bloques: %d, bin: %s, dirtmp: %s, nuevo:%d", NODO_ID(), NODO_IP(), NODO_PORT(), NODO_CANT_BLOQUES(), NODO_ARCHIVOBIN(), NODO_DIRTEMP(), NODO_NUEVO());
+	} else {
+		log_trace(logger, "No se pudo iniciar la escucha con el FS");
+	}
 }
 void finalizar() {
 	data_destroy();

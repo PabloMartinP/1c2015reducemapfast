@@ -5,17 +5,14 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../nodo.c \
-../socket.c \
 ../util.c 
 
 OBJS += \
 ./nodo.o \
-./socket.o \
 ./util.o 
 
 C_DEPS += \
 ./nodo.d \
-./socket.d \
 ./util.d 
 
 

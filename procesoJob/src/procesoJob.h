@@ -188,7 +188,26 @@ int conectar_con_marta(){
 
 	//creo los hilos mappers
 	log_trace(logger, "Comienzo a crear hilos mappers");
-	list_iterate(mappers, (void*)crearHiloMapper);
+	pthread_t *threads = malloc(list_size(mappers)*(sizeof(pthread_t)));
+	i=0;
+	void _crear_hilo_mapper(t_map* map){
+		pthread_create(threads + i, NULL, (void*)funcionMapping, (void*)map); //que párametro  ponemos??
+		i++;
+	}
+	list_iterate(mappers, (void*)_crear_hilo_mapper);
+	i=0;
+	int* res_map = malloc(sizeof(int)*list_size(mappers));
+	void _join_hilo_mapper(t_map* map){
+		if (pthread_join (threads[i], (void**)res_map+i))
+		   printf("Error mapper!!!!!!!!!!!!!!!!!\n");
+
+		printf("Resultado Map=%d", res_map[i]);
+		i++;
+	}
+	list_iterate(mappers, (void*)_join_hilo_mapper);
+	free(threads);threads=NULL;
+	free(res_map);res_map = NULL;
+
 	log_trace(logger, "Fin de creacion de hilos mappers");
 
 

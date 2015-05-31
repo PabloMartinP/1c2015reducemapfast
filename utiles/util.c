@@ -5,19 +5,7 @@
  *      Author: utnso
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 #include "util.h"
-#include <stdlib.h>
-
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <netinet/in.h>
-#include <net/if.h>
 
 size_t file_get_size(char* filename) {
 	struct stat st;
@@ -63,6 +51,15 @@ char* ip_get(){
 	return ip;
 }
 */
+
+int len_hasta_enter(char* strings){
+		int i=0;
+		while(strings[i]!='\n' && strings[i]!='\0')
+			i++;
+
+		return i+1;
+	}
+
 
 void file_mmap_free(char* mapped, char* filename) {
 	munmap(mapped, file_get_size(filename));

@@ -751,22 +751,8 @@ t_list* fs_importar_archivo(char* archivo) {
 	char* mapped = file_get_mapped(archivo);
 
 	int nro_bloque = 0;
-	//spliteo por enter
-/*
-	char** registros = string_split(mapped, "\n");
-	int c_registros = cant_registros(registros);
-	printf("cant registros: %d\n", c_registros);
-*/
-	//int i;
 	size_t bytes_leidos = 0, offset = 0;
 
-	int len_hasta_enter(char* strings){
-		int i=0;
-		while(strings[i]!='\n' && strings[i]!='\0')
-			i++;
-
-		return i+1;
-	}
 	int len_aux;
 	for (bytes_leidos = 0, offset = 0; bytes_leidos+offset < size; ) {
 		len_aux = len_hasta_enter(mapped+bytes_leidos+offset);

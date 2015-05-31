@@ -20,6 +20,18 @@
 #include <netdb.h>
 #include <unistd.h>
 
+#include <stdio.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <net/if.h>
+
+
 #include "commons/string.h"
 
 #include <stdbool.h>
@@ -141,7 +153,7 @@ int client_socket(char* ip, uint16_t port);
  */
 int accept_connection(int sock_fd);
 int accept_connection_and_get_ip(int sock_fd, char **ip);
-
+int len_hasta_enter(char* strings);
 /*
  * Recibe un t_msg a partir de un socket determinado.
  */

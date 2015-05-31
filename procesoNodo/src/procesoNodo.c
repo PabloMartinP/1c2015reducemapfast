@@ -403,13 +403,13 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		// Write to child’s stdin
 		char* stdinn = getBloque(n_bloque);
 
-		size_t len = strlen(stdinn) +1;
-		if(stdinn[len-2]!='\n'){
+		size_t len = strlen(stdinn);
+		if(stdinn[len-1]!='\n'){
 			len +=1;
 			stdinn= realloc(stdinn, len);
-			stdinn[len-1] = '\0';
+			stdinn[len] = '\0';
 			//printf("%s\n", stdinn);
-			stdinn[len - 2] = '\n';
+			stdinn[len - 1] = '\n';
 		}
 
 		log_trace(logger, "Escribiendo en stdin bloque %d", n_bloque);
@@ -419,24 +419,26 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		FILE* file_disorder = txt_open_for_append(new_file_map_disorder);
 
 		log_trace(logger, "Empezando a leer stdout y guardar en archivo %s",new_file_map_disorder);
-		char* buffer = malloc(1024);
+		char* buffer = malloc(LEN_KEYVALUE);
 
 		int bytes_escritos=0;
 		int i=0;
-		int len_buff_write=1024;
-		int len_buff_read=1024;
+
+
+
+		//inicializo en el primer enter
+		int len_buff_write=0;
+		int len_buff_read=LEN_KEYVALUE;
+
 		if(len<len_buff_write)
 			len_buff_write = len;
 
 		do{
+			len_buff_write=len_hasta_enter(stdinn + (i*bytes_escritos));
 			bytes_escritos = write(PARENT_WRITE_FD, stdinn + (i*bytes_escritos), len_buff_write);
 			//printf("faltante > %d\n", len);
 			len = len - bytes_escritos;
 
-			if(len< len_buff_write){
-				//printf("menoorrrrrr\n");
-				len_buff_write = len;
-			}
 
 			count = read(PARENT_READ_FD, buffer, len_buff_read);
 			fwrite(buffer, count, 1, file_disorder);
@@ -563,8 +565,7 @@ char* generar_nombre_tmp(){
 
 
 void procesar_mensaje(int fd, t_msg* msg) {
-	//int rs;
-	//print_msg(msg);
+
 	char* filename_script;
 	char* filename_result;
 	char* script;

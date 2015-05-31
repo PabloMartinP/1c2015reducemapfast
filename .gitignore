@@ -33,6 +33,7 @@
 
 procesoNodo/data.bin
 procesoNodo/log.txt
+procesoNodo/config.txt
 procesoNodo/Debug/
 
 procesoFileSystem/log.txt
@@ -41,15 +42,19 @@ procesoFileSystem/mdfs_archivos.bin
 procesoFileSystem/mdfs_bloques.bin
 procesoFileSystem/mdfs_directorios.bin
 procesoFileSystem/mdfs_nodos.bin
+procesoFileSystem/config.txt
+
 
 procesoJob/Debug
 procesoJob/log.txt
+procesoJob/jobConfig.txt
 procesoJob/reduce.sh~
 procesoJob/map.sh~
 
 
-utiles/Debug/
+utiles/Debug
 
 procesoMaRTA/Debug
+procesoMaRTA/config.txt
 procesoMaRTA/log.txt
 

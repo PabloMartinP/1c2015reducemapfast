@@ -90,7 +90,7 @@ void procesar (int fd, t_msg*msg){
 		case JOB_HOLA://cuando llega un job nuevo
 			//la idea es que le pida al job todos los datos basicos que quiere,
 			destroy_message(msg);
-
+			log_trace(logger, "Un nuevo nodo se conecto al FS");
 			JOB_ID++;//sumo uno en el contador y se lo paso al job
 			msg = string_message(MARTA_JOB_ID, "hola job soy marta te paso el id", 1,JOB_ID);
 			res = enviar_mensaje(fd, msg);
@@ -151,11 +151,9 @@ void procesar (int fd, t_msg*msg){
 				enviar_mensaje(fd, msg);
 				destroy_message(msg);
 
-
-
 				ne->aplicando_map = true;
 				ne->empezo = true;
-				log_trace(logger, "Mapper enviado al job %d", job->id);
+				log_trace(logger, "Mapper enviado al job %d, Nodo_id: %d, %s:%d, bloque:%d", job->id, ne->nodo->base->id, ne->nodo->base->red.ip, ne->nodo->base->red.puerto, ne->nodo->numero_bloque);
 			}
 			list_iterate(marta.nodos, (void*)_enviar_map_a_job);
 
@@ -360,19 +358,21 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque){//lista de t
 	int MAX = 9999;
 	//si no esta vivo busco alguna otra copia
 	int copia_cant_veces_usada[BLOQUE_CANT_COPIAS];	//inicializo en un nmero maximo para sacar el menor
-	for (n_copia = 1; n_copia <= BLOQUE_CANT_COPIAS; n_copia++) {//o tambien list_size(nodos_Bloque)
-		anb = list_get(nodos_bloque, BLOQUE_CANT_COPIAS-n_copia);//tomo el 3, despues 2 y luego 1
+	log_trace(logger, "Cantidad de copias del bloque: %d", BLOQUE_CANT_COPIAS);
+	for (n_copia = BLOQUE_CANT_COPIAS-1; n_copia >= 0; n_copia--) {//o tambien list_size(nodos_Bloque)
+		anb = list_get(nodos_bloque, n_copia);//tomo el 3, despues 2 y luego 1, por eso empieza en n_copia = BLOQUE_CANT_COPIAS
+		log_trace(logger, "Copia numero: %d, nodo_id: %d, %s:%d", n_copia+1, anb->base->id, anb->base->red.ip, anb->base->red.puerto);
 		if (nodo_esta_vivo(anb->base->red.ip, anb->base->red.puerto)) {
-			copia_cant_veces_usada[n_copia-1] = marta_contar_nodo(anb->base->id);
-			log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", anb->base->id, anb->base->red.ip, anb->base->red.puerto, copia_cant_veces_usada[n_copia-1]);
-			if(copia_cant_veces_usada[n_copia-1]==0){//si es igual a 0 no se esta usando, se termino la busqueda de un nodo no usado
-				log_trace(logger, "nodo_id %d correspondiente a la copia %d", anb->base->id, n_copia);
-				return n_copia;//
+			copia_cant_veces_usada[n_copia] = marta_contar_nodo(anb->base->id);
+			log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", anb->base->id, anb->base->red.ip, anb->base->red.puerto, copia_cant_veces_usada[n_copia]);
+			if(copia_cant_veces_usada[n_copia]==0){//si es igual a 0 no se esta usando, se termino la busqueda de un nodo no usado
+				log_trace(logger, "nodo_id %d correspondiente a la copia %d", anb->base->id, n_copia+1);
+				return n_copia;//-1 porque la lista empieza en -1
 			}
 		} else{
 			log_trace(logger, "Nodo id:%d, %s:%d no disponible", anb->base->id, anb->base->red.ip, anb->base->red.puerto);
 			//en caso de que no este vivo le asigno un nro alto asi no lo tiene encuenta cuando saca el menor
-			copia_cant_veces_usada[n_copia-1] = MAX;
+			copia_cant_veces_usada[n_copia] = MAX;
 		}
 	}
 
@@ -380,9 +380,9 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque){//lista de t
 	//si llego hasta aca significa que todos los nodos de las 3 copias estan siendo usados
 	//ahora solo me queda sacar el menor y usarlo
 	int copia_menos_usada = MAX;
-	for (n_copia = 1; n_copia <= BLOQUE_CANT_COPIAS; n_copia++) {
-		log_trace(logger, "Copia %d - cant-veces que esta siendo usado actualmente: %d", n_copia, copia_cant_veces_usada[n_copia-1]);
-		if (copia_cant_veces_usada[n_copia-1] < copia_menos_usada) {
+	for (n_copia = 0; n_copia < BLOQUE_CANT_COPIAS; n_copia++) {
+		log_trace(logger, "Copia %d - cant-veces que esta siendo usado actualmente: %d", n_copia+1, copia_cant_veces_usada[n_copia]);
+		if (copia_cant_veces_usada[n_copia] < copia_menos_usada) {
 			copia_menos_usada = n_copia;
 		}
 	}
@@ -391,10 +391,11 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque){//lista de t
 	if (copia_menos_usada != MAX) {
 		//paso el nodo
 		anb = list_get(nodos_bloque, copia_menos_usada);//
-		log_trace(logger, "La copia menos usada es %d con nodo_id:%d", copia_menos_usada, anb->base->id);
+		log_trace(logger, "La copia menos usada es %d con nodo_id:%d", copia_menos_usada+1, anb->base->id);
 		return copia_menos_usada;
 	} else {
 		//errror todos los bloques
+		log_trace(logger, "TOdos los nodos desconectados!!!!!!!!!!!!!!");
 		return -1;
 	}
 }
@@ -408,6 +409,7 @@ int planificar_mappers(int job_id, t_list* bloques_de_datos){
 	t_archivo_nodo_bloque* cnb;
 	t_archivo_bloque_con_copias* bloque;
 	for (i = 0; i < list_size(bloques_de_datos); i++) {
+		log_trace(logger, "Inicio Planificacion Bloque %d", i);
 		bloque = list_get(bloques_de_datos, i);
 		numero_copia = obtener_numero_copia_disponible_para_map(bloque->nodosbloque);
 		cnb =  list_get(bloque->nodosbloque, numero_copia);
@@ -420,6 +422,7 @@ int planificar_mappers(int job_id, t_list* bloques_de_datos){
 			log_trace(logger, "ninguna copia disponible para el bloque %d", bloque->numero_bloque);
 			return -1;
 		}
+		log_trace(logger, "Fin Planificacion Bloque %d", i);
 	}
 	//hasta aca tengo la lista de nodos, ahora solo me queda mandarselos al job
 

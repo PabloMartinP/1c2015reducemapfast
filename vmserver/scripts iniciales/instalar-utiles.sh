@@ -1,10 +1,10 @@
 #!/bin/bash
-# My first script
 
-cd /home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/vmserver/utiles/Debug
+cp -a /home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/vmserver/utiles/.  /home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/utiles/
 
-cp -a Escritorio/git/tp-2015-1c-dalemartadale/vmserver/utiles/.  Escritorio/git/tp-2015-1c-dalemartadale/utiles/
+cd /home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/utiles/Debug
 
+make clean
 make
 
 

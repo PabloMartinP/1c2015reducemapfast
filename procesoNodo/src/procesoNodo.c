@@ -402,28 +402,68 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 
 		// Write to child’s stdin
 		char* stdinn = getBloque(n_bloque);
-		size_t len = strlen(stdinn) + 1;
-		stdinn[len - 1] = '\0';
-		stdinn[len - 2] = '\n';
-		write(PARENT_WRITE_FD, stdinn, len);
-		close(PARENT_WRITE_FD);
-		FREE_NULL(stdinn);
 
+		size_t len = strlen(stdinn) +1;
+		if(stdinn[len-2]!='\n'){
+			len +=1;
+			stdinn= realloc(stdinn, len);
+			stdinn[len-1] = '\0';
+			//printf("%s\n", stdinn);
+			stdinn[len - 2] = '\n';
+		}
+
+		log_trace(logger, "Escribiendo en stdin bloque %d", n_bloque);
 		// Read from child’s stdout
 		char* new_file_map_disorder = convertir_a_temp_path_filename(filename_result);
 		string_append(&new_file_map_disorder, "-disorder.tmp");
 		FILE* file_disorder = txt_open_for_append(new_file_map_disorder);
 
+		log_trace(logger, "Empezando a leer stdout y guardar en archivo %s",new_file_map_disorder);
 		char* buffer = malloc(1024);
-		do {
-			count = read(PARENT_READ_FD, buffer, 1024);
+
+		int bytes_escritos=0;
+		int i=0;
+		int len_buff_write=1024;
+		int len_buff_read=1024;
+		if(len<len_buff_write)
+			len_buff_write = len;
+
+		do{
+			bytes_escritos = write(PARENT_WRITE_FD, stdinn + (i*bytes_escritos), len_buff_write);
+			//printf("faltante > %d\n", len);
+			len = len - bytes_escritos;
+
+			if(len< len_buff_write){
+				//printf("menoorrrrrr\n");
+				len_buff_write = len;
+			}
+
+			count = read(PARENT_READ_FD, buffer, len_buff_read);
 			fwrite(buffer, count, 1, file_disorder);
-		} while (count != 0);
+			i++;
+			//printf("faltante >>>> %d\n", len);
+		}while(len>0);
+
+		if(res==-1){
+			log_trace(logger, "Error al escribir en stdin");
+			return -1;
+		}
+
+		close(PARENT_WRITE_FD);
+		log_trace(logger, "Fin escritura stdin bloque %d", n_bloque);
+		FREE_NULL(stdinn);
+
+
+
 		close(PARENT_READ_FD);
 		txt_close_file(file_disorder);
 		FREE_NULL(buffer);
+		log_trace(logger, "Fin lectura stdout, guardado en archivo %s", new_file_map_disorder);
+
+		log_trace(logger, "Ordenando archivo %s", new_file_map_disorder);
 		ordenar_y_guardar_en_temp(new_file_map_disorder, filename_result);//guardo el file definitivo en el tmp
 		FREE_NULL(new_file_map_disorder);
+		log_trace(logger, "Fin orden, generado archivo final > %s", filename_result);
 
 		return res;
 	}
@@ -443,7 +483,9 @@ int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {
 
 	//printf("%s\n", commando_ordenar);
 
+	log_trace(logger, "Empezando a ordenar archivo: %s", commando_ordenar);
 	system(commando_ordenar);
+	log_trace(logger, "Fin Comando ordenar");
 	FREE_NULL(commando_ordenar);
 
 	//borro el file
@@ -765,6 +807,7 @@ void setBloque(int32_t numero, char* bloquedatos) {
 	log_info(logger, "Inicio setBloque(%d)", numero);
 
 	//memcpy((void*)(_data[numero*TAMANIO_BLOQUE]), bloquedatos, TAMANIO_BLOQUE);
+	memset(_data + (numero * TAMANIO_BLOQUE_B), 0, TAMANIO_BLOQUE_B);
 	memcpy(_data + (numero * TAMANIO_BLOQUE_B), bloquedatos, TAMANIO_BLOQUE_B);
 
 	log_info(logger, "Fin setBloque(%d)", numero);

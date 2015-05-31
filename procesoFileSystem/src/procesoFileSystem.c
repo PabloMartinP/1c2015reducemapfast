@@ -438,13 +438,23 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 		t_nodo* nodo ;
 		pthread_mutex_lock(&mutex);
 
-		nodo = nodo_new(msg->stream, msg->argv[0], (bool) msg->argv[1],	msg->argv[2], msg->argv[3]); //0 puerto, 1 si es nuevo o no, 2 es la cant bloques
+
+		//verifico si es un nodo que se desconecto
+		if(fs_buscar_nodo_por_id(msg->argv[3])==NULL){
+			//si no estaba significa que es nuevo, lo agrego
+			nodo = nodo_new(msg->stream, msg->argv[0], (bool) msg->argv[1],	msg->argv[2], msg->argv[3]); //0 puerto, 1 si es nuevo o no, 2 es la cant bloques
+			list_add(fs.nodos_no_agregados, (void*) nodo);
+
+			//printf("Se conecto el nodo %d,  %s:%d | %s\n", nodo->base->id,nodo->base->red.ip, nodo->base->red.puerto, nodo_isNew(nodo));
+			log_info(logger, "Se conecto el nodo %d,  %s:%d | %s", nodo->base->id,nodo->base->red.ip, nodo->base->red.puerto, nodo_isNew(nodo));
+		}else{
+			log_trace(logger,"el nodo %d se ha reconecto", msg->argv[3]);
+		}
+
 		destroy_message(msg);
 
-		list_add(fs.nodos_no_agregados, (void*) nodo);
 
-		//printf("Se conecto el nodo %d,  %s:%d | %s\n", nodo->base->id,nodo->base->red.ip, nodo->base->red.puerto, nodo_isNew(nodo));
-		log_info(logger, "Se conecto el nodo %d,  %s:%d | %s", nodo->base->id,nodo->base->red.ip, nodo->base->red.puerto, nodo_isNew(nodo));
+
 
 		//ESTO NO VA PERO LO AGREGO PARA NO TENER QUE ESTAR AGREGANDO EL NODO CADA VEZ QUE LEVANTO EL FS
 		//nodo_agregar(nodo->base->id);

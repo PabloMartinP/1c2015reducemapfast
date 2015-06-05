@@ -36,10 +36,6 @@ typedef struct {
 }t_bloque;
 
 typedef struct {
-	int id;
-	t_red red;
-}t_nodo_base;
-typedef struct {
 	t_nodo_base* base;
 	int cant_bloques;
 	bool conectado;

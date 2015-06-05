@@ -17,7 +17,6 @@ int main(int argc, char *argv[]) {
 	jobConfig = config_create(FILE_CONFIG);
 	logger = log_create(FILE_LOG, "JOB", true, LOG_LEVEL_TRACE);
 
-	printf("%s", JOB_IP_MARTA());
 
 	//test conexion con marta
 	conectar_con_marta();

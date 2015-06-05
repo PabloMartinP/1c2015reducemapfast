@@ -65,6 +65,8 @@
 
 /* FIN Funciones Macro */
 
+
+
 /****************** IDS DE MENSAJES. ******************/
 
 typedef enum {
@@ -97,10 +99,29 @@ typedef enum {
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/
+
 typedef struct{
 	char ip[15];
 	int puerto;
 }t_red;
+
+typedef struct {
+	int id;
+	t_red red;
+}t_nodo_base;
+
+typedef struct{
+	int id;
+	t_nodo_base* nodo_base;
+	char* resultado;//el nombre del archivo ya mapeado(solo el nombre porque siempre lo va buscar en el tmp del nodo)
+	bool termino;//para saber si termino
+}t_mapreduce;
+
+typedef struct{
+	t_mapreduce* info;
+	int numero_bloque;//para saber que bloque tengo que aplicarle el map
+}t_map;
+
 
 typedef struct {
 	int8_t type;
@@ -130,8 +151,10 @@ float bytes_to_megabytes(size_t bytes);
 int cant_registros(char** registros) ;
 int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer);
 int recibir_mensaje_flujo(int unSocket, void** buffer);
-
+t_map* map_create(int id, int numero_bloque, char* resultado);
+t_mapreduce* mapreduce_create(int id, char* resultado);
 int enviar_mensaje_sin_header(int sock_fd, int tamanio, void* buffer);
+void map_free(t_map* map);
 
 /****************** FUNCIONES SOCKET. ******************/
 int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*));

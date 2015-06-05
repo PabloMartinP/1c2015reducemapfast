@@ -13,6 +13,33 @@ size_t file_get_size(char* filename) {
 	return st.st_size;
 }
 
+void map_free(t_map* map){
+	FREE_NULL(map->info->nodo_base);
+	FREE_NULL(map->info->resultado);
+	FREE_NULL(map->info);
+	FREE_NULL(map);
+
+}
+
+t_mapreduce* mapreduce_create(int id, char* resultado){
+	t_mapreduce* new = malloc(sizeof*new);
+	new->id = id;
+	new->resultado = string_new();
+	string_append(&(new->resultado), resultado);
+	new->termino = false;
+	return new;
+}
+
+t_map* map_create(int id, int numero_bloque, char* resultado){
+	t_map* new = malloc(sizeof*new);
+
+	new->info = mapreduce_create(id, resultado);
+
+	new->numero_bloque  = numero_bloque;
+
+	return new;
+}
+
 //une alos dos string con una barra
 char* file_combine(char* f1, char* f2) {
 	char* p = NULL;

@@ -11,19 +11,6 @@
 #include <nodo.h>
 
 typedef struct{
-	int id;
-	char* ip;//para conectarme con el nodo
-	int puerto;//para conectarme con el nodo
-	char* resultado;//el nombre del archivo ya mapeado(solo el nombre porque siempre lo va buscar en el tmp del nodo)
-	bool termino;//para saber si termino
-}t_mapreduce;
-
-typedef struct{
-	t_mapreduce info;
-	int n_bloque;//para saber que bloque tengo que aplicarle el map
-}t_map;
-
-typedef struct{
 
 	t_mapreduce info;
 }t_reduce;
@@ -37,6 +24,8 @@ typedef struct {
 	t_list* archivos;//lista de archivos a procesar
 	bool combiner;
 	char* resultado;//el nombre del archivo resultado final
+	t_list* mappers;
+
 }t_job;
 
 typedef struct {
@@ -44,6 +33,7 @@ typedef struct {
 	bool empezo;
 	bool aplicando_map;
 	bool aplicando_reduce;
+	int id_map_reduce;
 }t_nodo_estado;
 
 typedef struct {
@@ -109,16 +99,16 @@ t_job* marta_create_job(char* resultado, bool combiner){
 	new->combiner = combiner;
 	new->id = JOB_ID++;//le asigno un nuevo id
 
+	new->mappers = list_create();
+
 	return new;
 }
 
-t_map* marta_create_map(char* archivo){
-	t_map* new = malloc(sizeof*new);
+t_map* marta_create_map(char* archivo, t_nodo_estado* ne){
+	JOB_MAP_ID++;
+	t_map* new = map_create(JOB_MAP_ID, ne->nodo->numero_bloque, archivo);
+	new->info->nodo_base = ne->nodo->base;
 
-	new->info.termino = false;
-
-
-	new->info.id  = JOB_MAP_ID++;
 	return new;
 }
 

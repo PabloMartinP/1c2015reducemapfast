@@ -139,21 +139,27 @@ void procesar (int fd, t_msg*msg){
 			log_trace(logger, "Comienzo a enviar los mappers que tiene lanzar el job");
 
 			void _enviar_map_a_job(t_nodo_estado* ne){
-				//envio el nombre del archivo
+				//envio primero el nombre del archivo
 				char* nombre_temp_map = generar_nombre_map(job);
 				msg = string_message(JOB_MAPPER, nombre_temp_map, 0);
 				enviar_mensaje(fd, msg);
 				destroy_message(msg);
-				free(nombre_temp_map);
+				//creo el map para agregar al job
+				t_map* map = marta_create_map(nombre_temp_map, ne);
+				free(nombre_temp_map);nombre_temp_map = NULL;
 
-				//2 args, puerto, numero_bloque
-				msg = string_message(JOB_MAPPER, ne->nodo->base->red.ip, 2, ne->nodo->base->red.puerto, ne->nodo->numero_bloque);
+				//ahora envio la info para conectarse
+				// args, puerto, numero_bloque, id_map, id_nodo
+				msg = string_message(JOB_MAPPER, ne->nodo->base->red.ip, 4, ne->nodo->base->red.puerto, ne->nodo->numero_bloque, map->info->id, map->info->nodo_base->id);
 				enviar_mensaje(fd, msg);
 				destroy_message(msg);
 
 				ne->aplicando_map = true;
 				ne->empezo = true;
-				log_trace(logger, "Mapper enviado al job %d, Nodo_id: %d, %s:%d, bloque:%d", job->id, ne->nodo->base->id, ne->nodo->base->red.ip, ne->nodo->base->red.puerto, ne->nodo->numero_bloque);
+				log_trace(logger, "Mapper %d enviado al job %d, Nodo_id: %d, %s:%d, bloque:%d",map->info->id, job->id, ne->nodo->base->id, ne->nodo->base->red.ip, ne->nodo->base->red.puerto, ne->nodo->numero_bloque);
+
+				//cargo el mapper en la lista de mappers del job
+				list_add(job->mappers, (void*)map);
 			}
 			list_iterate(marta.nodos, (void*)_enviar_map_a_job);
 
@@ -184,7 +190,7 @@ void procesar (int fd, t_msg*msg){
 		case MAPPER_TERMINO:
 			//cuando un map termino el job le avisa al fs
 
-			log_trace(logger, "TERMINO UN MAP del job %d. Resultado: ", msg->argv[0], msg->argv[1]);
+			log_trace(logger, "TERMINO el MAP %d del job %d. Resultado: ", msg->argv[2], msg->argv[0], msg->argv[1]);
 			destroy_message(msg);
 
 			//marcaria el map del job como termino=true

@@ -13,6 +13,7 @@ size_t file_get_size(char* filename) {
 	return st.st_size;
 }
 
+
 void map_free(t_map* map){
 	FREE_NULL(map->info->nodo_base);
 	FREE_NULL(map->info->resultado);
@@ -199,6 +200,7 @@ int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*)) {
 						close(i);
 						FD_CLR(i, &master);
 					} else {
+						//print_msg(msg);
 						procesar_mensaje(i, msg);
 
 					}
@@ -534,7 +536,7 @@ void destroy_message(t_msg *msg) {
 	else
 		if(msg->stream != NULL && string_is_empty(msg->stream))
 			FREE_NULL(msg->stream);
-	if (msg->header.argc && msg->argv != NULL)
+	//if (msg->header.argc && msg->argv != NULL)
 		FREE_NULL(msg->argv);
 	FREE_NULL(msg);
 }
@@ -747,8 +749,15 @@ char *id_string(t_msg_id id) {
 	case NODO_GET_FILECONTENT:
 		buf = strdup("NODO_GET_FILECONTENT");
 		break;
-
-
+	case FS_AGREGO_NODO:
+		buf = strdup("FS_AGREGO_NODO");
+		break;
+	case FS_ESTA_OPERATIVO:
+		buf = strdup("FS_ESTA_OPERATIVO");
+		break;
+	case JOB_INFO:
+		buf = strdup("JOB_INFO");
+		break;
 	}
 	return buf;
 }

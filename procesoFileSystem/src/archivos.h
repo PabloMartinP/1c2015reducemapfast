@@ -38,6 +38,7 @@ t_archivo* arch_crear();
 void arch_print(t_archivo* archivo);
 void arch_print_info(t_archivo_info* info);
 void arch_print_bloques(t_list* bloques_de_datos);
+
 void arch_destroy(t_archivo* archivo);
 t_archivo_bloque_con_copias* arch_buscar_bloque(t_archivo* archivo, int numero_bloque);
 
@@ -45,6 +46,9 @@ t_archivo_bloque_con_copias* arch_buscar_bloque(t_archivo* archivo, int numero_b
 /*
  * ***********************************
  */
+
+
+
 
 t_archivo_bloque_con_copias* arch_buscar_bloque(t_archivo* archivo, int numero_bloque){
 	t_archivo_bloque_con_copias* bloque = NULL;
@@ -90,11 +94,6 @@ void arch_print_info(t_archivo_info* info){
 	printf(">> Cantdidad de bloques: %d\n", info->cant_bloques);
 }
 
-void bloque_de_datos_destroy(t_archivo_bloque_con_copias* bloque_de_datos){
-	list_destroy_and_destroy_elements(bloque_de_datos->nodosbloque, free);
-	FREE_NULL(bloque_de_datos);
-}
-
 t_archivo* arch_crear(){
 	t_archivo* new = malloc(sizeof *new);
 	new->bloques_de_datos = list_create();
@@ -105,7 +104,8 @@ t_archivo* arch_crear(){
 void arch_destroy(t_archivo* archivo){
 	//FREE_NULL(archivo->info);
 	free(archivo->info);archivo->info = NULL;
-	list_destroy_and_destroy_elements(archivo->bloques_de_datos, (void*)bloque_de_datos_destroy);
+
+	list_destroy_and_destroy_elements(archivo->bloques_de_datos, (void*)bloque_de_datos_destroy_no_free_base);
 	//FREE_NULL(archivo);
 	free(archivo);archivo = NULL;
 }

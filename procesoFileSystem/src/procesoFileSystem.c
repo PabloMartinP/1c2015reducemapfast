@@ -375,7 +375,7 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 
 	case FS_ESTA_OPERATIVO:
 		destroy_message(msg);
-		msg = argv_message(FS_ESTA_OPERATIVO, OPERATIVO);
+		msg = argv_message(FS_ESTA_OPERATIVO, 1, OPERATIVO);
 		enviar_mensaje(fd, msg);
 		destroy_message(msg);
 		break;
@@ -414,7 +414,7 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 
 
 		break;
-	case MARTA_HOLA:
+	/*case MARTA_HOLA:
 		//aviso si esta operativo o no
 		destroy_message(msg);
 
@@ -423,7 +423,7 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 
 		enviar_mensaje(fd, msg);
 		destroy_message(msg);
-		break;
+		break;*/
 
 
 	case NODO_CONECTAR_CON_FS: //primer mensaje del nodo

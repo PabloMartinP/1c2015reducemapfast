@@ -44,6 +44,8 @@ typedef struct {
 } t_nodo;
 
 
+
+
 typedef struct{
 	t_nodo_base* base;
 	int numero_bloque;
@@ -58,6 +60,14 @@ t_archivo_bloque_con_copias* bloque_de_datos_crear();
 bool bloque_esta_usado(t_bloque* bloque);
 bool bloque_esta_libre(t_bloque* bloque);
 
+void archivo_nodo_bloque_destroy_free_base(t_archivo_nodo_bloque* anb);
+void archivo_nodo_bloque_destroy_no_free_base(t_archivo_nodo_bloque* anb);
+
+void bloque_de_datos_destroy_free_base(t_archivo_bloque_con_copias* bloque_de_datos);
+void bloque_de_datos_destroy_no_free_base(t_archivo_bloque_con_copias* bloque_de_datos);
+
+//void bloque_de_datos_destroy(t_archivo_bloque_con_copias* bloque_de_datos);
+//void archivo_nodo_bloque_destroy(t_archivo_nodo_bloque* anb);
 t_bloque* nodo_get_bloque_libre(t_nodo* nodo);
 t_bloque* nodo_get_bloque_para_copiar(t_nodo* nodo);
 t_nodo_base* nodo_base_new(int id, char* ip, int puerto);
@@ -75,6 +85,7 @@ char* nodo_isNew(t_nodo* nodo);
 void nodo_print_info(t_nodo* nodo);
 void nodo_mensaje_desconexion(t_nodo* nodo);
 bool nodo_base_igual_a(t_nodo_base nb, t_nodo_base otro_nb);
+//bool nodo_base_igual_a(t_nodo_base nb, t_nodo_base otro_nb);
 
 //bool nodo_esta_vivo(t_nodo* nodo);
 bool nodo_esta_vivo(char* ip, int puerto);

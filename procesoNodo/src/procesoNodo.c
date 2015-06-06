@@ -565,7 +565,7 @@ char* generar_nombre_tmp(){
 
 
 void procesar_mensaje(int fd, t_msg* msg) {
-
+	char* bloque;
 	char* filename_script;
 	char* filename_result;
 	char* script;
@@ -611,7 +611,7 @@ void procesar_mensaje(int fd, t_msg* msg) {
 
 		break;
 	case FS_AGREGO_NODO:
-		log_info(logger, "El nodo se agrego al fs con id %d", msg->argv[0]);
+		log_trace(logger, "El nodo se agrego al fs con id %d", msg->argv[0]);
 		destroy_message(msg);
 
 		break;
@@ -653,24 +653,22 @@ void procesar_mensaje(int fd, t_msg* msg) {
 		destroy_message(msg);
 
 		break;
-	case FS_HOLA:
-
-		destroy_message(msg);
-		msg = string_message(NODO_HOLA, "", 0);
-		enviar_mensaje(fd, msg);
-		destroy_message(msg);
-
-		//recibo el mensaje con el bloque a grabar, y la posiocion en el arg 0
-		msg = recibir_mensaje(fd);
-		//print_msg(msg);
-
-		char* bloque = malloc(TAMANIO_BLOQUE_B);
+	case FS_GRABAR_BLOQUE:
+		bloque = malloc(TAMANIO_BLOQUE_B);
 		memcpy(bloque, msg->stream, msg->argv[1]);	//1 es el tamaño real
 		memset(bloque + msg->argv[1], '\0', TAMANIO_BLOQUE_B - msg->argv[1]);
 		setBloque(msg->argv[0], bloque);
 		FREE_NULL(bloque);
 
 		destroy_message(msg);
+		break;
+	case FS_HOLA:
+
+		destroy_message(msg);
+		msg = argv_message(NODO_HOLA, 0);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+
 
 		break;
 	default:

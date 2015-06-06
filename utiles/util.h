@@ -31,7 +31,7 @@
 #include <netinet/in.h>
 #include <net/if.h>
 
-
+#include "commons/collections/list.h"
 #include "commons/string.h"
 
 #include <stdbool.h>
@@ -86,6 +86,8 @@ typedef enum {
 	MARTA_HOLA,
 	JOB_MAP_TERMINO,
 	JOB_REDUCE_TERMINO,
+	JOB_TERMINO, //indice que el job termino
+	MARTA_SALIR, //sale del select marta
 	NODO_GET_FILECONTENT,
 	FS_AGREGO_NODO,
 	FS_ESTA_OPERATIVO,               //para saber si el FS esta operativo o no
@@ -110,12 +112,20 @@ typedef struct {
 	t_red red;
 }t_nodo_base;
 
+
+
 typedef struct{
 	int id;
 	t_nodo_base* nodo_base;
 	char* resultado;//el nombre del archivo ya mapeado(solo el nombre porque siempre lo va buscar en el tmp del nodo)
 	bool termino;//para saber si termino
 }t_mapreduce;
+
+typedef struct{
+	t_mapreduce* info;
+	t_list* archivos;//el nombre de los archivos a reducir
+
+}t_reduce;
 
 typedef struct{
 	t_mapreduce* info;
@@ -155,6 +165,7 @@ t_map* map_create(int id, int numero_bloque, char* resultado);
 t_mapreduce* mapreduce_create(int id, char* resultado);
 int enviar_mensaje_sin_header(int sock_fd, int tamanio, void* buffer);
 void map_free(t_map* map);
+
 
 /****************** FUNCIONES SOCKET. ******************/
 int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*));

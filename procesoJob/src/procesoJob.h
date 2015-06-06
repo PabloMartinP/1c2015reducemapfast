@@ -35,7 +35,7 @@ t_log* logger;
 int JOB_ID;
 int conectar_con_marta();
 t_list* recibir_mappers(int fd);
-int lanzar_hilos_mappers();
+int lanzar_hilos_mappers(int fd);
 void crearHiloMapper();
 int funcionMapping(t_map* map);
 int enviar_script_mapper(int fd);
@@ -70,17 +70,7 @@ int funcionMapping(t_map* map){
 
 	close(fd);
 
-	log_trace(logger, "Le aviso a Marta que el map %d finalizo", map->info->id);
-	//le tengo que avisar a marta que termino el map ya sea bien o mal
-	fd = client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA());
-	//paso el job_id asignado y el resultado y el map_id
-	msg = argv_message(MAPPER_TERMINO, 3, JOB_ID, resultado, map->info->id);
-	enviar_mensaje(fd, msg);
-	destroy_message(msg);
-	log_trace(logger, "Mensaje enviado a marta con resultado: %d del map %d", resultado, map->info->id);
-
-	close(fd);
-	return 0;
+	return resultado;
 }
 
 int enviar_script_mapper(int fd){
@@ -120,8 +110,7 @@ int conectar_con_marta(){
 	log_trace(logger, "Conectado con marta OK");
 
 	t_msg* msg;
-	//msg = argv_message(JOB_HOLA, 0);
-	msg = string_message(JOB_HOLA, "", 0);
+	msg = argv_message(JOB_HOLA, 0);
 	//envio el mensaje
 	res = enviar_mensaje(fd, msg);
 	destroy_message(msg);
@@ -191,14 +180,24 @@ int conectar_con_marta(){
 	log_trace(logger, "Fin recepcion de nodos-bloque para mappers");
 
 
-	lanzar_hilos_mappers();
+	lanzar_hilos_mappers(fd);
+
+
+	msg = argv_message(JOB_TERMINO, 1, JOB_ID);
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
+
+
+	msg = argv_message(MARTA_SALIR, 0);
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
 
 
 
 	return 0;
 }
 
-int lanzar_hilos_mappers(){
+int lanzar_hilos_mappers(int fd){
 	//creo los hilos mappers
 		log_trace(logger, "Comienzo a crear hilos mappers");
 		pthread_t *threads = malloc(list_size(mappers)*(sizeof(pthread_t)));
@@ -214,7 +213,16 @@ int lanzar_hilos_mappers(){
 			if (pthread_join (threads[i], (void**)res_map+i))
 			   printf("Error mapper!!!!!!!!!!!!!!!!!\n");
 
-			printf("Resultado Map=%d", res_map[i]);
+
+			log_trace(logger, "Le aviso a Marta que el map %d finalizo", map->info->id);
+			//le tengo que avisar a marta que termino el map ya sea bien o mal
+			//paso el job_id asignado y el resultado y el map_id
+			t_msg* msg = argv_message(MAPPER_TERMINO, 3, JOB_ID, res_map[i], map->info->id);
+			enviar_mensaje(fd, msg);
+			destroy_message(msg);
+			log_trace(logger, "Mensaje enviado a marta con resultado: %d del map %d", res_map[i], map->info->id);
+
+
 			i++;
 
 			//libero el map

@@ -10,6 +10,9 @@
 #include "config_MaRTA.h"
 #include "marta.h"
 
+
+bool FIN = false;
+
 //char FILE_CONFIG[1024]="/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/config.txt";
 char FILE_LOG[1024] ="/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoMaRTA/log.txt";
 
@@ -18,6 +21,7 @@ void iniciar_servidor();
 void procesar (int fd, t_msg*msg);
 int archivo_a_usar();
 
+int enviar_maps(int fd, t_job* job);
 
 t_list* nodos_usados();
 int hilos_de_mapper();
@@ -27,14 +31,21 @@ int rutina_sin_combiner();
 void enviar_rutina_reduce();
 int probar_conexion_filesystem();
 t_job* crear_job(int fd);
+int marta_cant_mappers_no_empezados();
 void verificar_fs_operativo();
 int planificar_mappers(int job_id, t_list* bloques_de_datos);
 int obtener_numero_copia_disponible_para_map(t_list* nodos_bloque);
-t_nodo_estado* marta_buscar_nodo(int id);
+t_nodo_estado_map* marta_buscar_nodo(int id);
 int marta_contar_nodo(int id);
-t_nodo_estado* marta_create_nodo();
+void marta_destroy();
+void marta_map_destroy(int job_id, int map_id);
+void map_destroy(t_map* map);
+t_nodo_estado_map* marta_create_nodo();
+void marta_job_destroy(int id);
+t_archivo_job* crear_archivo(char* archivo_nombre);
+void job_destroy(t_job* job);
 int marta_job_cant_mappers(t_list* archivos);
-char* generar_nombre_map(t_job* job);
+int enviar_reduces(int fd, t_nodo_base* nb, t_job* job);
 //t_list* planificar_mappers_con_combiner(t_list* bloques);
 //t_list* planificar_mappers_sin_combiner(t_list* bloques);
 
@@ -70,18 +81,39 @@ void verificar_fs_operativo(){
 		return ;
 	}
 	t_msg* msg;
-	msg = argv_message(MARTA_HOLA, 0);
+	//msg = argv_message(FS_ESTA_OPERATIVO, 0);
+	msg = argv_message(FS_ESTA_OPERATIVO, 0);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
+
 	msg = recibir_mensaje(fd);
 	if(msg->header.id == FS_ESTA_OPERATIVO){
 		FS_OPERATIVO =msg->argv[0];
 	}
 	destroy_message(msg);
+	close(fd);
+}
+
+int job_planificar_mappers(t_job* job){
+	//empiezo a planificar mappers
+	void _planificar_mappers(t_archivo_job* archivo) {
+		log_trace(logger, "Empezando planificacion archivo %s",	archivo->nombre);
+		//aca agrega los mappers a la lista marta.nodos con prop empezado = false
+		planificar_mappers(job->id, archivo->bloque_de_datos);
+		log_trace(logger, "Terminado planificacion archivo %s",	archivo->nombre);
+	}
+	list_iterate(job->archivos, (void*) _planificar_mappers);
+
+
+
+	return 0;
 }
 
 void procesar (int fd, t_msg*msg){
 	int res = 0;
+	int job_id, map_id;
+	t_job* job;
+	t_nodo_base* nb;
 	//int i;
 
 	//print_msg(msg);
@@ -90,7 +122,7 @@ void procesar (int fd, t_msg*msg){
 		case JOB_HOLA://cuando llega un job nuevo
 			//la idea es que le pida al job todos los datos basicos que quiere,
 			destroy_message(msg);
-			log_trace(logger, "Un nuevo nodo se conecto al FS");
+			log_trace(logger, "Un nuevo job se conecto a MARTA");
 			JOB_ID++;//sumo uno en el contador y se lo paso al job
 			msg = string_message(MARTA_JOB_ID, "hola job soy marta te paso el id", 1,JOB_ID);
 			res = enviar_mensaje(fd, msg);
@@ -121,54 +153,12 @@ void procesar (int fd, t_msg*msg){
 			t_job* job = crear_job(fd);
 			log_trace(logger, "Job creado OK");
 
-			//empiezo a planificar mappers
-			void _planificar_mappers(t_archivo* archivo){
-				log_trace(logger, "Empezando planificacion archivo %s", archivo->nombre);
-				//aca agrega los mappers a la lista marta.nodos con prop empezado = false
-				planificar_mappers(job->id, archivo->bloque_de_datos);
-				log_trace(logger, "Terminado planificacion archivo %s", archivo->nombre);
-			}
-			list_iterate(job->archivos, (void*)_planificar_mappers);
 
-			//hasta aca tengo creada la planificacion de los mappers
-			//ahora tengo que pasarle los marta.nodos.where(!empezado) al job para que empiece a lanzar los hilos mappers
-			msg = argv_message(JOB_CANT_MAPPERS,1, marta_job_cant_mappers(job->archivos));
-			enviar_mensaje(fd, msg);
-			log_trace(logger, "Le paso al job la cantidad de mappers que son(suma de todos los archivos): %d", msg->argv[0]);
-			destroy_message(msg);
-			log_trace(logger, "Comienzo a enviar los mappers que tiene lanzar el job");
-
-			void _enviar_map_a_job(t_nodo_estado* ne){
-				//envio primero el nombre del archivo
-				char* nombre_temp_map = generar_nombre_map(job);
-				msg = string_message(JOB_MAPPER, nombre_temp_map, 0);
-				enviar_mensaje(fd, msg);
-				destroy_message(msg);
-				//creo el map para agregar al job
-				t_map* map = marta_create_map(nombre_temp_map, ne);
-				free(nombre_temp_map);nombre_temp_map = NULL;
-
-				//ahora envio la info para conectarse
-				// args, puerto, numero_bloque, id_map, id_nodo
-				msg = string_message(JOB_MAPPER, ne->nodo->base->red.ip, 4, ne->nodo->base->red.puerto, ne->nodo->numero_bloque, map->info->id, map->info->nodo_base->id);
-				enviar_mensaje(fd, msg);
-				destroy_message(msg);
-
-				ne->aplicando_map = true;
-				ne->empezo = true;
-				log_trace(logger, "Mapper %d enviado al job %d, Nodo_id: %d, %s:%d, bloque:%d",map->info->id, job->id, ne->nodo->base->id, ne->nodo->base->red.ip, ne->nodo->base->red.puerto, ne->nodo->numero_bloque);
-
-				//cargo el mapper en la lista de mappers del job
-				list_add(job->mappers, (void*)map);
-			}
-			list_iterate(marta.nodos, (void*)_enviar_map_a_job);
-
-			//agrego el job a la lista de jobs
-			list_add(marta.jobs, (void*) job);
+			//agrego los mappers a la listad de marta.nodos_map
+			job_planificar_mappers(job);
 
 
-
-
+			enviar_maps(fd, job);
 
 			//primero hay que aplicar el map
 			//planifico la mejor forma dependiendo si es combiner o no combiner
@@ -189,15 +179,41 @@ void procesar (int fd, t_msg*msg){
 			break;
 		case MAPPER_TERMINO:
 			//cuando un map termino el job le avisa al fs
-
-			log_trace(logger, "TERMINO el MAP %d del job %d. Resultado: ", msg->argv[2], msg->argv[0], msg->argv[1]);
+			job_id = msg->argv[0];
+			map_id = msg->argv[2];
+			log_trace(logger, "TERMINO el MAP %d del job %d. Resultado: %d", map_id, job_id, msg->argv[1]);
+			res = msg->argv[1];
 			destroy_message(msg);
 
-			//marcaria el map del job como termino=true
+			marta_map_destroy(job_id, map_id);
+
+/*
+			//marcaria el map del job como termino=true o false
+			if(res)
+				marta_marcar_map_como_terminado(job_id, map_id);
+			else
+				marta_marcar_map_como_fallido(job_id, map_id);
+
 
 			//luego tengo que verificar si ya terminaron todos los map que tiene que hacer el job
 			//si ya terminaron todos los mappers que tenia el job, empiezo a planificar los reduce
 			//dependiendo si es combiner o no tengo que planificar distinto
+
+			job = job_buscar(job_id);
+			if(job->combiner){
+				//en el caso de combiner, tengo que aplicar el reduce sobre todos los archivos locales al nodo
+				//tengo que verificar si ya terminaron todos los mappers locales al nodo del map
+				nb = job_obtener_nodo_con_todos_sus_mappers_terminados(job->mappers);
+				if(nb!=NULL){
+					//ya termino todos sus mappers
+					//lanzo el reduce de los archivos locales al nodo
+					//enviar_reduces(fd, nb, job);
+				}
+
+			}else{
+				//si es sin combiner tengo que esperar a que terminen todos los mappers
+			}
+*/
 
 			//en definitiva tengo que pasarle al job los nodos(puede que sean todos el mismo nodo o distintos)
 			//y los archivos (el resultado de los maps) a reducir
@@ -219,31 +235,115 @@ void procesar (int fd, t_msg*msg){
 			//borro al job de la lista de jobs y el TP esta aprobado!
 
 			break;
+		case JOB_TERMINO:
 
+			log_trace(logger, "Termino el job %d", msg->argv[0]);
+
+			marta_job_destroy(msg->argv[0]);
+
+			destroy_message(msg);
+			break;
+
+		case MARTA_SALIR:
+			FIN = true;
+			break;
 		default:
 			break;
 	}
 }
 
-char* generar_nombre_map(t_job* job){
-	char* file_map1 = string_new();
-	string_append(&file_map1, "job_");
-	char str[2];
-	sprintf(str, "%d", job->id);
-	string_append(&file_map1, str);
-	string_append(&file_map1, "_");
-	string_append(&file_map1, "map_");
-	char* timenow = temporal_get_string_time();
-	string_append(&file_map1, timenow);
-	free(timenow);
-	string_append(&file_map1, ".txt");
-	return file_map1;
+int enviar_maps(int fd, t_job* job){
+	t_msg* msg;
+	//hasta aca tengo creada la planificacion de los mappers
+	//ahora tengo que pasarle los marta.nodos.where(!empezado) al job para que empiece a lanzar los hilos mappers
+	msg = argv_message(JOB_CANT_MAPPERS, 1, marta_cant_mappers_no_empezados());
+	enviar_mensaje(fd, msg);
+	log_trace(logger,	"Le paso al job la cantidad de mappers que son(suma de todos los archivos): %d",msg->argv[0]);
+	destroy_message(msg);
+	log_trace(logger, "Comienzo a enviar los mappers que tiene lanzar el job");
+
+	void _enviar_map_a_job(t_nodo_estado_map* ne) {
+		JOB_MAP_ID++;
+		//envio primero el nombre del archivo
+		char* nombre_temp_map = generar_nombre_map(job->id, JOB_MAP_ID);
+		msg = string_message(JOB_MAPPER, nombre_temp_map, 0);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+		//creo el map para agregar al job
+		t_map* map = marta_create_map(JOB_MAP_ID, nombre_temp_map, ne);
+		free(nombre_temp_map);
+		nombre_temp_map = NULL;
+
+		//ahora envio la info para conectarse
+		// args, puerto, numero_bloque, id_map, id_nodo
+		msg = string_message(JOB_MAPPER, ne->nodo->base->red.ip, 4,
+				ne->nodo->base->red.puerto, ne->nodo->numero_bloque,
+				map->info->id, map->info->nodo_base->id);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+
+		ne->empezo = true;
+		log_trace(logger,
+				"Mapper %d enviado al job %d, Nodo_id: %d, %s:%d, bloque:%d",
+				map->info->id, job->id, ne->nodo->base->id,
+				ne->nodo->base->red.ip, ne->nodo->base->red.puerto,
+				ne->nodo->numero_bloque);
+
+		//cargo el mapper en la lista de mappers del job
+		list_add(job->mappers, (void*) map);
+	}
+	list_iterate(marta.nodos_mappers, (void*) _enviar_map_a_job);
+
+	//agrego el job a la lista de jobs
+	list_add(marta.jobs, (void*) job);
+
+	return 0;
+}
+
+int enviar_reduces(int fd, t_nodo_base* nb, t_job* job){
+	char* archivo;
+	t_reduce* reduce = marta_create_reduce(job->id, nb);
+	void _crear_reduce(t_map* map){
+		//verifico el nodo haya terminado y sea el  mismo, la idea es qeudarme con todos los locales
+		if(map->info->termino && nodo_base_igual_a(*(map->info->nodo_base), *nb)){
+			//copio el nombre para no complicarme con los frees
+			archivo = string_new();
+			string_append(&archivo, map->info->resultado);
+			//agrego a la lista el archivo
+			list_add(reduce->archivos, archivo);
+			t_nodo_estado_map*ne =  malloc(sizeof*ne);
+			ne->empezo = false;
+			//ne->nodo = NULL;
+
+			list_add(marta.nodos_mappers, ne);
+		}
+	}
+
+	list_iterate(job->mappers, (void*)_crear_reduce);
+	//hasta aca tengo la variable reduce cargada, ahora tengo que mandarsela al job
+	////////////////////////////////////////////////////////////////////////////////
+
+	//t_msg* msg ;
+
+
+
+
+	return 0;
+}
+
+
+
+int marta_cant_mappers_no_empezados(){
+	bool _no_empezo(t_nodo_estado_map* ne){
+		return !ne->empezo;
+	}
+	return list_count_satisfying(marta.nodos_mappers, (void*)_no_empezo);
 }
 
 int marta_job_cant_mappers(t_list* archivos){
 	int i=0;
 
-	void _contar(t_archivo* archivo){
+	void _contar(t_archivo_job* archivo){
 		i = i + list_size(archivo->bloque_de_datos);
 	}
 	list_iterate(archivos, (void*)_contar);
@@ -251,9 +351,9 @@ int marta_job_cant_mappers(t_list* archivos){
 	return i;
 }
 
-t_archivo* crear_archivo(char* archivo_nombre){
+t_archivo_job* crear_archivo(char* archivo_nombre){
 	int i,j, cant_bloques;
-	t_archivo* archivo ;
+	t_archivo_job* archivo ;
 	t_msg* msg;
 
 	//creo el archivo con el nombre
@@ -325,7 +425,7 @@ t_job* crear_job(int fd){
 		archivo_nombre = string_new();string_append(&archivo_nombre, msg->stream);
 		destroy_message(msg);
 		log_trace(logger, "Creando t_archivo: %s", archivo_nombre);
-		t_archivo* archivo = crear_archivo(archivo_nombre);
+		t_archivo_job* archivo = crear_archivo(archivo_nombre);
 		log_trace(logger, "Terminado t_archivo: %s", archivo_nombre);
 		free(archivo_nombre);archivo_nombre = NULL;
 		//agrego el archivo a procesar
@@ -339,18 +439,18 @@ t_job* crear_job(int fd){
 }
 
 
-t_nodo_estado* marta_buscar_nodo(int id){
-	bool _buscar_nodo(t_nodo_estado* ne){
+t_nodo_estado_map* marta_buscar_nodo(int id){
+	bool _buscar_nodo(t_nodo_estado_map* ne){
 		return ne->nodo->base->id == id;
 	}
-	return list_find(marta.nodos, (void*)_buscar_nodo);
+	return list_find(marta.nodos_mappers, (void*)_buscar_nodo);
 }
 
 int marta_contar_nodo(int id){
-	bool _contar(t_nodo_estado* ne){
+	bool _contar(t_nodo_estado_map* ne){
 		return ne->nodo->base->id==id;
 	}
-	return list_count_satisfying(marta.nodos, (void*)_contar);
+	return list_count_satisfying(marta.nodos_mappers, (void*)_contar);
 }
 
 /*
@@ -408,7 +508,6 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque){//lista de t
 
 
 int planificar_mappers(int job_id, t_list* bloques_de_datos){
-	t_list* nodos = list_create();
 	//int nodo_id;
 	int numero_copia;
 	int i;
@@ -421,19 +520,24 @@ int planificar_mappers(int job_id, t_list* bloques_de_datos){
 		cnb =  list_get(bloque->nodosbloque, numero_copia);
 		if (cnb!=NULL) {
 			log_trace(logger, "obtener_numero_copia_disponible_para_map: %d en %s:%d", cnb->base->id, cnb->base->red.ip, cnb->base->red.puerto);
-			t_nodo_estado* ne = marta_create_nodo_estado(cnb);
-			//agrego el nodo a la lista de nodos
-			list_add(nodos, ne);
+			t_nodo_estado_map* ne = marta_create_nodo_estado(cnb);
+			//lo agrego a la lista de marta
+			list_add(marta.nodos_mappers, (void*)ne);
 		} else {
-			log_trace(logger, "ninguna copia disponible para el bloque %d", bloque->numero_bloque);
+			log_trace(logger, "Ninguna copia disponible para el bloque %d", bloque->numero_bloque);
+			//tengo que borrar los nodos que le agregue a marta, es decir lo que no estan empezados
+
+			bool _eliminar_nodo_no_empezado(t_nodo_estado_map* ne){
+				return !ne->empezo;
+			}
+			list_remove_and_destroy_by_condition(marta.nodos_mappers, (void*)_eliminar_nodo_no_empezado, (void*)nodo_estado_destroy);
 			return -1;
 		}
 		log_trace(logger, "Fin Planificacion Bloque %d", i);
 	}
 	//hasta aca tengo la lista de nodos, ahora solo me queda mandarselos al job
 
-	//agrego los nodos a la lsita de nodos de marta
-	list_add_all(marta.nodos, nodos);
+
 
 	return 0;
 

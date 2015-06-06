@@ -846,14 +846,14 @@ void fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque, size_t tamanio_r
 	int fd = client_socket(nb->base->red.ip, nb->base->red.puerto);
 
 	t_msg* msg;
-	msg = string_message(FS_HOLA, "", 0);
+	msg = argv_message(FS_HOLA, 0);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
 	msg = recibir_mensaje(fd);
 	if (msg->header.id == NODO_HOLA) {
 		destroy_message(msg);
 		//le digo que grabe el blque en el nodo n
-		msg = string_message(FS_GRABAR_BLOQUE, bloque, 2, nb->numero_bloque,	tamanio_real);
+		msg = string_message(FS_GRABAR_BLOQUE, bloque, 2, nb->numero_bloque, tamanio_real);
 
 		enviar_mensaje(fd, msg);
 	}

@@ -72,6 +72,29 @@ t_bloque* nodo_get_bloque_libre(t_nodo* nodo){
 	return b;
 }
 
+void archivo_nodo_bloque_destroy_no_free_base(t_archivo_nodo_bloque* anb){
+	//FREE_NULL(anb->base);
+	FREE_NULL(anb);
+}
+
+
+void archivo_nodo_bloque_destroy_free_base(t_archivo_nodo_bloque* anb){
+	FREE_NULL(anb->base);
+	FREE_NULL(anb);
+}
+
+void bloque_de_datos_destroy_free_base(t_archivo_bloque_con_copias* bloque_de_datos){
+	list_destroy_and_destroy_elements(bloque_de_datos->nodosbloque,(void*) archivo_nodo_bloque_destroy_free_base);
+	FREE_NULL(bloque_de_datos);
+
+}
+
+void bloque_de_datos_destroy_no_free_base(t_archivo_bloque_con_copias* bloque_de_datos){
+	list_destroy_and_destroy_elements(bloque_de_datos->nodosbloque,(void*) archivo_nodo_bloque_destroy_no_free_base);
+	FREE_NULL(bloque_de_datos);
+
+}
+
 
 t_bloque* nodo_get_bloque_para_copiar(t_nodo* nodo){
 	t_bloque* b;
@@ -122,6 +145,7 @@ void nodo_print_info(t_nodo* nodo){
 void nodo_destroy(t_nodo* nodo) {
 	list_destroy_and_destroy_elements(nodo->bloques, free);
 	free(nodo->base);nodo->base = NULL;
+
 	free(nodo);
 	nodo = NULL;
 	//printf("%s", nodo->ip);
@@ -187,9 +211,12 @@ t_nodo* nodo_new(char* ip, int puerto, bool isNew, int cant_bloques, int id) {
 
 	return new;
 }
-
-
+/*
+bool nodo_base_igual_a(t_nodo_base* nb, t_nodo_base* otro_nb){
+	return nb->id == otro_nb->id && nb->red.puerto == otro_nb->red.puerto && strcmp(nb->red.ip, otro_nb->red.ip) ==0;
+}*/
 
 bool nodo_base_igual_a(t_nodo_base nb, t_nodo_base otro_nb){
 	return nb.id == otro_nb.id && nb.red.puerto == otro_nb.red.puerto && strcmp(nb.red.ip, otro_nb.red.ip) ==0;
 }
+

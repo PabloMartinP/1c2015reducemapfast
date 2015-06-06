@@ -116,20 +116,27 @@ typedef struct {
 
 typedef struct{
 	int id;
-	t_nodo_base* nodo_base;
+	//t_nodo_base* nodo_base;
 	char* resultado;//el nombre del archivo ya mapeado(solo el nombre porque siempre lo va buscar en el tmp del nodo)
+	bool empezo;
 	bool termino;//para saber si termino
 }t_mapreduce;
 
 typedef struct{
 	t_mapreduce* info;
 	t_list* archivos;//el nombre de los archivos a reducir
-
 }t_reduce;
 
 typedef struct{
+	t_nodo_base* base;
+	int numero_bloque;//del nodo
+}t_archivo_nodo_bloque; //
+
+typedef struct{
 	t_mapreduce* info;
-	int numero_bloque;//para saber que bloque tengo que aplicarle el map
+	t_archivo_nodo_bloque* archivo_nodo_bloque;
+
+	//int numero_bloque;//para saber a que bloque del archivo tengo que aplicarle el map
 }t_map;
 
 
@@ -161,7 +168,7 @@ float bytes_to_megabytes(size_t bytes);
 int cant_registros(char** registros) ;
 int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer);
 int recibir_mensaje_flujo(int unSocket, void** buffer);
-t_map* map_create(int id, int numero_bloque, char* resultado);
+t_map* map_create(int id, char* resultado);
 t_mapreduce* mapreduce_create(int id, char* resultado);
 int enviar_mensaje_sin_header(int sock_fd, int tamanio, void* buffer);
 void map_free(t_map* map);

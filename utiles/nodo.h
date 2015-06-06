@@ -46,11 +46,6 @@ typedef struct {
 
 
 
-typedef struct{
-	t_nodo_base* base;
-	int numero_bloque;
-}t_archivo_nodo_bloque; //
-
 t_nodo* nodo_new(char* ip, int port, bool isNew, int cant_bloques, int id);
 void print_nodo(t_nodo* nodo);
 
@@ -71,7 +66,7 @@ void bloque_de_datos_destroy_no_free_base(t_archivo_bloque_con_copias* bloque_de
 t_bloque* nodo_get_bloque_libre(t_nodo* nodo);
 t_bloque* nodo_get_bloque_para_copiar(t_nodo* nodo);
 t_nodo_base* nodo_base_new(int id, char* ip, int puerto);
-t_archivo_nodo_bloque* archivo_nodo_bloque_new(char* ip, int port, int numero_bloque, int id);
+t_archivo_nodo_bloque* archivo_nodo_bloque_new(char* ip, int puerto, int numero_bloque, int id);
 int nodo_cant_bloques_libres(t_nodo* nodo);
 int nodo_cant_bloques_usados(t_nodo* nodo);
 int nodo_cant_bloques(t_nodo* nodo);

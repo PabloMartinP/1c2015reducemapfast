@@ -15,9 +15,10 @@ size_t file_get_size(char* filename) {
 
 
 void map_free(t_map* map){
-	FREE_NULL(map->info->nodo_base);
+	//FREE_NULL(map->info->nodo_base);
 	FREE_NULL(map->info->resultado);
 	FREE_NULL(map->info);
+	//free(map->archivo_nodo_bloque);para simplificar el free lo hace el archivo_destroy
 	FREE_NULL(map);
 
 }
@@ -27,16 +28,15 @@ t_mapreduce* mapreduce_create(int id, char* resultado){
 	new->id = id;
 	new->resultado = string_new();
 	string_append(&(new->resultado), resultado);
+	new->empezo = false;
 	new->termino = false;
 	return new;
 }
 
-t_map* map_create(int id, int numero_bloque, char* resultado){
+t_map* map_create(int id, char* resultado){
 	t_map* new = malloc(sizeof*new);
 
 	new->info = mapreduce_create(id, resultado);
-
-	new->numero_bloque  = numero_bloque;
 
 	return new;
 }

@@ -23,15 +23,23 @@ typedef struct {
 
 }t_job;
 
-
+/*
 typedef struct {
 	t_archivo_nodo_bloque* nodo;
 	bool empezo;
 }t_nodo_estado_map;
-
+*/
+/*
+typedef struct {
+	t_nodo_base* nodo_base;
+	t_list* archivos_tmp;
+	bool empezo;
+}t_nodo_estado_reduce;
+*/
 typedef struct {
 	t_list* jobs;//guarda estructuras t_job
-	t_list* nodos_mappers;
+	//t_list* nodos_mappers;//list of t_nodo_estado_map
+	//t_list* nodos_reducers;
 }t_MaRTA;
 
 //a medida que se asignan nuevos jobs voy sumando 1
@@ -45,7 +53,7 @@ int marta_create();
 t_archivo_job* marta_create_archivo(char* nombre);
 t_archivo_nodo_bloque*  marta_create_nodo_bloque(char* ip, int puerto, int numero_bloque, int nodo_id);
 void archivo_nodo_bloque_destroy(t_archivo_nodo_bloque* anb);
-t_nodo_estado_map* marta_create_nodo_estado(t_archivo_nodo_bloque* cnb);
+//t_nodo_estado_map* marta_create_nodo_estado(t_archivo_nodo_bloque* cnb);
 int marta_marcar_map_como_terminado(int job_id, int map_id);
 int marta_marcar_map_como_fallido(int job_id, int map_id);
 
@@ -56,9 +64,9 @@ t_reduce* marta_create_reduce(int job_id, t_nodo_base* nb);
 char* generar_nombre_reduce(int job_id, int reduce_id);
 char* generar_nombre_map(int job_id, int map_id);
 
-t_map* marta_create_map(int id, char* archivo, t_nodo_estado_map* ne);
+t_map* marta_create_map(int id, char* archivo, t_archivo_nodo_bloque* anb);
 char* generar_nombre_job(int job_id, int mapreduce_id, char*map_o_reduce);
-void nodo_estado_map_destroy(t_nodo_estado_map* ne);
+//void nodo_estado_map_destroy(t_nodo_estado_map* ne);
 
 
 /*
@@ -68,13 +76,13 @@ char* generar_nombre_map(int job_id, int map_id){
 	return generar_nombre_job(job_id, map_id, "map");
 }
 
-
+/*
 void nodo_estado_map_destroy(t_nodo_estado_map* ne){
 
 	//archivo_nodo_bloque_destroy(ne->nodo);
 	//FREE_NULL(ne->nodo); //elne->nodo ya se libero en el archivo_destroy
 	free(ne);ne = NULL;
-}
+}*/
 
 char* generar_nombre_job(int job_id, int mapreduce_id, char*map_o_reduce){
 	char* file_map1 = string_new();
@@ -110,7 +118,7 @@ t_reduce* marta_create_reduce(int job_id, t_nodo_base* nb){
 	new->info->id = JOB_REDUCE_ID++;
 	new->info->termino = false;
 	new->info->resultado = generar_nombre_reduce(job_id, new->info->id);
-	new->info->nodo_base = nb;
+	//new->info->nodo_base = nb;
 
 	new->archivos = list_create();
 	return new;
@@ -145,19 +153,17 @@ int marta_marcar_map_como_fallido(int job_id, int map_id){
 
 
 
-void nodo_estado_destroy(t_nodo_estado_map* ne){
-	free(ne);ne = NULL;
-}
 
 t_nodo_base* job_obtener_nodo_con_todos_sus_mappers_terminados(t_list* mappers){
 	t_nodo_base* nb;
 
 
 	void _nodo_termino_todos_sus_mappers(t_map* map){
-		nb = map->info->nodo_base;
+		nb = map->archivo_nodo_bloque->base;
 
 		bool _nodo_termino(t_map* map_nodo){
-			return map_nodo->info->termino && nodo_base_igual_a(*(map_nodo->info->nodo_base), *(map->info->nodo_base));
+			return map_nodo->info->termino && nodo_base_igual_a(*(map_nodo->archivo_nodo_bloque->base), *(map->archivo_nodo_bloque->base));
+			//return map_nodo->info->termino && nodo_base_igual_a(*(map_nodo->archivo_nodo_bloque->base), *(map->archivo_nodo_base->nodo_base));
 		}
 		//si un nodo no termino todos sus mappers, no puedo lanzar el reduce de archivlos locales para con combiner
 		if(!list_all_satisfy(mappers, (void*)_nodo_termino)){
@@ -178,29 +184,20 @@ int marta_marcar_map_como_terminado(int job_id, int map_id){
 
 int marta_create(){
 	marta.jobs = list_create();
-	marta.nodos_mappers = list_create();
+	//marta.nodos_mappers = list_create();
 	return 0;
 }
 
-t_nodo_estado_map* marta_create_nodo_estado(t_archivo_nodo_bloque* cnb){
-	t_nodo_estado_map* new = malloc(sizeof*new);
-
-	new->nodo= cnb;
-
-	new->empezo = false;
-
-	return new;
-}
 
 void marta_destroy(){
 	list_destroy(marta.jobs);
 
-	list_destroy_and_destroy_elements(marta.nodos_mappers, (void*)nodo_estado_map_destroy);
+	//list_destroy_and_destroy_elements(marta.nodos_mappers, (void*)nodo_estado_map_destroy);
 }
 
 void map_destroy(t_map* map){
 	FREE_NULL(map->info->resultado);
-	FREE_NULL(map->info->nodo_base);
+	//FREE_NULL(map->info->nodo_base);
 	FREE_NULL(map->info);
 
 	FREE_NULL(map);
@@ -280,10 +277,10 @@ t_job* marta_create_job(char* resultado, bool combiner){
 	return new;
 }
 
-t_map* marta_create_map(int id, char* archivo, t_nodo_estado_map* ne){
-
-	t_map* new = map_create(id, ne->nodo->numero_bloque, archivo);
-	new->info->nodo_base = nodo_base_new(ne->nodo->base->id, ne->nodo->base->red.ip,ne->nodo->base->red.puerto);
+t_map* marta_create_map(int id, char* archivo, t_archivo_nodo_bloque* anb){
+	t_map* new = map_create(id, archivo);
+	new->archivo_nodo_bloque = anb;
+	//new->info->nodo_base = nodo_base_new(ne->nodo->base->id, ne->nodo->base->red.ip,ne->nodo->base->red.puerto);
 
 	return new;
 }

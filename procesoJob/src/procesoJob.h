@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <commons/log.h>
 
-
+#include <nodo.h>
 #include "config_job.h"
 
 /*
@@ -44,26 +44,26 @@ int funcionMapping(t_map* map){
 
 	bool resultado;
 	//printf("%s:%d\n", map->ip, map->puerto);
-	log_trace(logger, "Conectando con nodo %s:%d", map->info->nodo_base->red.ip, map->info->nodo_base->red.puerto);
-	int fd = client_socket(map->info->nodo_base->red.ip, map->info->nodo_base->red.puerto);
+	log_trace(logger, "Conectando con nodo %d - %s:%d", map->archivo_nodo_bloque->base->id,  map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
+	int fd = client_socket(map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
 	t_msg* msg;
 	size_t tam = file_get_size(JOB_SCRIPT_MAPPER());
 	//envio el bloque a mapear y el nombre del archivo donde almacena el resultado y al final el tamaño del script
-	log_trace(logger, "Enviando %s, numero_bloque: %d", map->info->resultado, map->numero_bloque);
-	msg = string_message(JOB_MAPPER, map->info->resultado, 2, map->numero_bloque, tam);
+	log_trace(logger, "Enviando %s, numero_bloque: %d", map->info->resultado, map->archivo_nodo_bloque->numero_bloque);
+	msg = string_message(JOB_MAPPER, map->info->resultado, 2, map->archivo_nodo_bloque->numero_bloque, tam);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
 
 	enviar_script_mapper(fd);
-	log_trace(logger, "Esperando respuesta a mapper %d en nodo %s:%d",map->info->id, map->info->nodo_base->red.ip, map->info->nodo_base->red.puerto);
+	log_trace(logger, "Esperando respuesta a mapper %d en nodo %s:%d",map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
 	msg = recibir_mensaje(fd);
-	log_trace(logger, "Respuesta recibida de mapper %d en nodo %s:%d",map->info->id, map->info->nodo_base->red.ip, map->info->nodo_base->red.puerto);
+	log_trace(logger, "Respuesta recibida de mapper %d en nodo %s:%d",map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
 	if(msg->header.id==MAPPER_TERMINO){
-		log_trace(logger, "El mapper %d en nodo %s:%d termino OK", map->info->id, map->info->nodo_base->red.ip, map->info->nodo_base->red.puerto);
+		log_trace(logger, "El mapper %d en nodo %s:%d termino OK", map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
 		resultado = true;
 	}
 	else{
-		log_trace(logger, "El mapper %d en nodo %s:%d Termino CON ERRORES",map->info->id, map->info->nodo_base->red.ip, map->info->nodo_base->red.puerto);
+		log_trace(logger, "El mapper %d en nodo %s:%d Termino CON ERRORES",map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
 		resultado = false;
 	}
 	destroy_message(msg);
@@ -226,7 +226,9 @@ int lanzar_hilos_mappers(int fd){
 			i++;
 
 			//libero el map
+			archivo_nodo_bloque_destroy_free_base(map->archivo_nodo_bloque);
 			map_free(map);
+
 		}
 		list_iterate(mappers, (void*)_join_hilo_mapper);
 		free(threads);threads=NULL;
@@ -263,13 +265,12 @@ t_list* recibir_mappers(int fd){
 		// args, puerto, numero_bloque, id_map, id_nodo
 		msg = recibir_mensaje(fd);
 		//print_msg(msg);
-		map = map_create(msg->argv[2], msg->argv[1], resultado);
+		map = map_create(msg->argv[2], resultado);
 		FREE_NULL(resultado);
 
-		t_nodo_base* nb = nodo_base_new(msg->argv[3], msg->stream, msg->argv[0]);
-		map->info->nodo_base = nb;
-		map->numero_bloque = msg->argv[1];
-		log_trace(logger, "Map_id: %d - Ubicacion: id_nodo: %d, %s:%d numero_bloque: %d",map->info->id, map->info->nodo_base->id, map->info->nodo_base->red.ip, map->info->nodo_base->red.puerto, map->numero_bloque);
+		map->archivo_nodo_bloque = archivo_nodo_bloque_new(msg->stream, msg->argv[0], msg->argv[1], msg->argv[3]);
+
+		log_trace(logger, "Map_id: %d - Ubicacion: id_nodo: %d, %s:%d numero_bloque: %d",map->info->id, map->archivo_nodo_bloque->base->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto, map->archivo_nodo_bloque->numero_bloque);
 		destroy_message(msg);
 
 		list_add(lista, (void*)map);

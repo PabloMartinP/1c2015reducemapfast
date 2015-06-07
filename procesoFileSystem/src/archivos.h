@@ -40,21 +40,18 @@ void arch_print_info(t_archivo_info* info);
 void arch_print_bloques(t_list* bloques_de_datos);
 
 void arch_destroy(t_archivo* archivo);
-t_archivo_bloque_con_copias* arch_buscar_bloque(t_archivo* archivo, int numero_bloque);
+t_archivo_bloque_con_copias* arch_buscar_parte(t_archivo* archivo, int parte_numero);
 
 
 /*
  * ***********************************
  */
 
-
-
-
-t_archivo_bloque_con_copias* arch_buscar_bloque(t_archivo* archivo, int numero_bloque){
+t_archivo_bloque_con_copias* arch_buscar_parte(t_archivo* archivo, int parte_numero){
 	t_archivo_bloque_con_copias* bloque = NULL;
 
 	bool _buscar_bloque(t_archivo_bloque_con_copias* bloque){
-		return bloque->numero_bloque == numero_bloque;
+		return bloque->parte_numero == parte_numero;
 	}
 
 	bloque = list_find(archivo->bloques_de_datos, (void*)_buscar_bloque);
@@ -70,7 +67,7 @@ void arch_print(t_archivo* archivo){
 void arch_print_bloques(t_list* bloques_de_datos){
 
 	void print_bloque_datos(t_archivo_bloque_con_copias* bloque_datos){
-		printf(">> >> Bloque Nro: %d\n", bloque_datos->numero_bloque);
+		printf(">> >> Bloque Nro: %d\n", bloque_datos->parte_numero);
 
 		int i=1;
 		void print_nodo_bloque(t_archivo_nodo_bloque* nodo_bloque){

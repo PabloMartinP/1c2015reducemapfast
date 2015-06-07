@@ -7,6 +7,7 @@
 
 #include "util.h"
 
+
 size_t file_get_size(char* filename) {
 	struct stat st;
 	stat(filename, &st);
@@ -93,6 +94,16 @@ int len_hasta_enter(char* strings){
 void file_mmap_free(char* mapped, char* filename) {
 	munmap(mapped, file_get_size(filename));
 }
+
+t_archivo_nodo_bloque* archivo_nodo_bloque_new(char* ip, int puerto, int numero_bloque, int id){
+	t_archivo_nodo_bloque* new = malloc(sizeof*new);
+
+	new->numero_bloque = numero_bloque;
+	new->base = nodo_base_new(id, ip, puerto);
+
+	return new	;
+}
+
 
 int cant_registros(char** registros) {
 	int i = 0;
@@ -394,6 +405,96 @@ int recibir_mensaje_flujo(int unSocket, void** buffer) {
 
 }
 
+/*
+ * id NODO_BASE
+ */
+t_msg* nodo_base_message(t_nodo_base* nb){
+	t_msg* msg =NULL;
+	msg = string_message(NODO_BASE, nb->red.ip, nb->red.puerto, nb->id);
+	return msg;
+}
+
+
+
+int enviar_mensaje_map(int fd, t_map* map){
+	t_msg* msg = NULL;
+	//envio primero el nombre del archivo de resultado
+	msg = string_message(JOB_MAPPER, map->info->resultado, 0);
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
+
+	//ahora envio la info para conectarse
+	// args, puerto, numero_bloque, id_map, id_nodo
+	msg = string_message(JOB_MAPPER, map->archivo_nodo_bloque->base->red.ip, 4,
+			map->archivo_nodo_bloque->base->red.puerto, map->archivo_nodo_bloque->numero_bloque,
+			map->info->id, map->archivo_nodo_bloque->base->id);
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
+
+	return 0;
+}
+
+void print_map(t_map* map){
+	printf("*************************************************************\n");
+	printf("Map_id: %d - Ubicacion: id_nodo: %d, %s:%d numero_bloque: %d, resultado: %s\n",
+			map->info->id,
+			map->archivo_nodo_bloque->base->id,
+			map->archivo_nodo_bloque->base->red.ip,
+			map->archivo_nodo_bloque->base->red.puerto,
+			map->archivo_nodo_bloque->numero_bloque,
+			map->info->resultado);
+	printf("*************************************************************\n");
+}
+
+int enviar_mensaje_script(int fd, char* path_script){
+	char* script = file_get_mapped(path_script);
+	t_msg* msg = string_message(JOB_SCRIPT, script, 0);
+	enviar_mensaje(fd, msg);
+	file_mmap_free(script, path_script);
+	destroy_message(msg);
+	return 0;
+}
+
+int recibir_mensaje_script_y_guardar(int fd, char* path_destino_script){
+	t_msg* msg = NULL;
+	//recibo el codigo del script
+	msg = recibir_mensaje(fd);
+	//guardo en el path destino el script
+	write_file(path_destino_script,msg->stream, strlen(msg->stream));
+
+	//settear permisos de ejecucion
+	chmod(path_destino_script, S_IRWXU);
+
+	return 0;
+}
+
+t_map* recibir_mensaje_map(int fd){
+	//recibo primero el nombre del archivo que va usar para guardar en el tmp del nodo
+	char* resultado;
+	t_msg* msg = NULL;msg= recibir_mensaje(fd);
+	//print_msg(msg);
+	resultado = string_new();string_append(&resultado, msg->stream);
+	destroy_message(msg);
+	//log_trace(logger, "Nombre archivo donde guardar el resultado(en tmp del nodo): %s", resultado);
+
+	// args, puerto, numero_bloque, id_map, id_nodo
+	msg = recibir_mensaje(fd);
+	//print_msg(msg);
+	t_map* map = NULL;
+	map = map_create(msg->argv[2], resultado);
+	//limpio el resultado que ya lo copie al map_create;
+	FREE_NULL(resultado);
+	map->archivo_nodo_bloque = archivo_nodo_bloque_new(msg->stream, msg->argv[0], msg->argv[1], msg->argv[3]);
+
+	return map;
+}
+
+int enviar_mensaje_nodo_base(int fd, t_nodo_base* nb){
+	t_msg* msg = NULL;
+	msg = nodo_base_message(nb);
+	return enviar_mensaje(fd, msg);
+}
+
 t_msg *string_message(t_msg_id id, char *message, uint16_t count, ...) {
 	va_list arguments;
 	va_start(arguments, count);
@@ -452,6 +553,21 @@ char* recibir_linea(int sock_fd){
 		}
 
 	}
+}
+
+t_nodo_base* nodo_base_new(int id, char* ip, int puerto){
+	t_nodo_base* new = malloc(sizeof*new);
+	new->id = id;
+	strcpy(new->red.ip, ip);
+	new->red.puerto = puerto;
+	return new;
+}
+
+t_nodo_base* recibir_mensaje_nodo_base(int fd){
+	t_msg* msg = recibir_mensaje(fd);
+	t_nodo_base* nb = nodo_base_new(msg->argv[1], msg->stream, msg->argv[0]);
+	destroy_message(msg);
+	return nb;
 }
 
 t_msg *recibir_mensaje(int sock_fd) {
@@ -808,11 +924,19 @@ void free_split(char** splitted){
 	FREE_NULL(splitted);
 }
 
+char NODO_BASE_PRINT[30];
+char* nodo_base_to_string(t_nodo_base* nb){
+	memset(NODO_BASE_PRINT, 0, 30);
+	sprintf(NODO_BASE_PRINT, "id:%d, %s:%d", nb->id, nb->red.ip, nb->red.puerto);
+	return NODO_BASE_PRINT;
+}
 
-t_reduce* reduce_create(int id, int job_id, char* resultado){
+
+t_reduce* reduce_create(int id, int job_id, char* resultado, t_nodo_base* nb){
 	t_reduce* new = malloc(sizeof*new);
 
 	new->info = mapreduce_create(id,resultado);
+	new->nodo_base_destino = nb;
 
 	new->nodos_archivo = list_create();
 	return new;

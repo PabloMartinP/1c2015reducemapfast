@@ -166,7 +166,7 @@ char* fs_archivo_get_bloque(char* nombre, int dir_id, int numero_bloque) {
 
 	//busco el bloque
 	t_archivo_bloque_con_copias* bloque = NULL;
-	bloque = arch_buscar_bloque(archivo, numero_bloque);
+	bloque = arch_buscar_parte(archivo, numero_bloque);
 
 	//tengo que verificar si alguno de los nodos que tiene la copia esta disponible
 	//hardcodeo ip y puerto
@@ -763,7 +763,7 @@ t_list* fs_importar_archivo(char* archivo) {
 			//si supera el tamaño de bloque grabo
 
 			bd = guardar_bloque(mapped + offset, bytes_leidos);
-			bd->numero_bloque = nro_bloque;
+			bd->parte_numero = nro_bloque;
 			nro_bloque++;
 			list_add(new, bd);
 
@@ -776,7 +776,7 @@ t_list* fs_importar_archivo(char* archivo) {
 		bd = guardar_bloque(mapped + offset, bytes_leidos);
 
 		//setteo el nro de bloque
-		bd->numero_bloque = nro_bloque;
+		bd->parte_numero = nro_bloque;
 		nro_bloque++;
 		//agrego el bloquededatos a la lista
 		list_add(new, bd);

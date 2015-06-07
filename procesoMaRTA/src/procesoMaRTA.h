@@ -24,6 +24,7 @@ void procesar (int fd, t_msg*msg);
 int archivo_a_usar();
 
 int enviar_maps(int fd, t_job* job);
+t_reduce* crear_reduce_local(t_job* job, t_nodo_base* nb);
 
 t_list* nodos_usados();
 int hilos_de_mapper();
@@ -145,7 +146,6 @@ void procesar (int fd, t_msg*msg){
 				msg = argv_message(FS_ESTA_OPERATIVO, 1, FS_OPERATIVO);
 				enviar_mensaje(fd, msg);
 				destroy_message(msg);
-
 				//salgo
 				break;////////////////////////
 			}
@@ -274,18 +274,10 @@ int enviar_maps(int fd, t_job* job){
 	log_trace(logger, "Comienzo a enviar los mappers que tiene lanzar el job");
 
 	void _enviar_map_a_job(t_map* map) {
-		//envio primero el nombre del archivo
-		msg = string_message(JOB_MAPPER, map->info->resultado, 0);
-		enviar_mensaje(fd, msg);
-		destroy_message(msg);
+		//envio el map al job
 
-		//ahora envio la info para conectarse
-		// args, puerto, numero_bloque, id_map, id_nodo
-		msg = string_message(JOB_MAPPER, map->archivo_nodo_bloque->base->red.ip, 4,
-				map->archivo_nodo_bloque->base->red.puerto, map->archivo_nodo_bloque->numero_bloque,
-				map->info->id, map->archivo_nodo_bloque->base->id);
-		enviar_mensaje(fd, msg);
-		destroy_message(msg);
+
+		enviar_mensaje_map(fd, map);
 
 		map->info->empezo = true;
 		log_trace(logger,
@@ -302,12 +294,13 @@ int enviar_maps(int fd, t_job* job){
 	return 0;
 }
 
-int enviar_reduce_local(int fd, t_nodo_base* nb, t_job* job){
-	log_trace(logger, "Creando reduce local a enviar para el job %d", job->id);
+t_reduce* crear_reduce_local(t_job* job, t_nodo_base* nb){
+	t_reduce* reduce = NULL;
+
 	JOB_REDUCE_ID++;
 	char* resultado = generar_nombre_reduce(job->id, JOB_REDUCE_ID);
-	t_reduce* reduce = NULL;
-	reduce = reduce_create(JOB_REDUCE_ID, job->id, resultado);
+	reduce = reduce_create(JOB_REDUCE_ID, job->id, resultado, nb);
+
 	FREE_NULL(resultado);
 
 	t_nodo_archivo* na = NULL;
@@ -329,24 +322,32 @@ int enviar_reduce_local(int fd, t_nodo_base* nb, t_job* job){
 	}
 	list_iterate(job->mappers, (void*)_crear_reduce_local);
 
+	return reduce;
+}
 
+int enviar_reduce_local(int fd, t_nodo_base* nb, t_job* job){
+	log_trace(logger, "Creando reduce local a enviar para el job %d", job->id);
+
+	t_reduce* reduce = NULL;
+
+	reduce = crear_reduce_local(job, nb);
 
 	//hasta aca tengo la variable reduce cargada, ahora tengo que mandarsela al job
 	////////////////////////////////////////////////////////////////////////////////
-	log_trace(logger, "Creado reduce %d para el job %d, cant-nodo-archivo: %d", reduce->info->id, job->id, list_size(reduce->nodos_archivo));
+	//log_trace(logger, "Creado reduce %d  para el job %d, cant-nodo-archivo: %d, nodo_destino: %d - %s:%d", reduce->info->id, job->id, list_size(reduce->nodos_archivo), reduce->nodo_base_destino->id, reduce->nodo_base_destino->red.ip, reduce->nodo_base_destino->red.puerto);
+	log_trace(logger, "Creado reduce %d  para el job %d, cant-nodo-archivo: %d, nodo_destino: %s", reduce->info->id, job->id, list_size(reduce->nodos_archivo), nodo_base_to_string(reduce->nodo_base_destino));
 	list_add(job->reducers, reduce);
 
 	log_trace(logger, "Empiezo a enviarselos al job");
-	log_trace(logger, "Empiezo a enviarselos al job");
-	log_trace(logger, "Empiezo a enviarselos al job");
-	log_trace(logger, "Empiezo a enviarselos al job");
-	log_trace(logger, "Empiezo a enviarselos al job");
-	log_trace(logger, "Empiezo a enviarselos al job");
-	log_trace(logger, "Empiezo a enviarselos al job");
+
+
+
+	/*
 	t_msg* msg;
-	//primero le paso la cantidad de nodo-archivo que tiene que recibir
-	log_trace(logger, "Cant-nodos-archivo: %d", list_size(reduce->nodos_archivo));
-	msg = argv_message(MARTA_REDUCE_CANT, 1, list_size(reduce->nodos_archivo));
+	//primero le paso el nodo_destino (ip:puerto, id_nodo: %d) y la cantidad de nodo-archivo que tiene que recibir
+	log_trace(logger, "Nodo que aplica el reduce: %s, Cant-nodos-archivo: %d", nodo_base_to_string(reduce->nodo_base_destino), list_size(reduce->nodos_archivo));
+	//paso ip, puerto, id_nodo, cant_nodos_archivos
+	msg = string_message(MARTA_REDUCE_INFO,reduce->nodo_base_destino->red.ip,3, reduce->nodo_base_destino->red.puerto, reduce->nodo_base_destino->id, list_size(reduce->nodos_archivo));
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
 	void _enviar_reduce_a_job(t_nodo_archivo* na){
@@ -372,6 +373,9 @@ int enviar_reduce_local(int fd, t_nodo_base* nb, t_job* job){
 	msg = string_message(MARTA_REDUCE_RESULTADO, reduce->info->resultado, 1, reduce->info->id);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
+	*/
+
+	log_trace(logger, "Fin envio de reduce %d", reduce->info->id);
 
 	return 0;
 }
@@ -418,9 +422,9 @@ t_archivo_job* crear_archivo(char* archivo_nombre){
 		//primero me paso el nro_bloque del archivo
 		msg = recibir_mensaje(fd);
 		//print_msg(msg);
-		bloque_datos->numero_bloque = msg->argv[0];
+		bloque_datos->parte_numero = msg->argv[0];
 		//printf("bloque nro: %d\n", bloque_datos->numero_bloque);
-		log_trace(logger, "Recibido bloque-nro: %d", bloque_datos->numero_bloque);
+		log_trace(logger, "Recibido parte_numero: %d", bloque_datos->parte_numero);
 		destroy_message(msg);
 
 		for(j=0;j<BLOQUE_CANT_COPIAS;j++){
@@ -428,14 +432,14 @@ t_archivo_job* crear_archivo(char* archivo_nombre){
 			//me pasa en este orden ip:puerto y el numero_bloque en el nodo y tambien el id_nodo
 
 			anb = marta_create_nodo_bloque(msg->stream, msg->argv[0], msg->argv[1], msg->argv[2]);//ip:port:nro_bloque:nodo_id
-			log_trace(logger, "Recibido info bloque %d, %s:%d, nro_bloque(en el nodo): %d, nodo_id", bloque_datos->numero_bloque, anb->base->red.ip, anb->base->red.puerto, anb->numero_bloque, anb->base->id);
+			log_trace(logger, "Recibido info parte_numero %d, %s:%d, nro_bloque(en el nodo): %d, nodo_id", bloque_datos->parte_numero, anb->base->red.ip, anb->base->red.puerto, anb->numero_bloque, anb->base->id);
 			//agrego el bloque(ip-puerto-nro_bloque) a la lista de bloques del archivo
 			list_add(bloque_datos->nodosbloque, anb);
 
 			destroy_message(msg);
 		}
 
-		log_trace(logger, "Terminado recepcion de copias del bloque %d", bloque_datos->numero_bloque);
+		log_trace(logger, "Terminado recepcion de copias de la parte numero %d", bloque_datos->parte_numero);
 		list_add(archivo->bloque_de_datos, (void*)bloque_datos);
 
 	}
@@ -579,7 +583,7 @@ int planificar_mappers(t_job* job, t_list* bloques_de_datos){
 			//lo agrego a la lista de marta
 			list_add(job->mappers, (void*)map);
 		} else {
-			log_trace(logger, "Ninguna copia disponible para el bloque %d", bloque->numero_bloque);
+			log_trace(logger, "Ninguna copia disponible para parte_numero %d", bloque->parte_numero);
 			//tengo que borrar los nodos que le agregue a marta, es decir lo que no estan empezados
 
 			return -1;

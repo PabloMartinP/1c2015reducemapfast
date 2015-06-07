@@ -569,15 +569,21 @@ char* generar_nombre_tmp(){
 void procesar_mensaje(int fd, t_msg* msg) {
 	char* bloque;
 	char* filename_script;
-	char* filename_result;
-	char* script;
-	size_t tam_script;
 	int n_bloque = 0;
 	//char* buff;
 	char* file_data;
+	t_map* map = NULL;
 	switch (msg->header.id) {
 	case JOB_MAPPER:
+		destroy_message(msg);
+		log_trace(logger, "Recibido nuevo mapper");
+		//recibo el map que me envio
+		map = recibir_mensaje_map(fd);
+		filename_script = generar_nombre_tmp();
+		recibir_mensaje_script_y_guardar(fd, filename_script);
 
+		/*
+		/////////////////////////////////////////////////////////////////////////////
 		//recibo el numero bloque y el nombre del archivo donde guardar el resultado
 		//print_msg(msg);
 		filename_result = string_new();string_append(&filename_result, msg->stream);
@@ -601,10 +607,13 @@ void procesar_mensaje(int fd, t_msg* msg) {
 		//settear permisos de ejecucion
 		chmod(filename_script, S_IRWXU);
 
-		log_trace(logger, "Aplicando mapper %s sobre el bloque %d", filename_script, n_bloque);
-		aplicar_map(n_bloque, filename_script, filename_result);
-		log_trace(logger, "fin mapper guardado en %s", filename_result);
+		*///////////////////////////////////////////////
+
+		log_trace(logger, "Aplicando mapper %s sobre el bloque %d", filename_script, map->archivo_nodo_bloque->numero_bloque);
+		aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
+		log_trace(logger, "Fin mapper guardado en %s", map->info->resultado);
 		free(filename_script);
+		//remove(filename_script);
 
 		msg = argv_message(MAPPER_TERMINO, 0);
 		enviar_mensaje(fd, msg);

@@ -8,7 +8,6 @@
 #ifndef PROCESOJOB_H_
 #define PROCESOJOB_H_
 
-#include <util.h>
 #include <stdio.h>
 #include "config_job.h"
 #include <commons/collections/list.h>
@@ -21,11 +20,15 @@
 #include <nodo.h>
 #include "config_job.h"
 
+#include <util.h>
+
+/*
 typedef struct{
 	int id;
 	char resultado[255];
 	t_list* nodos_archivo;//list of t_nodo_archivo
 }t_reduce_job;
+*/
 
 t_list* mappers;
 t_list* reducers;
@@ -38,21 +41,34 @@ int recibir_reducers(int fd);
 int lanzar_hilos_mappers(int fd);
 void crearHiloMapper();
 int funcionMapping(t_map* map);
-int enviar_script_mapper(int fd);
+//void reduce_job_free(t_reduce_job* job);
+int lanzar_hilos_reducers(int fd);
+//int funcionReducing(t_reduce_job* reduce);
 
-int funcionMapping(t_map* map){
 
+
+
+/*
+
+int funcionReducing(t_reduce_job* reduce){
 	bool resultado;
-	//printf("%s:%d\n", map->ip, map->puerto);
-	log_trace(logger, "Conectando con nodo %d - %s:%d", map->archivo_nodo_bloque->base->id,  map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
-	int fd = client_socket(map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
-	t_msg* msg;
-	size_t tam = file_get_size(JOB_SCRIPT_MAPPER());
-	//envio el bloque a mapear y el nombre del archivo donde almacena el resultado y al final el tamaño del script
-	log_trace(logger, "Enviando %s, numero_bloque: %d", map->info->resultado, map->archivo_nodo_bloque->numero_bloque);
-	msg = string_message(JOB_MAPPER, map->info->resultado, 2, map->archivo_nodo_bloque->numero_bloque, tam);
-	enviar_mensaje(fd, msg);
-	destroy_message(msg);
+
+
+
+	void _enviar_nodo_archivo(t_nodo_archivo* na){
+		//printf("%s:%d\n", map->ip, map->puerto);
+		log_trace(logger, "Conectando con nodo %d - %s:%d", na->nodo_base->id,  na->nodo_base->red.ip, na->nodo_base->red.puerto);
+		int fd = client_socket(na->nodo_base->red.ip, na->nodo_base->red.puerto);
+		t_msg* msg;
+		size_t tam = file_get_size(JOB_SCRIPT_REDUCER());
+		//envio el archivo a reducir y al final el tamaño del script
+		log_trace(logger, "Enviando archivo_tmp: %s, tamaño script: %d", map->info->resultado, map->archivo_nodo_bloque->numero_bloque);
+		msg = string_message(JOB_MAPPER, map->info->resultado, 2, map->archivo_nodo_bloque->numero_bloque, tam);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+	}
+	list_iterate(reduce->nodos_archivo, _enviar_nodo_archivo);
+
 
 	enviar_script_mapper(fd);
 	log_trace(logger, "Esperando respuesta a mapper %d en nodo %s:%d",map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
@@ -72,20 +88,48 @@ int funcionMapping(t_map* map){
 
 	return resultado;
 }
+*/
 
-int enviar_script_mapper(int fd){
+int funcionMapping(t_map* map){
+	t_msg* msg;
+	bool resultado;
+	log_trace(logger, "Conectando con nodo %d - %s:%d", map->archivo_nodo_bloque->base->id,  map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
+	int fd = client_socket(map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
+	//envio esto para que entre en el select del MAPPER y espera que recibir un mensaje_map
+	msg = argv_message(JOB_MAPPER, 0);
+	enviar_mensaje(fd, msg);destroy_message(msg);
 
-	char* script = file_get_mapped(JOB_SCRIPT_MAPPER());
+	enviar_mensaje_map(fd, map);
 
-	//size_t tam = file_get_size(JOB_SCRIPT_MAPPER());
-	//enviar_mensaje_sin_header(fd, tam, script);
-	t_msg* msg = string_message(JOB_MAPPER, script, 0);
-	log_trace(logger, "Enviando script mapper");
+	enviar_mensaje_script(fd, JOB_SCRIPT_MAPPER());
+
+	/*
+	size_t tam = file_get_size(JOB_SCRIPT_MAPPER());
+	//envio el bloque a mapear y el nombre del archivo donde almacena el resultado y al final el tamaño del script
+	log_trace(logger, "Enviando %s, numero_bloque: %d", map->info->resultado, map->archivo_nodo_bloque->numero_bloque);
+	msg = string_message(JOB_MAPPER, map->info->resultado, 2, map->archivo_nodo_bloque->numero_bloque, tam);
 	enviar_mensaje(fd, msg);
-
-	file_mmap_free(script, JOB_SCRIPT_MAPPER());
 	destroy_message(msg);
-	return 0;
+
+
+	enviar_script_mapper(fd);
+	*/
+	log_trace(logger, "Esperando respuesta a mapper %d en nodo %s:%d",map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
+	msg = recibir_mensaje(fd);
+	log_trace(logger, "Respuesta recibida de mapper %d en nodo %s:%d",map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
+	if(msg->header.id==MAPPER_TERMINO){
+		log_trace(logger, "El mapper %d en nodo %s:%d termino OK", map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
+		resultado = true;
+	}
+	else{
+		log_trace(logger, "El mapper %d en nodo %s:%d Termino CON ERRORES",map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
+		resultado = false;
+	}
+	destroy_message(msg);
+
+	close(fd);
+
+	return resultado;
 }
 
 void crearHiloMapper(t_map* map){
@@ -183,8 +227,11 @@ int conectar_con_marta(){
 	lanzar_hilos_mappers(fd);
 
 
-	recibir_reducers(fd);
+	//recibir_reducers(fd);
 
+	//hasta aca cargo la variable global reducers con t_reduce_job
+	//ahora me queda enviarselos al nodo
+	//lanzar_hilos_reducers(fd);
 
 
 	/*
@@ -201,16 +248,74 @@ int conectar_con_marta(){
 	return 0;
 }
 
+/*
+int lanzar_hilos_reducers(int fd){
+	//creo los hilos mappers
+		log_trace(logger, "Comienzo a crear hilos reduce");
+		pthread_t *threads = malloc(list_size(reducers)*(sizeof(pthread_t)));
+		int i=0;
+		void _crear_hilo_reducer(t_reduce_job* reduce){
+			pthread_create(threads + i, NULL, (void*)funcionReducing, (void*)reduce); //que párametro  ponemos??
+			i++;
+		}
+		list_iterate(reducers, (void*)_crear_hilo_reducer);
+		i=0;
+		int* res_reduce = malloc(sizeof(int)*list_size(reducers));
+		void _join_hilo_reducer(t_reduce_job* reduce){
+			if (pthread_join (threads[i], (void**)res_reduce+i))
+			   printf("Error reducers!!!!!!!!!!!!!!!!!\n");
+
+
+			log_trace(logger, "Le aviso a Marta que el reduce %d finalizo", reduce->id);
+			//le tengo que avisar a marta que termino el map ya sea bien o mal
+			//paso el job_id asignado y el resultado y el map_id
+			t_msg* msg = argv_message(JOB_REDUCE_TERMINO, 3, JOB_ID, res_reduce[i], reduce->id);
+			enviar_mensaje(fd, msg);
+			destroy_message(msg);
+			log_trace(logger, "Mensaje enviado a marta con resultado: %d del reduce %d", res_reduce[i], reduce->id);
+
+
+			i++;
+
+			//libero el reduce
+			reduce_job_free(reduce);
+
+
+		}
+		list_iterate(reducers, (void*)_join_hilo_reducer);
+		free(threads);threads=NULL;
+		free(res_reduce);res_reduce = NULL;
+
+		log_trace(logger, "Fin de creacion de hilos reducers");
+
+		list_destroy(reducers);
+
+		return 0;
+}
+*/
+
+/*
+void reduce_job_free(t_reduce_job* job){
+	list_destroy_and_destroy_elements(job->nodos_archivo, (void*)nodo_archivo_destroy);
+	FREE_NULL(job);
+}
+*/
+
+/*
 int recibir_reducers(int fd){
 	t_msg* msg;
 	t_nodo_archivo* na;
 
+
+	t_nodo_base* nb;
 	int cant_reduces,i;
 
 	do{
 		msg = recibir_mensaje(fd);
-		if(msg->header.id==MARTA_REDUCE_CANT){
-			cant_reduces = msg->argv[0];
+		if(msg->header.id==MARTA_REDUCE_INFO){
+			//paso ip, puerto, id_nodo, cant_nodos_archivos
+			nb = nodo_base_new(msg->argv[1], msg->stream, msg->argv[0]);
+			cant_reduces = msg->argv[2];
 		}else{
 			//si marta me manda el fin reduces salgo del while porque ya termino de enviar reduces
 			if(msg->header.id == MARTA_FIN_REDUCES)
@@ -271,7 +376,7 @@ int recibir_reducers(int fd){
 
 	return 0;
 }
-
+*/
 int lanzar_hilos_mappers(int fd){
 	//creo los hilos mappers
 		log_trace(logger, "Comienzo a crear hilos mappers");
@@ -317,7 +422,6 @@ int lanzar_hilos_mappers(int fd){
 }
 
 t_list* recibir_mappers(int fd){
-	char* resultado;
 	t_list* lista = list_create();
 	t_msg* msg;
 	msg = recibir_mensaje(fd);
@@ -329,24 +433,15 @@ t_list* recibir_mappers(int fd){
 	t_map* map = NULL;
 	for (i = 0; i < cant_mappers; i++) {
 		log_trace(logger, "Mapper %d", i);
-		//recibo primero el nombre del archivo que va usar para guardar en el tmp del nodo
-		msg = recibir_mensaje(fd);
-		//print_msg(msg);
-		resultado = string_new();string_append(&resultado, msg->stream);
+
+		map = recibir_mensaje_map(fd);
+
 		destroy_message(msg);
-		log_trace(logger, "Nombre archivo donde guardar el resultado(en tmp del nodo): %s", resultado);
 
-
-		// args, puerto, numero_bloque, id_map, id_nodo
-		msg = recibir_mensaje(fd);
-		//print_msg(msg);
-		map = map_create(msg->argv[2], resultado);
-		FREE_NULL(resultado);
-
-		map->archivo_nodo_bloque = archivo_nodo_bloque_new(msg->stream, msg->argv[0], msg->argv[1], msg->argv[3]);
+		print_map(map);
 
 		log_trace(logger, "Map_id: %d - Ubicacion: id_nodo: %d, %s:%d numero_bloque: %d",map->info->id, map->archivo_nodo_bloque->base->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto, map->archivo_nodo_bloque->numero_bloque);
-		destroy_message(msg);
+
 
 		list_add(lista, (void*)map);
 	}

@@ -177,22 +177,13 @@ t_bloque* nodo_buscar_bloque(t_nodo* nodo, int n_bloque){
 	return list_find(nodo->bloques, (void*)_buscar_bloque);
 }
 
-t_nodo_base* nodo_base_new(int id, char* ip, int puerto){
-	t_nodo_base* new = malloc(sizeof*new);
-	new->id = id;
-	strcpy(new->red.ip, ip);
-	new->red.puerto = puerto;
-	return new;
+
+
+void nodo_archivo_destroy(t_nodo_archivo* na){
+	FREE_NULL(na->nodo_base);
+	FREE_NULL(na);
 }
 
-t_archivo_nodo_bloque* archivo_nodo_bloque_new(char* ip, int puerto, int numero_bloque, int id){
-	t_archivo_nodo_bloque* new = malloc(sizeof*new);
-
-	new->numero_bloque = numero_bloque;
-	new->base = nodo_base_new(id, ip, puerto);
-
-	return new	;
-}
 
 t_nodo* nodo_new(char* ip, int puerto, bool isNew, int cant_bloques, int id) {
 	t_nodo* new = malloc(sizeof *new);

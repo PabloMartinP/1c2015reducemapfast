@@ -24,7 +24,7 @@
 
 
 typedef struct { //estructura que tiene las tres copias del bloque
-	int numero_bloque; //numero de bloque
+	int parte_numero; //numero de bloque
 	t_list* nodosbloque; //tiene tres estructuras t_archivo_nodo_bloque
 } t_archivo_bloque_con_copias;
 
@@ -65,8 +65,9 @@ void bloque_de_datos_destroy_no_free_base(t_archivo_bloque_con_copias* bloque_de
 //void archivo_nodo_bloque_destroy(t_archivo_nodo_bloque* anb);
 t_bloque* nodo_get_bloque_libre(t_nodo* nodo);
 t_bloque* nodo_get_bloque_para_copiar(t_nodo* nodo);
-t_nodo_base* nodo_base_new(int id, char* ip, int puerto);
-t_archivo_nodo_bloque* archivo_nodo_bloque_new(char* ip, int puerto, int numero_bloque, int id);
+
+
+void nodo_archivo_destroy(t_nodo_archivo* na);
 int nodo_cant_bloques_libres(t_nodo* nodo);
 int nodo_cant_bloques_usados(t_nodo* nodo);
 int nodo_cant_bloques(t_nodo* nodo);

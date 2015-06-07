@@ -396,7 +396,7 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 		void _enviar_info_bloques(t_archivo_bloque_con_copias* bd){
 
 			//primero envio el nro_bloque del archivo
-			msg = argv_message(MARTA_ARCHIVO_GET_NODOBLOQUE, 1, bd->numero_bloque);
+			msg = argv_message(MARTA_ARCHIVO_GET_NODOBLOQUE, 1, bd->parte_numero);
 			enviar_mensaje(fd, msg);
 			destroy_message(msg);
 

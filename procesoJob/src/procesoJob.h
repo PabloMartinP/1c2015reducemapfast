@@ -217,6 +217,8 @@ int recibir_reducers(int fd){
 				break;
 		}
 		destroy_message(msg);
+
+		//guardo t_nodo_archivo
 		reducers = list_create();
 
 		log_trace(logger, "Comenzando a recibir los nodos-archivo. cant: %d", cant_reduces);
@@ -237,6 +239,10 @@ int recibir_reducers(int fd){
 				na->nodo_base= nodo_base_new(msg->argv[1], msg->stream, msg->argv[0]);
 			}
 			destroy_message(msg);
+
+			//agrego el reduce a la lista de reduce
+			log_trace(logger, "recibido nuevo reduce sobre %s en el nodo_id: %d %s:%d", na->archivo, na->nodo_base->id, na->nodo_base->red.ip, na->nodo_base->red.puerto);
+			list_add(reducers, (void*)na);
 		}
 
 		log_trace(logger, "Fin recepcion de nodos-archivo");
@@ -248,6 +254,8 @@ int recibir_reducers(int fd){
 			reduce = malloc(sizeof(t_reduce_job));
 			strcpy(reduce->resultado, msg->stream);
 			reduce->id = msg->argv[0];
+
+			log_trace(logger, "reduce_id: %d, guardar resultado en %s", reduce->id, reduce->resultado);
 		}
 		destroy_message(msg);
 
@@ -255,6 +263,7 @@ int recibir_reducers(int fd){
 
 		/////////////////////////////////////////////////////////////
 		///////////////////////////////////////////////////////////////
+
 
 
 

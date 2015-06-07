@@ -10,6 +10,8 @@
 #include "config_MaRTA.h"
 #include "marta.h"
 
+#include <nodo.h>
+
 
 bool FIN = false;
 
@@ -303,9 +305,17 @@ int enviar_maps(int fd, t_job* job){
 int enviar_reduce_local(int fd, t_nodo_base* nb, t_job* job){
 	log_trace(logger, "Creando reduce local a enviar para el job %d", job->id);
 	JOB_REDUCE_ID++;
-	t_reduce* reduce = reduce_create(JOB_REDUCE_ID, job->id);
+	char* resultado = generar_nombre_reduce(job->id, JOB_REDUCE_ID);
+	t_reduce* reduce = NULL;
+	reduce = reduce_create(JOB_REDUCE_ID, job->id, resultado);
+	FREE_NULL(resultado);
+
+	t_nodo_archivo* na = NULL;
+
 	void _crear_reduce_local(t_map* map){
-		t_nodo_archivo* na = nodo_archivo_create();
+		na = nodo_archivo_create();
+		//na = malloc(sizeof(t_nodo_archivo));
+
 		//verifico el nodo haya terminado y sea el  mismo, la idea es qeudarme con todos los locales
 		if(map->info->termino && nodo_base_igual_a(*(map->archivo_nodo_bloque->base), *nb)){
 			//copio el nombre para no complicarme con los frees
@@ -319,7 +329,7 @@ int enviar_reduce_local(int fd, t_nodo_base* nb, t_job* job){
 	}
 	list_iterate(job->mappers, (void*)_crear_reduce_local);
 
-	reduce->info->resultado = generar_nombre_reduce(job->id, reduce->info->id);
+
 
 	//hasta aca tengo la variable reduce cargada, ahora tengo que mandarsela al job
 	////////////////////////////////////////////////////////////////////////////////

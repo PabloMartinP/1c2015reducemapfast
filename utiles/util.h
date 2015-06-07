@@ -186,7 +186,7 @@ t_map* map_create(int id, char* resultado);
 t_mapreduce* mapreduce_create(int id, char* resultado);
 int enviar_mensaje_sin_header(int sock_fd, int tamanio, void* buffer);
 void map_free(t_map* map);
-t_nodo_archivo* nodo_archivo_create();
+
 
 
 /****************** FUNCIONES SOCKET. ******************/
@@ -302,7 +302,7 @@ void print_msg(t_msg *msg);
 char *id_string(t_msg_id id);
 //int convertir_path_absoluto(char** destino, char* file);
 char* convertir_path_absoluto(char* file);
-t_reduce* reduce_create(int id, int job_id);
+t_reduce* reduce_create(int id, int job_id, char* resultado);
 void free_split(char** splitted);
 int split_count(char** splitted);
 

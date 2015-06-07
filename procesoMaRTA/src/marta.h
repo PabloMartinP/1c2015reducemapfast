@@ -132,7 +132,7 @@ int marta_marcar_map_como_fallido(int job_id, int map_id){
 
 
 t_nodo_base* job_obtener_nodo_con_todos_sus_mappers_terminados(t_list* mappers){
-	t_nodo_base* nb;
+	t_nodo_base* nb = NULL;;
 
 
 	void _nodo_termino_todos_sus_mappers(t_map* map){

@@ -97,10 +97,22 @@ typedef enum {
 	MARTA_ARCHIVO_GET_NODOBLOQUE,   //marta pide que le den donde esta guardado el archivo
 	JOB_CANT_MAPPERS,  //le devuelvo la cantidad de mappers necesarios para la lista de archivos a procesar(sumo ambas)
 	JOB_MAPPER,
-	MAPPER_TERMINO  //cuando el mapper termino aviso
+	MAPPER_TERMINO,  //cuando el mapper termino aviso
+	MARTA_REDUCE_CANT,
+	MARTA_FIN_REDUCES,
+	MARTA_REDUCE_NOMBRE_TMP,
+	MARTA_REDUCE_NODO,
+	MARTA_REDUCE_RESULTADO
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/
+
+
+typedef struct{
+	char ip[15];
+	int puerto;
+	char archivo[255];//nombre del archivo guardado en tmp
+}t_files_reduce;
 
 typedef struct{
 	char ip[15];
@@ -112,8 +124,6 @@ typedef struct {
 	t_red red;
 }t_nodo_base;
 
-
-
 typedef struct{
 	int id;
 	//t_nodo_base* nodo_base;
@@ -123,8 +133,12 @@ typedef struct{
 }t_mapreduce;
 
 typedef struct{
+	t_nodo_base* nodo_base;
+	char archivo[255];//list of string
+}t_nodo_archivo;
+typedef struct{
 	t_mapreduce* info;
-	t_list* archivos;//el nombre de los archivos a reducir
+	t_list* nodos_archivo;//list of t_nodo_archivo
 }t_reduce;
 
 typedef struct{
@@ -172,6 +186,7 @@ t_map* map_create(int id, char* resultado);
 t_mapreduce* mapreduce_create(int id, char* resultado);
 int enviar_mensaje_sin_header(int sock_fd, int tamanio, void* buffer);
 void map_free(t_map* map);
+t_nodo_archivo* nodo_archivo_create();
 
 
 /****************** FUNCIONES SOCKET. ******************/
@@ -287,7 +302,7 @@ void print_msg(t_msg *msg);
 char *id_string(t_msg_id id);
 //int convertir_path_absoluto(char** destino, char* file);
 char* convertir_path_absoluto(char* file);
-
+t_reduce* reduce_create(int id, int job_id);
 void free_split(char** splitted);
 int split_count(char** splitted);
 

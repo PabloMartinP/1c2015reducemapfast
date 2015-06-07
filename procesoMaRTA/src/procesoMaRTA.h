@@ -47,7 +47,7 @@ void marta_job_destroy(int id);
 t_archivo_job* crear_archivo(char* archivo_nombre);
 void job_destroy(t_job* job);
 int marta_job_cant_mappers(t_list* archivos);
-int enviar_reduce(int fd, t_nodo_base* nb, t_job* job);
+int enviar_reduce_local(int fd, t_nodo_base* nb, t_job* job);
 //t_list* planificar_mappers_con_combiner(t_list* bloques);
 //t_list* planificar_mappers_sin_combiner(t_list* bloques);
 
@@ -192,8 +192,9 @@ void procesar (int fd, t_msg*msg){
 
 			destroy_message(msg);
 
-			marta_map_destroy(job_id, map_id);
-/*
+			//no lo destruyo ahora pero despues tengo que destruirlo, por ahora sololo marco como terminado
+			//marta_map_destroy(job_id, map_id);
+
 			//marcaria el map del job como termino=true o false
 			if(res)
 				marta_marcar_map_como_terminado(job_id, map_id);
@@ -214,7 +215,7 @@ void procesar (int fd, t_msg*msg){
 					//ya termino todos sus mappers
 					//lanzo el reduce de los archivos locales al nodo
 					log_trace(logger, "El nodo %d, %s:%d tiene que aplicar map sobre sus archivos temporales", nb->id, nb->red.ip, nb->red.puerto);
-					enviar_reduces(fd, nb, job);
+					enviar_reduce_local(fd, nb, job);
 
 				}
 
@@ -227,7 +228,7 @@ void procesar (int fd, t_msg*msg){
 			//y los archivos (el resultado de los maps) a reducir
 			//una vez que le envio los nodos y archivos a reducir
 			//otra vez espero a que me conteste el job (los hilos reduce) con el mensaje JOB_REDUCE_TERMINO
-*/
+
 			break;
 		case JOB_REDUCE_TERMINO:
 			//a medida que van terminando los reduce los voy marcando en la lista de reducers del job termino=true
@@ -299,30 +300,68 @@ int enviar_maps(int fd, t_job* job){
 	return 0;
 }
 
-int enviar_reduce(int fd, t_nodo_base* nb, t_job* job){
-	char* archivo;
-	t_reduce* reduce = marta_create_reduce(job->id, nb);
-	void _crear_reduce(t_map* map){
+int enviar_reduce_local(int fd, t_nodo_base* nb, t_job* job){
+	log_trace(logger, "Creando reduce local a enviar para el job %d", job->id);
+	JOB_REDUCE_ID++;
+	t_reduce* reduce = reduce_create(JOB_REDUCE_ID, job->id);
+	void _crear_reduce_local(t_map* map){
+		t_nodo_archivo* na = nodo_archivo_create();
 		//verifico el nodo haya terminado y sea el  mismo, la idea es qeudarme con todos los locales
 		if(map->info->termino && nodo_base_igual_a(*(map->archivo_nodo_bloque->base), *nb)){
 			//copio el nombre para no complicarme con los frees
-			archivo = string_new();
-			string_append(&archivo, map->info->resultado);
-			//agrego a la lista el archivo
-			list_add(reduce->archivos, archivo);
+			strcpy(na->archivo, map->info->resultado);
+			na->nodo_base = nb;
 
-			//list_add(marta.nodos_reducers, ne);
+			log_trace(logger, "Archivo a reducir: %s en nodo_id: %d, %s:%d", na->archivo, na->nodo_base->id, na->nodo_base->red.ip, na->nodo_base->red.puerto);
+			//agrego a la lista el archivo
+			list_add(reduce->nodos_archivo, (void*)na);
 		}
 	}
+	list_iterate(job->mappers, (void*)_crear_reduce_local);
 
-	list_iterate(job->mappers, (void*)_crear_reduce);
+	reduce->info->resultado = generar_nombre_reduce(job->id, reduce->info->id);
+
 	//hasta aca tengo la variable reduce cargada, ahora tengo que mandarsela al job
 	////////////////////////////////////////////////////////////////////////////////
+	log_trace(logger, "Creado reduce %d para el job %d, cant-nodo-archivo: %d", reduce->info->id, job->id, list_size(reduce->nodos_archivo));
+	list_add(job->reducers, reduce);
 
-	//t_msg* msg ;
+	log_trace(logger, "Empiezo a enviarselos al job");
+	log_trace(logger, "Empiezo a enviarselos al job");
+	log_trace(logger, "Empiezo a enviarselos al job");
+	log_trace(logger, "Empiezo a enviarselos al job");
+	log_trace(logger, "Empiezo a enviarselos al job");
+	log_trace(logger, "Empiezo a enviarselos al job");
+	log_trace(logger, "Empiezo a enviarselos al job");
+	t_msg* msg;
+	//primero le paso la cantidad de nodo-archivo que tiene que recibir
+	log_trace(logger, "Cant-nodos-archivo: %d", list_size(reduce->nodos_archivo));
+	msg = argv_message(MARTA_REDUCE_CANT, 1, list_size(reduce->nodos_archivo));
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
+	void _enviar_reduce_a_job(t_nodo_archivo* na){
+		//envio el nombre del archivo en tmp a aplicar el reduce
+		log_trace(logger, "Enviando Nombre_tmp a reducir: %s", na->archivo);
+		msg = string_message(MARTA_REDUCE_NOMBRE_TMP, na->archivo,0);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
 
+		//envio info del nodo para conectarse
+		//ip, puerto, id_nodo
+		log_trace(logger, "Enviando nodo-id: %d - %s:%d", na->nodo_base->id, na->nodo_base->red.ip, 2, na->nodo_base->red.puerto);
+		msg = string_message(MARTA_REDUCE_NODO, na->nodo_base->red.ip, 2, na->nodo_base->red.puerto, na->nodo_base->id);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
 
+	}
+	list_iterate(reduce->nodos_archivo, (void*)_enviar_reduce_a_job);
+	log_trace(logger, "Enviado todos los nodos-archivo OK");
 
+	//envio el nombre del archivo donde almacena el resultado
+	log_trace(logger, "Envianodo el nombre del archivo resultado: %s", reduce->info->resultado);
+	msg = string_message(MARTA_REDUCE_RESULTADO, reduce->info->resultado, 1, reduce->info->id);
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
 
 	return 0;
 }

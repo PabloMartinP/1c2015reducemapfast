@@ -13,6 +13,16 @@ size_t file_get_size(char* filename) {
 	return st.st_size;
 }
 
+t_nodo_archivo* nodo_archivo_create(){
+	t_nodo_archivo* new = malloc(sizeof(t_nodo_archivo));
+
+
+	//new->nodo_base = nodo_base_new()
+
+	return new;
+}
+
+
 
 void map_free(t_map* map){
 	//FREE_NULL(map->info->nodo_base);
@@ -805,4 +815,16 @@ void free_split(char** splitted){
 		i++;
 	}
 	FREE_NULL(splitted);
+}
+
+
+t_reduce* reduce_create(int id, int job_id){
+	t_reduce* new = malloc(sizeof*new);
+	new->info->id = id;
+	new->info->termino = false;
+	//new->info->resultado = generar_nombre_reduce(job_id, new->info->id);
+	//new->info->nodo_base = nb;
+
+	new->nodos_archivo = list_create();
+	return new;
 }

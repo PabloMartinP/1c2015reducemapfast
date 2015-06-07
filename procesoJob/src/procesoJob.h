@@ -21,20 +21,20 @@
 #include <nodo.h>
 #include "config_job.h"
 
-/*
-typedef struct {
-	char ip[15];
-	int puerto;
-	int numero_bloque;
-	char* archivo_tmp;
-}t_map;*/
+typedef struct{
+	int id;
+	char resultado[255];
+	t_list* nodos_archivo;//list of t_nodo_archivo
+}t_reduce_job;
 
 t_list* mappers;
+t_list* reducers;
 t_log* logger;
 
 int JOB_ID;
 int conectar_con_marta();
 t_list* recibir_mappers(int fd);
+int recibir_reducers(int fd);
 int lanzar_hilos_mappers(int fd);
 void crearHiloMapper();
 int funcionMapping(t_map* map);
@@ -183,16 +183,82 @@ int conectar_con_marta(){
 	lanzar_hilos_mappers(fd);
 
 
+	recibir_reducers(fd);
+
+
+
+	/*
 	msg = argv_message(JOB_TERMINO, 1, JOB_ID);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
 
-
 	msg = argv_message(MARTA_SALIR, 0);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
+*/
 
 
+	return 0;
+}
+
+int recibir_reducers(int fd){
+	t_msg* msg;
+	t_nodo_archivo* na;
+
+	int cant_reduces,i;
+
+	do{
+		msg = recibir_mensaje(fd);
+		if(msg->header.id==MARTA_REDUCE_CANT){
+			cant_reduces = msg->argv[0];
+		}else{
+			//si marta me manda el fin reduces salgo del while porque ya termino de enviar reduces
+			if(msg->header.id == MARTA_FIN_REDUCES)
+				break;
+		}
+		destroy_message(msg);
+		reducers = list_create();
+
+		log_trace(logger, "Comenzando a recibir los nodos-archivo. cant: %d", cant_reduces);
+		for(i=0;i<cant_reduces;i++){
+			na = nodo_archivo_create();
+
+			//cargo el nombre del archivo a reducir
+			msg = recibir_mensaje(fd);
+			if(msg->header.id == MARTA_REDUCE_NOMBRE_TMP){
+				strcpy(na->archivo, msg->stream);
+			}
+			destroy_message(msg);
+
+			//cargo la info del nodo a donde conectarse
+			////ip, puerto, id_nodo
+			msg = recibir_mensaje(fd);
+			if(msg->header.id == MARTA_REDUCE_NODO){
+				na->nodo_base= nodo_base_new(msg->argv[1], msg->stream, msg->argv[0]);
+			}
+			destroy_message(msg);
+		}
+
+		log_trace(logger, "Fin recepcion de nodos-archivo");
+
+		//recibo el nombre donde guarda el archivo final y el REDUCE_ID
+		t_reduce_job* reduce;
+		msg = recibir_mensaje(fd);
+		if(msg->header.id == MARTA_REDUCE_RESULTADO){
+			reduce = malloc(sizeof(t_reduce_job));
+			strcpy(reduce->resultado, msg->stream);
+			reduce->id = msg->argv[0];
+		}
+		destroy_message(msg);
+
+		log_trace(logger, "Fin envio recepcion de reduce id %d", reduce->id);
+
+		/////////////////////////////////////////////////////////////
+		///////////////////////////////////////////////////////////////
+
+
+
+	}while(true);
 
 	return 0;
 }

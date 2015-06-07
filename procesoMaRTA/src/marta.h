@@ -20,22 +20,10 @@ typedef struct {
 	bool combiner;
 	char* resultado;//el nombre del archivo resultado final
 	t_list* mappers;//guarda t_maps
-
+	t_list* reducers; //guarda t_reduce
 }t_job;
 
-/*
-typedef struct {
-	t_archivo_nodo_bloque* nodo;
-	bool empezo;
-}t_nodo_estado_map;
-*/
-/*
-typedef struct {
-	t_nodo_base* nodo_base;
-	t_list* archivos_tmp;
-	bool empezo;
-}t_nodo_estado_reduce;
-*/
+
 typedef struct {
 	t_list* jobs;//guarda estructuras t_job
 	//t_list* nodos_mappers;//list of t_nodo_estado_map
@@ -60,7 +48,7 @@ int marta_marcar_map_como_fallido(int job_id, int map_id);
 t_map* map_buscar(t_job* job, int map_id);
 t_map* marta_buscar_map(int job_id, int map_id);
 t_nodo_base* job_obtener_nodo_con_todos_sus_mappers_terminados(t_list* mappers);
-t_reduce* marta_create_reduce(int job_id, t_nodo_base* nb);
+
 char* generar_nombre_reduce(int job_id, int reduce_id);
 char* generar_nombre_map(int job_id, int map_id);
 
@@ -112,17 +100,6 @@ char* generar_nombre_reduce(int job_id, int reduce_id){
 }
 
 
-
-t_reduce* marta_create_reduce(int job_id, t_nodo_base* nb){
-	t_reduce* new = malloc(sizeof*new);
-	new->info->id = JOB_REDUCE_ID++;
-	new->info->termino = false;
-	new->info->resultado = generar_nombre_reduce(job_id, new->info->id);
-	//new->info->nodo_base = nb;
-
-	new->archivos = list_create();
-	return new;
-}
 
 t_job* job_buscar(int job_id){
 	bool _buscar_job(t_job* job){
@@ -273,6 +250,7 @@ t_job* marta_create_job(char* resultado, bool combiner){
 	new->id = JOB_ID++;//le asigno un nuevo id
 
 	new->mappers = list_create();
+	new->reducers = list_create();
 
 	return new;
 }

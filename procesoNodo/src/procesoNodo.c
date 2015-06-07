@@ -1,5 +1,6 @@
 #include "procesoNodo.h"
 
+
 int main(int argc, char *argv[]) {
 	//por param le tiene que llegar el tamaño del archivo data.bin
 	//por ahora hardcodeo 100mb, serian 10 bloques de 20 mb
@@ -9,7 +10,8 @@ int main(int argc, char *argv[]) {
 	probar_conexion_fs();
 
 	//inicio el server para atender las peticiones del fs
-	iniciar_server_thread();
+	//iniciar_server_thread();
+	incicar_server();
 
 	//todo estas pruebas andan OK 0 leaks
 	/*
@@ -49,7 +51,7 @@ int main(int argc, char *argv[]) {
 	FREE_NULL(file_reduce_result);
 
 //////////////////////////////////////////////////////////////////////////
-
+*/ /*
 	 //test reduce de los dos archivos mapeados y en otro nodo?
 	 //creo un archivo para reducir
 	 t_list* files_to_reduce = list_create();
@@ -532,8 +534,8 @@ void agregar_cwd(char* file) {
 void iniciar_server_thread() {
 	pthread_t th;
 
-	pthread_create(&th, NULL, (void*) incicar_server, NULL);
 	//pthread_join(th, NULL);
+	pthread_create(&th, NULL, (void*) incicar_server, NULL);
 
 }
 

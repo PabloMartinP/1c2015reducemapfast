@@ -13,11 +13,6 @@
 #include <util.h>
 //#define KEYVALUE_END '_' // para saber cuando termina un archivo, lo marco con esto
 
-typedef struct{
-	char ip[15];
-	int puerto;
-	char archivo[255];//nombre del archivo guardado en tmp
-}t_files_reduce;
 
 
 /* since pipes are unidirectional, we need two pipes.

@@ -25,20 +25,21 @@ void map_free(t_map* map){
 
 }
 
-t_mapreduce* mapreduce_create(int id, char* resultado){
+t_mapreduce* mapreduce_create(int id, int job_id, char* resultado){
 	t_mapreduce* new = malloc(sizeof*new);
 	new->id = id;
 	new->resultado = string_new();
 	string_append(&(new->resultado), resultado);
 	new->empezo = false;
 	new->termino = false;
+	new->job_id = job_id;
 	return new;
 }
 
-t_map* map_create(int id, char* resultado){
+t_map* map_create(int id, int job_id, char* resultado){
 	t_map* new = malloc(sizeof*new);
 
-	new->info = mapreduce_create(id, resultado);
+	new->info = mapreduce_create(id, job_id, resultado);
 
 	return new;
 }
@@ -410,28 +411,174 @@ int recibir_mensaje_flujo(int unSocket, void** buffer) {
  */
 t_msg* nodo_base_message(t_nodo_base* nb){
 	t_msg* msg =NULL;
-	msg = string_message(NODO_BASE, nb->red.ip, nb->red.puerto, nb->id);
+	msg = string_message(NODO_BASE, nb->red.ip,2, nb->red.puerto, nb->id);
 	return msg;
 }
 
+int enviar_mensaje_mapreduce(int fd, t_mapreduce* mr){
+	t_msg* msg = NULL;
+	//envio resultado, id, job_id
+	msg = string_message(MAPREDUCE_INFO, mr->resultado, 2, mr->id, mr->job_id);
+	int rs = enviar_mensaje(fd, msg);
+	destroy_message(msg);
+	return rs;
+}
+
+t_mapreduce* recibir_mensaje_mapreduce(int fd){
+	t_mapreduce* mr = NULL;
+	t_msg* msg = NULL;
+	//envio resultado, id, job_id
+	msg = recibir_mensaje(fd);
+
+	mr = mapreduce_create(msg->argv[0], msg->argv[0], msg->stream);
+
+	destroy_message(msg);
+	return mr;
+}
+
+int enviar_mensaje_archivo_nodo_bloque(int fd, t_archivo_nodo_bloque* anb){
+	// envio la info para conectarse al nodo
+	enviar_mensaje_nodo_base(fd, anb->base);
+
+	t_msg* msg = NULL;
+	msg = argv_message(ANB_NUMERO_BLOQUE, 1, anb->numero_bloque);
+	int rs = enviar_mensaje(fd, msg);
+	destroy_message(msg);
+
+	return rs;
+}
+
+t_archivo_nodo_bloque* archivo_nodo_bloque_create(t_nodo_base* nb, int numero_bloque){
+	t_archivo_nodo_bloque* new = malloc(sizeof*new);
+
+	new->numero_bloque = numero_bloque;
+	new->base = nb;
+	return new;
+}
+
+t_archivo_nodo_bloque* recibir_mensaje_archivo_nodo_bloque(int fd){
+	t_nodo_base* nb = NULL;
+	int numero_bloque = 0;
+	//recibo la info para conectarse al nodo
+	nb = recibir_mensaje_nodo_base(fd);
+
+	// recibo el numero de bloque
+	t_msg* msg = NULL;
+	msg = recibir_mensaje(fd);
+
+	if(msg->header.id == ANB_NUMERO_BLOQUE){
+		numero_bloque = msg->argv[0];
+	}
+	destroy_message(msg);
+
+	t_archivo_nodo_bloque* anb = NULL;
+	anb = archivo_nodo_bloque_create(nb, numero_bloque);
+	return anb;
+}
 
 
 int enviar_mensaje_map(int fd, t_map* map){
-	t_msg* msg = NULL;
-	//envio primero el nombre del archivo de resultado
-	msg = string_message(JOB_MAPPER, map->info->resultado, 0);
+	int rs;
+	//envio primero la info de mapreduce
+	rs = enviar_mensaje_mapreduce(fd, map->info);
+	rs = enviar_mensaje_archivo_nodo_bloque(fd, map->archivo_nodo_bloque);
+
+	return rs;
+}
+
+int enviar_mensaje_reduce(int fd, t_reduce* reduce){
+	t_msg* msg;
+	//envio el nombre del archivo donde almacena el resultado, el reduce_id, el job_id y la cantidad de nodo-archivo que tiene que recibir
+	//printf("Enviando el nombre del archivo resultado: %s",reduce->info->resultado);
+
+	//envio el nombre resultado, red_id, job_id, cant_nodos_archivo
+	msg = string_message(MARTA_REDUCE_INFO, reduce->info->resultado, 3, reduce->info->id, reduce->info->job_id, list_size(reduce->nodos_archivo));
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
 
-	//ahora envio la info para conectarse
-	// args, puerto, numero_bloque, id_map, id_nodo
-	msg = string_message(JOB_MAPPER, map->archivo_nodo_bloque->base->red.ip, 4,
-			map->archivo_nodo_bloque->base->red.puerto, map->archivo_nodo_bloque->numero_bloque,
-			map->info->id, map->archivo_nodo_bloque->base->id);
-	enviar_mensaje(fd, msg);
-	destroy_message(msg);
+	//ahora le paso el nodo_destino (ip:puerto, id_nodo: %d)
+	enviar_mensaje_nodo_base(fd, reduce->nodo_base_destino);
+
+	//printf("Enviando lista de t_nodo_archivo");
+	void _enviar_reduce_a_job(t_nodo_archivo* na) {
+		//envio el nombre del archivo en tmp a aplicar el reduce
+		//printf("Enviando Nombre_tmp a reducir: %s", na->archivo);
+		msg = string_message(MARTA_REDUCE_NOMBRE_TMP, na->archivo, 0);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+
+		//envio info del nodo para conectarse
+		//ip, puerto, id_nodo
+		//printf("Enviando nodo-id: %d - %s:%d", na->nodo_base->id, na->nodo_base->red.ip, 2, na->nodo_base->red.puerto);
+		//printf("Enviando info nodo %s", nodo_base_to_string(na->nodo_base));
+		enviar_mensaje_nodo_base(fd, na->nodo_base);
+		/*
+		msg = string_message(MARTA_REDUCE_NODO, na->nodo_base->red.ip, 2, na->nodo_base->red.puerto, na->nodo_base->id);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);*/
+
+
+	}
+	list_iterate(reduce->nodos_archivo, (void*) _enviar_reduce_a_job);
+	//printf("Enviado todos los nodos-archivo OK");
 
 	return 0;
+}
+
+t_nodo_archivo* nodo_archivo_create(void){
+	t_nodo_archivo* new = malloc(sizeof(t_nodo_archivo));
+
+	//new->nodo_base = nodo_base_new()
+
+	return new;
+}
+
+t_reduce* recibir_mensaje_reduce(int fd){
+	t_msg* msg;
+	t_nodo_archivo* na;
+	t_reduce* reduce;
+	int cant_reduces, i;
+
+	msg = recibir_mensaje(fd);
+	if (msg->header.id == MARTA_REDUCE_INFO) {
+		//envio el nombre resultado, red_id, job_id, cant_nodos_archivo
+		//le paso null porque todavia no tengo el nb, viene en la proxima recibir_mensaje
+		reduce = reduce_create(msg->argv[0], msg->argv[1], msg->stream,
+				recibir_mensaje_nodo_base(fd));
+		cant_reduces = msg->argv[2];
+	} else {
+		//si marta me manda el fin reduces salgo del while porque ya termino de enviar reduces
+		if (msg->header.id == MARTA_FIN_REDUCES){
+			return NULL;//marta termino de mandar el ultimo reduce
+		}
+
+	}
+	destroy_message(msg);
+
+	printf("Comenzando a recibir los nodos-archivo. cant: %d\n", cant_reduces);
+	for (i = 0; i < cant_reduces; i++) {
+		na = NULL;
+		na = nodo_archivo_create();
+
+		//cargo el nombre del archivo a reducir
+		msg = recibir_mensaje(fd);
+		if (msg->header.id == MARTA_REDUCE_NOMBRE_TMP) {
+			strcpy(na->archivo, msg->stream);
+		}
+		destroy_message(msg);
+
+		//cargo la info del nodo a donde conectarse
+		na->nodo_base = recibir_mensaje_nodo_base(fd);
+
+		//agrego el reduce a la lista de reduce
+		//printf("Recibido nuevo reduce sobre %s en el nodo_id: %d %s:%d", na->archivo, na->nodo_base->id, na->nodo_base->red.ip, na->nodo_base->red.puerto);
+		printf("Recibido nuevo reduce sobre %s en el nodo %s\n", na->archivo,	nodo_base_to_string(na->nodo_base));
+		list_add(reduce->nodos_archivo, (void*) na);
+	}
+
+	printf("Fin recepcion de nodos-archivo\n");
+
+	return reduce;
 }
 
 void print_map(t_map* map){
@@ -461,7 +608,7 @@ int recibir_mensaje_script_y_guardar(int fd, char* path_destino_script){
 	msg = recibir_mensaje(fd);
 	//guardo en el path destino el script
 	write_file(path_destino_script,msg->stream, strlen(msg->stream));
-
+	destroy_message(msg);
 	//settear permisos de ejecucion
 	chmod(path_destino_script, S_IRWXU);
 
@@ -469,30 +616,29 @@ int recibir_mensaje_script_y_guardar(int fd, char* path_destino_script){
 }
 
 t_map* recibir_mensaje_map(int fd){
-	//recibo primero el nombre del archivo que va usar para guardar en el tmp del nodo
-	char* resultado;
-	t_msg* msg = NULL;msg= recibir_mensaje(fd);
-	//print_msg(msg);
-	resultado = string_new();string_append(&resultado, msg->stream);
-	destroy_message(msg);
-	//log_trace(logger, "Nombre archivo donde guardar el resultado(en tmp del nodo): %s", resultado);
+	t_mapreduce* mr = NULL;
+	mr = recibir_mensaje_mapreduce(fd);
 
-	// args, puerto, numero_bloque, id_map, id_nodo
-	msg = recibir_mensaje(fd);
-	//print_msg(msg);
-	t_map* map = NULL;
-	map = map_create(msg->argv[2], resultado);
-	//limpio el resultado que ya lo copie al map_create;
-	FREE_NULL(resultado);
-	map->archivo_nodo_bloque = archivo_nodo_bloque_new(msg->stream, msg->argv[0], msg->argv[1], msg->argv[3]);
+	t_archivo_nodo_bloque* anb = NULL;
+	anb = recibir_mensaje_archivo_nodo_bloque(fd);
+
+	t_map* map = malloc(sizeof(t_map));
+	map->archivo_nodo_bloque = anb;
+	map->info = mr;
 
 	return map;
 }
 
+/*
+ * envia el mensaje con ID NODO_BASE
+ */
 int enviar_mensaje_nodo_base(int fd, t_nodo_base* nb){
 	t_msg* msg = NULL;
 	msg = nodo_base_message(nb);
-	return enviar_mensaje(fd, msg);
+
+	int rs = enviar_mensaje(fd, msg);
+	destroy_message(msg);
+	return rs;
 }
 
 t_msg *string_message(t_msg_id id, char *message, uint16_t count, ...) {
@@ -565,7 +711,10 @@ t_nodo_base* nodo_base_new(int id, char* ip, int puerto){
 
 t_nodo_base* recibir_mensaje_nodo_base(int fd){
 	t_msg* msg = recibir_mensaje(fd);
-	t_nodo_base* nb = nodo_base_new(msg->argv[1], msg->stream, msg->argv[0]);
+	t_nodo_base* nb = NULL;
+	if(msg->header.id == NODO_BASE){
+		nb = nodo_base_new(msg->argv[1], msg->stream, msg->argv[0]);
+	}
 	destroy_message(msg);
 	return nb;
 }
@@ -935,9 +1084,10 @@ char* nodo_base_to_string(t_nodo_base* nb){
 t_reduce* reduce_create(int id, int job_id, char* resultado, t_nodo_base* nb){
 	t_reduce* new = malloc(sizeof*new);
 
-	new->info = mapreduce_create(id,resultado);
+	new->info = mapreduce_create(id,job_id, resultado);
 	new->nodo_base_destino = nb;
 
+	new->info->job_id = job_id;
 	new->nodos_archivo = list_create();
 	return new;
 }

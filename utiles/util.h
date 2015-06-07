@@ -97,11 +97,15 @@ typedef enum {
 	MARTA_ARCHIVO_GET_NODOBLOQUE,   //marta pide que le den donde esta guardado el archivo
 	JOB_CANT_MAPPERS,  //le devuelvo la cantidad de mappers necesarios para la lista de archivos a procesar(sumo ambas)
 	JOB_MAPPER,
+	JOB_REDUCER,
+	REDUCER_TERMINO,
 	MAPPER_TERMINO,  //cuando el mapper termino aviso
 	MARTA_REDUCE_CANT,
 	MARTA_REDUCE_INFO,
 	MARTA_FIN_REDUCES,
+	ANB_NUMERO_BLOQUE,
 	MARTA_REDUCE_NOMBRE_TMP,
+	MAPREDUCE_INFO,
 	MARTA_REDUCE_NODO,
 	MARTA_REDUCE_RESULTADO,
 	NODO_BASE,
@@ -128,6 +132,7 @@ typedef struct {
 }t_nodo_base;
 
 typedef struct{
+	int job_id;
 	int id;
 	//t_nodo_base* nodo_base;
 	char* resultado;//el nombre del archivo ya mapeado(solo el nombre porque siempre lo va buscar en el tmp del nodo)
@@ -182,13 +187,19 @@ size_t file_get_size(char* filename);
 void* file_get_mapped(char* filename);
 void file_mmap_free(char* mapped, char* filename);
 float  bytes_to_kilobytes(size_t bytes);
+int enviar_mensaje_nodo_base(int fd, t_nodo_base* nb);
 t_msg* nodo_base_message(t_nodo_base* nb);
 t_nodo_base* recibir_mensaje_nodo_base(int fd);
+int enviar_mensaje_reduce(int fd, t_reduce* reduce);
+t_nodo_archivo* nodo_archivo_create();
+t_reduce* recibir_mensaje_reduce(int fd);
 t_nodo_base* nodo_base_new(int id, char* ip, int puerto);
 float bytes_to_megabytes(size_t bytes);
 int enviar_nodo_base(int fd, t_nodo_base* nb);
 t_archivo_nodo_bloque* archivo_nodo_bloque_new(char* ip, int puerto, int numero_bloque, int id);
 int enviar_mensaje_map(int fd, t_map* map);
+t_archivo_nodo_bloque* archivo_nodo_bloque_create(t_nodo_base* nb, int numero_bloque);
+int enviar_mensaje_archivo_nodo_bloque(int fd, t_archivo_nodo_bloque* anb);
 int cant_registros(char** registros) ;
 int enviar_mensaje_flujo(int unSocket, int8_t tipo, int tamanio, void *buffer);
 int recibir_mensaje_flujo(int unSocket, void** buffer);
@@ -196,8 +207,9 @@ t_map* recibir_mensaje_map(int fd);
 int recibir_mensaje_script_y_guardar(int fd, char* path_destino);
 int enviar_mensaje_script(int fd, char* path_script);
 void print_map(t_map* map);
-t_map* map_create(int id, char* resultado);
-t_mapreduce* mapreduce_create(int id, char* resultado);
+int enviar_mensaje_mapreduce(int fd, t_mapreduce* mr);
+t_map* map_create(int id, int job_id, char* resultado);
+t_mapreduce* mapreduce_create(int id, int job_id, char* resultado);
 int enviar_mensaje_sin_header(int sock_fd, int tamanio, void* buffer);
 void map_free(t_map* map);
 

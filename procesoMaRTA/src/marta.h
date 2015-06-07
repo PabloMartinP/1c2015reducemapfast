@@ -52,7 +52,7 @@ t_nodo_base* job_obtener_nodo_con_todos_sus_mappers_terminados(t_list* mappers);
 char* generar_nombre_reduce(int job_id, int reduce_id);
 char* generar_nombre_map(int job_id, int map_id);
 
-t_map* marta_create_map(int id, char* archivo, t_archivo_nodo_bloque* anb);
+t_map* marta_create_map(int id, int job_id, char* archivo, t_archivo_nodo_bloque* anb);
 char* generar_nombre_job(int job_id, int mapreduce_id, char*map_o_reduce);
 //void nodo_estado_map_destroy(t_nodo_estado_map* ne);
 
@@ -255,11 +255,12 @@ t_job* marta_create_job(char* resultado, bool combiner){
 	return new;
 }
 
-t_map* marta_create_map(int id, char* archivo, t_archivo_nodo_bloque* anb){
-	t_map* new = map_create(id, archivo);
+t_map* marta_create_map(int id, int job_id, char* archivo, t_archivo_nodo_bloque* anb){
+	t_map* new = map_create(id,job_id, archivo);
 	new->archivo_nodo_bloque = anb;
 	//new->info->nodo_base = nodo_base_new(ne->nodo->base->id, ne->nodo->base->red.ip,ne->nodo->base->red.puerto);
-
+	new->info->id = id;
+	new->info->job_id = job_id;
 	return new;
 }
 

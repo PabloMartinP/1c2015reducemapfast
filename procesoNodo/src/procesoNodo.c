@@ -549,7 +549,7 @@ char* generar_nombre_script(){
 	return file_map1;
 }
 
-char* generar_nombre_tmp(){
+char* generar_nombre_map_tmp(){
 	char* timenow = temporal_get_string_time();
 
 	char* file_map1 = string_new();
@@ -565,6 +565,46 @@ char* generar_nombre_tmp(){
 	return tmp;
 }
 
+char* generar_nombre_reduce_tmp(){
+	char* timenow = temporal_get_string_time();
+
+	char* file_map1 = string_new();
+	string_append(&file_map1, "job_script_reduce_");
+	string_append(&file_map1, timenow);
+	string_append(&file_map1, ".sh");
+
+	char* tmp ;
+	tmp = convertir_a_temp_path_filename(file_map1);
+	free(file_map1);
+	free(timenow);
+
+	return tmp;
+}
+
+int aplicar_reduce(t_reduce* reduce, char* script){
+	t_list* files_to_reduce = list_create();
+	t_files_reduce* file_reduce1 =NULL;
+	void _crear_files_reduce(t_nodo_archivo* na){
+		//creo un archivo para reducir
+		file_reduce1 = NULL;
+		file_reduce1 = malloc(sizeof *file_reduce1);
+		strcpy(file_reduce1->archivo, na->archivo);
+		strcpy(file_reduce1->ip, na->nodo_base->red.ip);
+		file_reduce1->puerto = na->nodo_base->red.puerto;
+		list_add(files_to_reduce, file_reduce1);
+	}
+	list_iterate(reduce->nodos_archivo, (void*)_crear_files_reduce);
+
+	aplicar_reduce_local_red(files_to_reduce,
+			script,
+			reduce->info->resultado);
+	printf("%s\n", reduce->info->resultado);
+
+	list_destroy_and_destroy_elements(files_to_reduce, free);
+
+
+	return 0;
+}
 
 void procesar_mensaje(int fd, t_msg* msg) {
 	char* bloque;
@@ -573,42 +613,41 @@ void procesar_mensaje(int fd, t_msg* msg) {
 	//char* buff;
 	char* file_data;
 	t_map* map = NULL;
+	t_reduce* reduce = NULL;
 	switch (msg->header.id) {
+	case JOB_REDUCER:
+		destroy_message(msg);
+		log_trace(logger, "Recibido nuevo reducer");
+		//recibo el reduce que me envio
+		reduce = NULL;
+		reduce = recibir_mensaje_reduce(fd);
+		filename_script = generar_nombre_reduce_tmp();
+		recibir_mensaje_script_y_guardar(fd, filename_script);
+		///////////////////////////////////////////////
+		log_trace(logger, "Aplicando reducer %s sobre %d archivos", filename_script, list_size(reduce->nodos_archivo));
+
+		aplicar_reduce(reduce, filename_script);
+
+		//aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
+		log_trace(logger, "Fin reducer guardado en %s", reduce->info->resultado);
+		free(filename_script);
+		//remove(filename_script);
+
+		msg = argv_message(REDUCER_TERMINO, 0);
+		enviar_mensaje(fd, msg);
+		log_trace(logger, "Enviado REDUCER_TERMINO al job");
+		destroy_message(msg);
+
+		break;
 	case JOB_MAPPER:
 		destroy_message(msg);
 		log_trace(logger, "Recibido nuevo mapper");
 		//recibo el map que me envio
+		map = NULL;
 		map = recibir_mensaje_map(fd);
-		filename_script = generar_nombre_tmp();
+		filename_script = generar_nombre_map_tmp();
 		recibir_mensaje_script_y_guardar(fd, filename_script);
-
-		/*
-		/////////////////////////////////////////////////////////////////////////////
-		//recibo el numero bloque y el nombre del archivo donde guardar el resultado
-		//print_msg(msg);
-		filename_result = string_new();string_append(&filename_result, msg->stream);
-		n_bloque = msg->argv[0];
-		tam_script = msg->argv[1];
-		log_trace(logger, "Inicio nuevo mapper a aplicar sobre el bloque %d, guardarlo con nombre: %s", n_bloque, msg->stream);
-		destroy_message(msg);
-		//recibo el script
-		script = malloc(tam_script);
-		msg = recibir_mensaje(fd);
-		//print_msg(msg);
-		memcpy(script, msg->stream, tam_script);
-		destroy_message(msg);
-		//recibir_mensaje_flujo(fd, (void*)&script);
-		filename_script = generar_nombre_tmp();
-		//grabo el script en tmp
-		write_file(filename_script,script, tam_script);
-		log_trace(logger, "recibido script tamaño: %d, guardado con nombre: %s", tam_script, filename_script);
-		free(script);
-
-		//settear permisos de ejecucion
-		chmod(filename_script, S_IRWXU);
-
-		*///////////////////////////////////////////////
-
+		///////////////////////////////////////////////////////////////////////
 		log_trace(logger, "Aplicando mapper %s sobre el bloque %d", filename_script, map->archivo_nodo_bloque->numero_bloque);
 		aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
 		log_trace(logger, "Fin mapper guardado en %s", map->info->resultado);

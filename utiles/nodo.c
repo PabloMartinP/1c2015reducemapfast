@@ -8,14 +8,6 @@
 
 
 
-t_nodo_archivo* nodo_archivo_create(void){
-	t_nodo_archivo* new = malloc(sizeof(t_nodo_archivo));
-
-	//new->nodo_base = nodo_base_new()
-
-	return new;
-}
-
 
 //bool nodo_esta_vivo(t_nodo* nodo){
 bool nodo_esta_vivo(char* ip, int puerto){

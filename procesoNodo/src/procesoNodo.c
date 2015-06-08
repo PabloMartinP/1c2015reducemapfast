@@ -191,7 +191,7 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 			//obtengo cual es el menor
 			index_menor = get_index_menor(keys, cant_total_files);
 			//el menor lo mando a stdinn (keys[i])
-			printf("%s\n", keys[index_menor]);
+			//printf("%s\n", keys[index_menor]);
 			write(PARENT_WRITE_FD, keys[index_menor], strlen(keys[index_menor]) + 1);
 			//leo el siguiente elmento del fdlocal[index_menor]
 			len_key = LEN_KEYVALUE;

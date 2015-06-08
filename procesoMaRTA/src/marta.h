@@ -21,6 +21,7 @@ typedef struct {
 	char* resultado;//el nombre del archivo resultado final
 	t_list* mappers;//guarda t_maps
 	t_list* reducers; //guarda t_reduce
+	//bool empezo_reduce_final;
 }t_job;
 
 
@@ -115,11 +116,21 @@ t_map* map_buscar(t_job* job, int map_id){
 	}
 	return list_find(job->mappers, (void*)_buscar_map);
 }
+t_reduce* reduce_buscar(t_job* job, int reduce_id){
+	bool _buscar_reduce(t_reduce* reduce){
+		return reduce->info->id == reduce_id;
+	}
+	return list_find(job->reducers, (void*)_buscar_reduce);
+}
+
 t_map* marta_buscar_map(int job_id, int map_id){
 	t_job* job = job_buscar(job_id);
 	return map_buscar(job, map_id);
 }
-
+t_reduce* marta_buscar_reduce(int job_id, int map_id){
+	t_job* job = job_buscar(job_id);
+	return reduce_buscar(job, map_id);
+}
 
 int marta_marcar_map_como_fallido(int job_id, int map_id){
 	t_map* map = marta_buscar_map(job_id, map_id);
@@ -129,6 +140,59 @@ int marta_marcar_map_como_fallido(int job_id, int map_id){
 }
 
 
+int marta_marcar_reduce_como_fallido(int job_id, int reduce_id){
+	t_reduce* reduce = marta_buscar_reduce(job_id, reduce_id);
+
+	reduce->info->termino = false;
+	return 0;
+}
+
+bool terminaron_todos_los_mappers(t_list* mappers){
+	bool _termino(t_map* map){
+		return map->info->termino;
+	}
+	return list_all_satisfy(mappers, (void*)_termino);
+}
+
+bool terminaron_todos_los_reducers(t_list* reducers){
+	bool _termino(t_reduce* reduce){
+		return reduce->info->termino;
+	}
+	return list_all_satisfy(reducers, (void*)_termino);
+}
+
+t_nodo_base* job_obtener_nodo_para_reduce_final_combiner(t_job* job){
+	t_reduce* reduce;
+	t_nodo_base* nb = NULL;
+
+
+	int cant_archivos1 = 0, cant_archivos2=0;
+	bool _ordenar_por_cant_archivos_locales(t_reduce* red1, t_reduce* red2){
+		bool _contar_archivos1(t_map* map){
+			return nodo_base_igual_a(*(map->archivo_nodo_bloque->base), *(red1->nodo_base_destino));
+		}
+		cant_archivos1 = list_count_satisfying(job->mappers, (void*)_contar_archivos1);
+
+		bool _contar_archivos2(t_map* map){
+			return nodo_base_igual_a(*(map->archivo_nodo_bloque->base), *(red2->nodo_base_destino));
+		}
+		cant_archivos2 = list_count_satisfying(job->mappers, (void*)_contar_archivos2);
+
+		return cant_archivos1 < cant_archivos2;
+	}
+	list_sort(job->reducers, (void*)_ordenar_por_cant_archivos_locales);
+
+	//agarro el primero, el que tiene mas archivos locales
+	reduce = list_get(job->reducers, 0);
+
+	nb = reduce->nodo_base_destino;
+
+	return nb;
+}
+
+int job_terminaron_todos_los_map_y_reduce(t_job* job){
+	return terminaron_todos_los_mappers(job->mappers) && terminaron_todos_los_reducers(job->reducers);
+}
 
 
 t_nodo_base* job_obtener_nodo_con_todos_sus_mappers_terminados(t_list* mappers){
@@ -150,6 +214,15 @@ t_nodo_base* job_obtener_nodo_con_todos_sus_mappers_terminados(t_list* mappers){
 	list_iterate(mappers, (void*)_nodo_termino_todos_sus_mappers);
 
 	return nb;
+}
+
+
+
+int marta_marcar_reduce_como_terminado(int job_id, int reduce_id){
+	t_reduce* reduce = marta_buscar_reduce(job_id, reduce_id);
+
+	reduce->info->termino = true;
+	return 0;
 }
 
 int marta_marcar_map_como_terminado(int job_id, int map_id){
@@ -251,6 +324,8 @@ t_job* marta_create_job(char* resultado, bool combiner){
 
 	new->mappers = list_create();
 	new->reducers = list_create();
+
+	//new->empezo_reduce_final = false;
 
 	return new;
 }

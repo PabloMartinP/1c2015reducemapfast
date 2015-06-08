@@ -24,6 +24,7 @@ void procesar (int fd, t_msg*msg);
 int archivo_a_usar();
 
 int enviar_maps(int fd, t_job* job);
+t_reduce* crear_reduce_final(t_job* job, t_nodo_base* nb);
 t_reduce* crear_reduce_local(t_job* job, t_nodo_base* nb);
 
 t_list* nodos_usados();
@@ -41,7 +42,7 @@ int planificar_mappers(t_job* job, t_list* bloques_de_datos);
 int obtener_numero_copia_disponible_para_map(t_list* nodos_bloque);
 //t_nodo_estado_map* marta_buscar_nodo(int id);
 int marta_contar_nodo(int id);
-int job_cantidad_mappers_por_nodo_id(job, id);
+int job_cantidad_mappers_por_nodo_id(t_job* job, int id_nodo);
 void marta_destroy();
 void marta_map_destroy(int job_id, int map_id);
 void map_destroy(t_map* map);
@@ -116,10 +117,11 @@ int job_crear_y_planificar_mappers(t_job* job){
 
 void procesar (int fd, t_msg*msg){
 	int res = 0;
-	int job_id, map_id;
+	int job_id, map_id, reduce_id;
 	t_job* job;
 	t_nodo_base* nb;
 	//int i;
+	t_reduce* reduce;
 
 	//print_msg(msg);
 
@@ -210,6 +212,7 @@ void procesar (int fd, t_msg*msg){
 
 			job = job_buscar(job_id);
 			if(job->combiner){
+				log_trace(logger, "Es con combiner, me fijo si ahora puedo hacer el reduce de los archivos locales al nodo que termino el map");
 				//en el caso de combiner, tengo que aplicar el reduce sobre todos los archivos locales al nodo
 				//tengo que verificar si ya terminaron todos los mappers locales al nodo del map que recien termino
 				nb = job_obtener_nodo_con_todos_sus_mappers_terminados(job->mappers);
@@ -218,25 +221,66 @@ void procesar (int fd, t_msg*msg){
 					//lanzo el reduce de los archivos locales al nodo
 					log_trace(logger, "El nodo %d, %s:%d tiene que aplicar map sobre sus archivos temporales", nb->id, nb->red.ip, nb->red.puerto);
 					enviar_reduce_local(fd, nb, job);
-
 				}
-
 			}else{
 				//si es sin combiner tengo que esperar a que terminen todos los mappers
+				log_trace(logger, "Es SIN combiner, no hago ningun reduce hasta el final");
 			}
-
-
-			//en definitiva tengo que pasarle al job los nodos(puede que sean todos el mismo nodo o distintos)
-			//y los archivos (el resultado de los maps) a reducir
-			//una vez que le envio los nodos y archivos a reducir
-			//otra vez espero a que me conteste el job (los hilos reduce) con el mensaje JOB_REDUCE_TERMINO
-
 			break;
 		case JOB_REDUCE_TERMINO:
-			print_msg(msg);
+			//print_msg(msg);
+			job_id = msg->argv[0];
+			reduce_id = msg->argv[2];
+			res = msg->argv[1];//resultado
+			log_trace(logger, "TERMINO el REDUCE %d del job %d. Resultado: %d", reduce_id, job_id, res);
 			destroy_message(msg);
 
-			//a medida que van terminando los reduce los voy marcando en la lista de reducers del job termino=true
+			//marcaria el reduce del job como termino=true o false
+			if (res)
+				marta_marcar_reduce_como_terminado(job_id, reduce_id);
+			else
+				marta_marcar_reduce_como_fallido(job_id, reduce_id);
+
+			/////////////////////////////////////////////////////////
+			job = job_buscar(job_id);
+			reduce = reduce_buscar(job, reduce_id);
+			if(!reduce->final){
+				if (job->combiner) {
+					if (job_terminaron_todos_los_map_y_reduce(job)) {
+						//hago el reduce final
+						log_trace(logger, "El job %d termino todos sus mappers y reducers", job->id);
+						log_trace(logger, "Hago el reduce final");
+
+						//tengo que seleccionar el nodo que mas archivos tenga archivos locales
+						//
+						nb = NULL;
+						nb = job_obtener_nodo_para_reduce_final_combiner(job);
+
+						log_trace(logger, "Nodo con mas archivos locales %s\n", nodo_base_to_string(nb));
+
+						t_reduce* reduce = NULL;
+						reduce = crear_reduce_final(job, nb);
+
+						log_trace(logger, "Creado reduce %d  para el job %d, cant-nodo-archivo: %d, nodo_destino: %s", reduce->info->id, job->id, list_size(reduce->nodos_archivo), nodo_base_to_string(reduce->nodo_base_destino));
+						list_add(job->reducers, reduce);
+
+						enviar_mensaje_reduce(fd, reduce);
+						/*//envio el mensaje que indica que no hay mas reduces
+						msg = argv_message(FIN_REDUCES, 0);
+						enviar_mensaje(fd, msg);
+						destroy_message(msg);
+	*/
+						//marco al job como que lanzo el reduce final
+						//job->empezo_reduce_final = true;
+
+					} else {
+						log_trace(logger, "El job %d NO termino todos sus mappers y reducers", job->id);
+					}
+				} else {
+					log_trace(logger, "Es SIN combiner, me fijo si ya terminaron todos sus maps para hacer el reduce final");
+				}
+			}
+
 
 			//tengo que verificar si terminaron todos los reduces del job
 
@@ -264,6 +308,39 @@ void procesar (int fd, t_msg*msg){
 		default:
 			break;
 	}
+}
+
+t_reduce* crear_reduce_final(t_job* job, t_nodo_base* nb){
+	t_reduce* reduce = NULL;
+
+	JOB_REDUCE_ID++;
+	char* resultado = generar_nombre_reduce(job->id, JOB_REDUCE_ID);
+	reduce = reduce_create(JOB_REDUCE_ID, job->id, resultado, nb);
+	//marco como el reduce final
+	reduce->final = true;
+
+	FREE_NULL(resultado);
+
+	t_nodo_archivo* na = NULL;
+
+	void _crear_reduce(t_reduce* reduce) {
+		na = nodo_archivo_create();
+		//na = malloc(sizeof(t_nodo_archivo));
+
+		//verifico el nodo haya terminado
+		if (reduce->info->termino) {
+			//copio el nombre para no complicarme con los frees
+			strcpy(na->archivo, reduce->info->resultado);
+			na->nodo_base = nb;
+
+			log_trace(logger, "Archivo a reducir: %s en nodo %s", na->archivo, nodo_base_to_string(na->nodo_base));
+			//agrego a la lista el archivo
+			list_add(reduce->nodos_archivo, (void*) na);
+		}
+	}
+	list_iterate(job->reducers, (void*) _crear_reduce);
+
+	return reduce;
 }
 
 int enviar_maps(int fd, t_job* job){

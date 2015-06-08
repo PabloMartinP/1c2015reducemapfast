@@ -208,19 +208,31 @@ int conectar_con_marta(){
 
 	lanzar_hilos_mappers(fd);
 
+
 	t_reduce* reduce = NULL;
-	//recibo un reduce
-	reduce = recibir_mensaje_reduce(fd);
 
-	//ahora me queda enviarselos al nodo
-	lanzar_hilo_reduce(fd, reduce);
+	for(;;){
+		//recibo un reduce
+		reduce = recibir_mensaje_reduce(fd);
 
+		if(reduce!=NULL){
+			//ahora me queda enviarselos al nodo
+			lanzar_hilo_reduce(fd, reduce);
+			if(reduce->final){
+				//es el reduce final, hago break y me rajo
+				break;
+			}
 
-	/*
+		}else{
+			break;//hubo un error del reduce
+		}
+	}
+	log_trace(logger, "Sali del for por algo");
+
 	msg = argv_message(JOB_TERMINO, 1, JOB_ID);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
-
+/*
 	msg = argv_message(MARTA_SALIR, 0);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
@@ -248,8 +260,9 @@ int lanzar_hilo_reduce(int fd, t_reduce* reduce){
 	log_trace(logger, "Mensaje enviado a marta con resultado: %d del reduce %d", res_reduce, reduce->info->id);
 
 
-	log_trace(logger, "Fin de hilo reduce");
 
+
+	log_trace(logger, "Fin de hilo reduce");
 	return 0;
 }
 

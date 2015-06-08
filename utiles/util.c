@@ -491,8 +491,8 @@ int enviar_mensaje_reduce(int fd, t_reduce* reduce){
 	//envio el nombre del archivo donde almacena el resultado, el reduce_id, el job_id y la cantidad de nodo-archivo que tiene que recibir
 	//printf("Enviando el nombre del archivo resultado: %s",reduce->info->resultado);
 
-	//envio el nombre resultado, red_id, job_id, cant_nodos_archivo
-	msg = string_message(MARTA_REDUCE_INFO, reduce->info->resultado, 3, reduce->info->id, reduce->info->job_id, list_size(reduce->nodos_archivo));
+	//envio el nombre resultado, red_id, job_id, cant_nodos_archivo, final
+	msg = string_message(REDUCE_INFO, reduce->info->resultado, 4, reduce->info->id, reduce->info->job_id, list_size(reduce->nodos_archivo), reduce->final);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
 
@@ -503,7 +503,7 @@ int enviar_mensaje_reduce(int fd, t_reduce* reduce){
 	void _enviar_reduce_a_job(t_nodo_archivo* na) {
 		//envio el nombre del archivo en tmp a aplicar el reduce
 		//printf("Enviando Nombre_tmp a reducir: %s", na->archivo);
-		msg = string_message(MARTA_REDUCE_NOMBRE_TMP, na->archivo, 0);
+		msg = string_message(ARCHIVO_A_REDUCIR, na->archivo, 0);
 		enviar_mensaje(fd, msg);
 		destroy_message(msg);
 
@@ -540,15 +540,16 @@ t_reduce* recibir_mensaje_reduce(int fd){
 	int cant_reduces, i;
 
 	msg = recibir_mensaje(fd);
-	if (msg->header.id == MARTA_REDUCE_INFO) {
+	if (msg->header.id == REDUCE_INFO) {
 		//envio el nombre resultado, red_id, job_id, cant_nodos_archivo
 		//le paso null porque todavia no tengo el nb, viene en la proxima recibir_mensaje
-		reduce = reduce_create(msg->argv[0], msg->argv[1], msg->stream,
-				recibir_mensaje_nodo_base(fd));
+		reduce = reduce_create(msg->argv[0], msg->argv[1], msg->stream,	recibir_mensaje_nodo_base(fd));
+		reduce->final = msg->argv[3];
 		cant_reduces = msg->argv[2];
 	} else {
+		//esto esta deprecated
 		//si marta me manda el fin reduces salgo del while porque ya termino de enviar reduces
-		if (msg->header.id == MARTA_FIN_REDUCES){
+		if (msg->header.id == FIN_REDUCES){
 			return NULL;//marta termino de mandar el ultimo reduce
 		}
 
@@ -562,7 +563,7 @@ t_reduce* recibir_mensaje_reduce(int fd){
 
 		//cargo el nombre del archivo a reducir
 		msg = recibir_mensaje(fd);
-		if (msg->header.id == MARTA_REDUCE_NOMBRE_TMP) {
+		if (msg->header.id == ARCHIVO_A_REDUCIR) {
 			strcpy(na->archivo, msg->stream);
 		}
 		destroy_message(msg);
@@ -1089,5 +1090,6 @@ t_reduce* reduce_create(int id, int job_id, char* resultado, t_nodo_base* nb){
 
 	new->info->job_id = job_id;
 	new->nodos_archivo = list_create();
+	new->final = false;
 	return new;
 }

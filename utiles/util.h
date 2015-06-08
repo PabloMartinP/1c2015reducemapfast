@@ -101,10 +101,10 @@ typedef enum {
 	REDUCER_TERMINO,
 	MAPPER_TERMINO,  //cuando el mapper termino aviso
 	MARTA_REDUCE_CANT,
-	MARTA_REDUCE_INFO,
-	MARTA_FIN_REDUCES,
+	REDUCE_INFO,
+	FIN_REDUCES,
 	ANB_NUMERO_BLOQUE,
-	MARTA_REDUCE_NOMBRE_TMP,
+	ARCHIVO_A_REDUCIR,
 	MAPREDUCE_INFO,
 	MARTA_REDUCE_NODO,
 	MARTA_REDUCE_RESULTADO,
@@ -148,6 +148,7 @@ typedef struct{
 	t_mapreduce* info;
 	t_nodo_base* nodo_base_destino;
 	t_list* nodos_archivo;//list of t_nodo_archivo
+	bool final;
 }t_reduce;
 
 typedef struct{

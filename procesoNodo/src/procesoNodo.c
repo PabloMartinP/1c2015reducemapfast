@@ -423,10 +423,8 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		log_trace(logger, "Empezando a leer stdout y guardar en archivo %s",new_file_map_disorder);
 		char* buffer = malloc(LEN_KEYVALUE);
 
-		int bytes_escritos=0;
+		int bytes_escritos=0, bytes_leidos=0;
 		int i=0;
-
-
 
 		//inicializo en el primer enter
 		int len_buff_write=0;
@@ -435,17 +433,21 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		if(len<len_buff_write)
 			len_buff_write = len;
 
+		int mb = pow(2,20);
 		do{
 			len_buff_write=len_hasta_enter(stdinn + (i*bytes_escritos));
 			bytes_escritos = write(PARENT_WRITE_FD, stdinn + (i*bytes_escritos), len_buff_write);
 			//printf("faltante > %d\n", len);
 			len = len - bytes_escritos;
 
-
+			bytes_leidos = bytes_leidos + len_buff_write;
 			count = read(PARENT_READ_FD, buffer, len_buff_read);
 			fwrite(buffer, count, 1, file_disorder);
 			i++;
-			//printf("faltante >>>> %d\n", len);
+			if(bytes_leidos > mb  ){
+				printf("faltantes >>>> %d\n", len);
+				bytes_leidos  = 0;
+			}
 		}while(len>0);
 
 		if(res==-1){
@@ -830,24 +832,11 @@ char* getFileContent(char* filename) {
 	log_info(logger, "Fin getFileContent(%s)", filename);
 	return content;
 
-	/*log_info(logger, "Inicio getFileContent(%s)", filename);
-	 char* content = NULL;
-	 //creo el espacio para almacenar el archivo
-	 char* path = file_combine(NODO_DIRTEMP(), filename);
-	 content = malloc(file_get_size(path));
-
-	 content = file_get_mapped(path);
-
-	 FREE_NULL(path);
-
-	 log_info(logger, "Fin getFileContent(%s)", filename);
-	 return content;*/
 }
 
 void setBloque(int32_t numero, char* bloquedatos) {
 	log_info(logger, "Inicio setBloque(%d)", numero);
 
-	//memcpy((void*)(_data[numero*TAMANIO_BLOQUE]), bloquedatos, TAMANIO_BLOQUE);
 	memset(_data + (numero * TAMANIO_BLOQUE_B), 0, TAMANIO_BLOQUE_B);
 	memcpy(_data + (numero * TAMANIO_BLOQUE_B), bloquedatos, TAMANIO_BLOQUE_B);
 
@@ -858,11 +847,11 @@ void setBloque(int32_t numero, char* bloquedatos) {
  */
 char* getBloque(int32_t numero) {
 	log_info(logger, "Ini getBloque(%d)", numero);
-	void* bloque = NULL;
+	char* bloque = NULL;
 	bloque = malloc(TAMANIO_BLOQUE_B);
 	memcpy(bloque, &(_data[numero * TAMANIO_BLOQUE_B]), TAMANIO_BLOQUE_B);
 	//memcpy(bloque, _bloques[numero], TAMANIO_BLOQUE);
-	log_info(logger, "Fin getBloque(%d)\n", numero);
+	log_info(logger, "Fin getBloque(%d)", numero);
 	return bloque;
 }
 

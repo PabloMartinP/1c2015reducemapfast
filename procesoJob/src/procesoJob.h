@@ -221,7 +221,7 @@ int conectar_con_marta(){
 			if(reduce->final){
 				//es el reduce final, hago break y me rajo
 				log_trace(logger, "**************************************************");
-				log_trace(logger, "Archivo final generado %s", reduce->info->resultado);
+				log_trace(logger, "Archivo final %s generado en %s", reduce->info->resultado, nodo_base_to_string(reduce->nodo_base_destino));
 				break;
 			}
 

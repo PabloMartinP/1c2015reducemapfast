@@ -165,7 +165,7 @@ bool terminaron_todos_los_reducers(t_list* reducers){
 t_nodo_base* job_obtener_nodo_para_reduce_final_combiner(t_job* job){
 	t_reduce* reduce = NULL;
 	t_nodo_base* nb = NULL;
-/*
+
 
 	int cant_archivos1 = 0, cant_archivos2=0;
 	bool _ordenar_por_cant_archivos_locales(t_reduce* red1, t_reduce* red2){
@@ -182,7 +182,7 @@ t_nodo_base* job_obtener_nodo_para_reduce_final_combiner(t_job* job){
 		return cant_archivos1 < cant_archivos2;
 	}
 	list_sort(job->reducers, (void*)_ordenar_por_cant_archivos_locales);
-*/
+
 	//agarro el primero, el que tiene mas archivos locales
 	reduce = list_get(job->reducers, 0);
 

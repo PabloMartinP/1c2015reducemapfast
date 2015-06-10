@@ -257,11 +257,14 @@ void archivo_copiar_local_a_mdfs(char*file_local){
 	pthread_mutex_lock(&mutex);
 	if (file_exists(file_local)) {
 		//verifico que exista en archivo en el fs y dentro de la carpeta
-		if (!fs_existe_archivo(file_local, DIR_ACTUAL)) {
+		char* name = basename(file_local);
+
+		if (!fs_existe_archivo(name, DIR_ACTUAL)) {
 			fs_copiar_archivo_local_al_fs(file_local, DIR_ACTUAL);
 		} else {
 			printf(	"el archivo [%s] con dir:%d YA EXISTE en el mdfs. lsfiles para ver los archivos \n",file_local, DIR_ACTUAL);
 		}
+		//free(name);
 	} else
 		printf("el archvo no existe: %s\n", file_local);
 	pthread_mutex_unlock(&mutex);

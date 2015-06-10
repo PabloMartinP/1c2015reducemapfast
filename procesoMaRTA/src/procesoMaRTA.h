@@ -615,10 +615,13 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job){
 	log_trace(logger, "todos los nodos estan siendo usados por marta, elijo el que menos veces este siendo usado");
 	//si llego hasta aca significa que todos los nodos de las 3 copias estan siendo usados
 	//ahora solo me queda sacar el menor y usarlo
-	int copia_menos_usada = MAX;
+	int copia_menos_usada = -1;t_nodo_base* nb;
+	int copia_cant_veces_menos_usada = MAX;
 	for (n_copia = 0; n_copia < BLOQUE_CANT_COPIAS; n_copia++) {
-		log_trace(logger, "Copia %d - cant-veces que esta siendo usado actualmente: %d", n_copia+1, copia_cant_veces_usada[n_copia]);
-		if (copia_cant_veces_usada[n_copia] < copia_menos_usada) {
+		anb = list_get(nodos_bloque, n_copia);
+		log_trace(logger, "Copia %d nodo %s - cant-veces que esta siendo usado actualmente: %d", n_copia+1, nodo_base_to_string(anb->base), copia_cant_veces_usada[n_copia]);
+		if (copia_cant_veces_usada[n_copia] < copia_cant_veces_menos_usada) {
+			copia_cant_veces_menos_usada = copia_cant_veces_usada[n_copia];
 			copia_menos_usada = n_copia;
 		}
 	}

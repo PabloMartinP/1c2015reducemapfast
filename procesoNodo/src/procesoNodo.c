@@ -187,6 +187,8 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 		//aca ya tengo todas las keys
 
 		//empiezo a insertar en stdin
+		i =0;
+		int c = 0;
 		while (alguna_key_distinta_null(keys, cant_total_files)) {
 			//obtengo cual es el menor
 			index_menor = get_index_menor(keys, cant_total_files);
@@ -207,8 +209,15 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 				keys[index_menor] = recibir_linea( fdred[cant_local_files - index_menor]);
 			}
 			//cuando termina devuelve NULL;
-
+			if(i > 1024 ){
+				i =0;
+				printf("Contador %s\n", c);
+				c++;
+			}
+			i++;
 		}
+
+		log_trace(logger, "Termino de enviarle datos por stdin");
 		//si llego hasta aca termino de enviarle cosas por stdin,
 		//cierro el stdin
 		close(PARENT_WRITE_FD);
@@ -238,6 +247,7 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 		FREE_NULL(keys);
 		/////////////////////////////////////////////////
 		//empiezo a leer el stdout
+		log_trace(logger, "Ahora leo el stdout");
 		int count;
 		char* new_file_reduced;
 		new_file_reduced = convertir_a_temp_path_filename(filename_result);	//genero filename absoluto
@@ -251,10 +261,9 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 			fwrite(buffer, count, 1, file_reduced);
 			if(count>0){
 				buffer[count] = '\0';
-				printf("%s\n", buffer);
+				printf("Lectura %d de stdout: %s\n", i, buffer);
+				i++;
 			}
-
-			i++;
 		} while (count != 0);
 		close(PARENT_READ_FD);
 		fclose(file_reduced);
@@ -596,10 +605,13 @@ int aplicar_reduce(t_reduce* reduce, char* script){
 	}
 	list_iterate(reduce->nodos_archivo, (void*)_crear_files_reduce);
 
+	log_trace(logger, "**********************************************");
 	aplicar_reduce_local_red(files_to_reduce,
 			script,
 			reduce->info->resultado);
-	printf("%s\n", reduce->info->resultado);
+	log_trace(logger, "Guardado en %s\n", reduce->info->resultado);
+	log_trace(logger, "**********************************************");
+
 
 	list_destroy_and_destroy_elements(files_to_reduce, free);
 
@@ -617,7 +629,9 @@ void procesar_mensaje(int fd, t_msg* msg) {
 	t_reduce* reduce = NULL;
 	switch (msg->header.id) {
 	case JOB_REDUCER:
+
 		destroy_message(msg);
+		log_trace(logger, "******************************************************");
 		log_trace(logger, "Recibido nuevo reducer");
 		//recibo el reduce que me envio
 		reduce = NULL;
@@ -643,6 +657,7 @@ void procesar_mensaje(int fd, t_msg* msg) {
 		break;
 	case JOB_MAPPER:
 		destroy_message(msg);
+		log_trace(logger, "******************************************************");
 		log_trace(logger, "Recibido nuevo mapper");
 		//recibo el map que me envio
 		map = NULL;

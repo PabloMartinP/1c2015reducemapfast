@@ -312,6 +312,7 @@ char* bloque_de_datos_traer_data(t_list* nodosBloque) {
 }
 
 bool fs_existe_archivo(char* nombre, int dir_id) {
+
 	return fs_buscar_archivo_por_nombre(fs.archivos, nombre, dir_id) != NULL;
 }
 

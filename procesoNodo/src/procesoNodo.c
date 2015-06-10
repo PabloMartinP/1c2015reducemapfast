@@ -433,7 +433,6 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		if(len<len_buff_write)
 			len_buff_write = len;
 
-		int mb = pow(2,20);
 		do{
 			len_buff_write=len_hasta_enter(stdinn + (i*bytes_escritos));
 			bytes_escritos = write(PARENT_WRITE_FD, stdinn + (i*bytes_escritos), len_buff_write);
@@ -444,7 +443,7 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 			count = read(PARENT_READ_FD, buffer, len_buff_read);
 			fwrite(buffer, count, 1, file_disorder);
 			i++;
-			if(bytes_leidos > mb  ){
+			if(bytes_leidos > pow(2,18)  ){
 				printf("faltantes >>>> %d\n", len);
 				bytes_leidos  = 0;
 			}
@@ -630,10 +629,11 @@ void procesar_mensaje(int fd, t_msg* msg) {
 
 		aplicar_reduce(reduce, filename_script);
 
+
 		//aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
 		log_trace(logger, "Fin reducer guardado en %s", reduce->info->resultado);
 		free(filename_script);
-		//remove(filename_script);
+		remove(filename_script);
 
 		msg = argv_message(REDUCER_TERMINO, 0);
 		enviar_mensaje(fd, msg);
@@ -654,7 +654,7 @@ void procesar_mensaje(int fd, t_msg* msg) {
 		aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
 		log_trace(logger, "Fin mapper guardado en %s", map->info->resultado);
 		free(filename_script);
-		//remove(filename_script);
+		remove(filename_script);
 
 		msg = argv_message(MAPPER_TERMINO, 0);
 		enviar_mensaje(fd, msg);

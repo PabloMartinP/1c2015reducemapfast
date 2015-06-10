@@ -39,9 +39,9 @@ int marta_cant_mappers_no_empezados();
 void verificar_fs_operativo();
 //int planificar_mappers(int job_id, t_list* bloques_de_datos);
 int planificar_mappers(t_job* job, t_list* bloques_de_datos);
-int obtener_numero_copia_disponible_para_map(t_list* nodos_bloque);
+int obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job);
 //t_nodo_estado_map* marta_buscar_nodo(int id);
-int marta_contar_nodo(int id);
+int marta_contar_nodo(int id, t_job* job);
 int job_cantidad_mappers_por_nodo_id(t_job* job, int id_nodo);
 void marta_destroy();
 void marta_map_destroy(int job_id, int map_id);
@@ -129,6 +129,7 @@ void procesar (int fd, t_msg*msg){
 		case JOB_HOLA://cuando llega un job nuevo
 			//la idea es que le pida al job todos los datos basicos que quiere,
 			destroy_message(msg);
+			log_trace(logger, "NuevoJob > ********************************************");
 			log_trace(logger, "Un nuevo job se conecto a MARTA");
 			JOB_ID++;//sumo uno en el contador y se lo paso al job
 			msg = argv_message(MARTA_JOB_ID, 1,JOB_ID);
@@ -188,10 +189,12 @@ void procesar (int fd, t_msg*msg){
 
 			break;
 		case MAPPER_TERMINO:
+
 			//cuando un map termino el job le avisa al fs
 			job_id = msg->argv[0];
 			map_id = msg->argv[2];
 			res = msg->argv[1];//resultado
+			log_trace(logger, "INICIO MAPPER_TERMINO *****************************************************************");
 			log_trace(logger, "TERMINO el MAP %d del job %d. Resultado: %d", map_id, job_id, res);
 
 			destroy_message(msg);
@@ -215,19 +218,27 @@ void procesar (int fd, t_msg*msg){
 				log_trace(logger, "Es con combiner, me fijo si ahora puedo hacer el reduce de los archivos locales al nodo que termino el map");
 				//en el caso de combiner, tengo que aplicar el reduce sobre todos los archivos locales al nodo
 				//tengo que verificar si ya terminaron todos los mappers locales al nodo del map que recien termino
-				nb = job_obtener_nodo_con_todos_sus_mappers_terminados(job->mappers);
-				if(nb!=NULL){
+				t_map* map = map_buscar(job, map_id);
+				if(job_obtener_nodo_con_todos_sus_mappers_terminados(job->mappers, map->archivo_nodo_bloque->base)){
+					log_trace(logger, "Si puede, el nodo %s tiene que aplicar map sobre sus archivos temporales", nodo_base_to_string(map->archivo_nodo_bloque->base));
 					//ya termino todos sus mappers
 					//lanzo el reduce de los archivos locales al nodo
-					log_trace(logger, "El nodo %d, %s:%d tiene que aplicar map sobre sus archivos temporales", nb->id, nb->red.ip, nb->red.puerto);
-					enviar_reduce_local(fd, nb, job);
+
+					log_trace(logger, "El nodo %s tiene que aplicar map sobre sus archivos temporales", nodo_base_to_string(map->archivo_nodo_bloque->base));
+					enviar_reduce_local(fd, map->archivo_nodo_bloque->base, job);
+				}else{
+					log_trace(logger, "No puede, Todavia no terminaron sus maps locales");
 				}
+
 			}else{
 				//si es sin combiner tengo que esperar a que terminen todos los mappers
 				log_trace(logger, "Es SIN combiner, no hago ningun reduce hasta el final");
 			}
+
+			log_trace(logger, "FIN MAPPER_TERMINO *****************************************************************");
 			break;
 		case JOB_REDUCE_TERMINO:
+			log_trace(logger, "INICIO JOB_REDUCE_TERMINO *****************************************************************");
 			//print_msg(msg);
 			job_id = msg->argv[0];
 			reduce_id = msg->argv[2];
@@ -242,13 +253,16 @@ void procesar (int fd, t_msg*msg){
 				marta_marcar_reduce_como_fallido(job_id, reduce_id);
 
 			/////////////////////////////////////////////////////////
+			job = NULL;;reduce = NULL;
 			job = job_buscar(job_id);
+
 			reduce = reduce_buscar(job, reduce_id);
 			if(!reduce->final){
 				if (job->combiner) {
 					if (job_terminaron_todos_los_map_y_reduce(job)) {
 						//hago el reduce final
 						log_trace(logger, "El job %d termino todos sus mappers y reducers", job->id);
+						log_trace(logger, "*************************************************");
 						log_trace(logger, "Hago el reduce final");
 
 						//tengo que seleccionar el nodo que mas archivos tenga archivos locales
@@ -256,12 +270,13 @@ void procesar (int fd, t_msg*msg){
 						nb = NULL;
 						nb = job_obtener_nodo_para_reduce_final_combiner(job);
 
-						log_trace(logger, "Nodo con mas archivos locales %s\n", nodo_base_to_string(nb));
+						log_trace(logger, "Nodo con mas archivos locales %s (donde se aplica el reduce final)\n", nodo_base_to_string(nb));
 
 						t_reduce* reduce = NULL;
 						reduce = crear_reduce_final(job, nb);
 
 						log_trace(logger, "Creado reduce %d  para el job %d, cant-nodo-archivo: %d, nodo_destino: %s", reduce->info->id, job->id, list_size(reduce->nodos_archivo), nodo_base_to_string(reduce->nodo_base_destino));
+						log_trace(logger, "Resultado: %s", reduce->info->resultado);
 						list_add(job->reducers, reduce);
 
 						enviar_mensaje_reduce(fd, reduce);
@@ -291,10 +306,10 @@ void procesar (int fd, t_msg*msg){
 
 			//si todo sale bien le mando el mensaje al job JOB_TERMINO para decirle que termino
 			//borro al job de la lista de jobs y el TP esta aprobado!
-
+			log_trace(logger, "FIN JOB_REDUCE_TERMINO *****************************************************************");
 			break;
 		case JOB_TERMINO:
-
+			log_trace(logger, "JOB_TERMINO *****************************************************************");
 			log_trace(logger, "Termino el job %d", msg->argv[0]);
 
 			marta_job_destroy(msg->argv[0]);
@@ -319,26 +334,33 @@ t_reduce* crear_reduce_final(t_job* job, t_nodo_base* nb){
 	//marco como el reduce final
 	reduce->final = true;
 
+
 	FREE_NULL(resultado);
 
 	t_nodo_archivo* na = NULL;
 
-	void _crear_reduce(t_reduce* reduce) {
-		na = nodo_archivo_create();
-		//na = malloc(sizeof(t_nodo_archivo));
-
+	void _crear_reduce(t_reduce* r) {
+		na = NULL;
 		//verifico el nodo haya terminado
-		if (reduce->info->termino) {
-			//copio el nombre para no complicarme con los frees
-			strcpy(na->archivo, reduce->info->resultado);
-			na->nodo_base = nb;
+		if (r->info->termino) {
+			na = nodo_archivo_create();
 
-			log_trace(logger, "Archivo a reducir: %s en nodo %s", na->archivo, nodo_base_to_string(na->nodo_base));
+			//copio el nombre para no complicarme con los frees
+			strcpy(na->archivo, r->info->resultado);
+			na->nodo_base = r->nodo_base_destino;
+
+			//log_trace(logger, "%s", nodo_base_to_string(r->nodo_base_destino));
+			//log_trace(logger, "%s", nodo_base_to_string(na->nodo_base));
+			//printf("%s\n", na->archivo);
+			log_trace(logger, "Archivo %s en nodo %s", na->archivo, nodo_base_to_string(na->nodo_base));
+			//log_trace(logger, "Archivo %s en nodo id:%d, %s:%d", na->archivo, na->nodo_base->id, na->nodo_base->red.ip, na->nodo_base->red.puerto);
+			//log_trace(logger, "Archivo %s(en %s) reducir en nodo id:%d, %s:%d", na->archivo, na->nodo_base->id, na->nodo_base->red.ip, na->nodo_base->red.puerto);
 			//agrego a la lista el archivo
 			list_add(reduce->nodos_archivo, (void*) na);
 		}
 	}
 	list_iterate(job->reducers, (void*) _crear_reduce);
+
 
 	return reduce;
 }
@@ -386,8 +408,8 @@ t_reduce* crear_reduce_local(t_job* job, t_nodo_base* nb){
 	t_nodo_archivo* na = NULL;
 
 	void _crear_reduce_local(t_map* map){
+		na = NULL;
 		na = nodo_archivo_create();
-		//na = malloc(sizeof(t_nodo_archivo));
 
 		//verifico el nodo haya terminado y sea el  mismo, la idea es qeudarme con todos los locales
 		if(map->info->termino && nodo_base_igual_a(*(map->archivo_nodo_bloque->base), *nb)){
@@ -416,6 +438,8 @@ int enviar_reduce_local(int fd, t_nodo_base* nb, t_job* job){
 	////////////////////////////////////////////////////////////////////////////////
 	//log_trace(logger, "Creado reduce %d  para el job %d, cant-nodo-archivo: %d, nodo_destino: %d - %s:%d", reduce->info->id, job->id, list_size(reduce->nodos_archivo), reduce->nodo_base_destino->id, reduce->nodo_base_destino->red.ip, reduce->nodo_base_destino->red.puerto);
 	log_trace(logger, "Creado reduce %d  para el job %d, cant-nodo-archivo: %d, nodo_destino: %s", reduce->info->id, job->id, list_size(reduce->nodos_archivo), nodo_base_to_string(reduce->nodo_base_destino));
+	log_trace(logger, "Guardar resultado en %s", reduce->info->resultado);
+
 	list_add(job->reducers, reduce);
 
 	log_trace(logger, "Empiezo a enviarle el reduce al job");
@@ -537,12 +561,16 @@ t_nodo_estado_map* marta_buscar_nodo(int id){
 	return list_find(marta.nodos_mappers, (void*)_buscar_nodo);
 }
 */
-int marta_contar_nodo(int id){
+int marta_contar_nodo(int id, t_job* job){
 	int cant = 0;
-	void _contar_mappers_job(t_job* job){
-		cant = cant + job_cantidad_mappers_por_nodo_id(job, id);
+	void _contar_mappers_job(t_job* job_map){
+		cant = cant + job_cantidad_mappers_por_nodo_id(job_map, id);
 	}
 	list_iterate(marta.jobs, (void*)_contar_mappers_job);
+
+
+	cant = cant + job_cantidad_mappers_por_nodo_id(job, id);
+
 	return cant;
 }
 
@@ -559,7 +587,7 @@ int job_cantidad_mappers_por_nodo_id(t_job* job, int id_nodo){
  * primero intento obtener el de la c3, sino la c2, en ultima instancia la c1
  * en caso de que todas se esten usando devuelvo el numero de copia con menos cantidad de veces que este usando marta
  */
-int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque){//lista de t_archivo_nodo_bloque
+int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job){//lista de t_archivo_nodo_bloque
 	int n_copia;
 	t_archivo_nodo_bloque* anb;
 
@@ -571,7 +599,7 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque){//lista de t
 		anb = list_get(nodos_bloque, n_copia);//tomo el 3, despues 2 y luego 1, por eso empieza en n_copia = BLOQUE_CANT_COPIAS
 		log_trace(logger, "Copia numero: %d, nodo_id: %d, %s:%d", n_copia+1, anb->base->id, anb->base->red.ip, anb->base->red.puerto);
 		if (nodo_esta_vivo(anb->base->red.ip, anb->base->red.puerto)) {
-			copia_cant_veces_usada[n_copia] = marta_contar_nodo(anb->base->id);
+			copia_cant_veces_usada[n_copia] = marta_contar_nodo(anb->base->id, job);
 			log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", anb->base->id, anb->base->red.ip, anb->base->red.puerto, copia_cant_veces_usada[n_copia]);
 			if(copia_cant_veces_usada[n_copia]==0){//si es igual a 0 no se esta usando, se termino la busqueda de un nodo no usado
 				log_trace(logger, "nodo_id %d correspondiente a la copia %d", anb->base->id, n_copia+1);
@@ -610,15 +638,20 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque){//lista de t
 
 
 int planificar_mappers(t_job* job, t_list* bloques_de_datos){
+
+
+
 	//int nodo_id;
 	int numero_copia;
 	int i;
 	t_archivo_nodo_bloque* cnb;
 	t_archivo_bloque_con_copias* bloque;
 	for (i = 0; i < list_size(bloques_de_datos); i++) {
-		log_trace(logger, "Inicio Planificacion Bloque %d", i);
 		bloque = list_get(bloques_de_datos, i);
-		numero_copia = obtener_numero_copia_disponible_para_map(bloque->nodosbloque);
+		log_trace(logger, "Inicio Planificacion parte %d", bloque->parte_numero);
+
+
+		numero_copia = obtener_numero_copia_disponible_para_map(bloque->nodosbloque, job);
 		cnb =  list_get(bloque->nodosbloque, numero_copia);
 		if (cnb!=NULL) {
 			log_trace(logger, "obtener_numero_copia_disponible_para_map: %d en %s:%d", cnb->base->id, cnb->base->red.ip, cnb->base->red.puerto);
@@ -635,7 +668,7 @@ int planificar_mappers(t_job* job, t_list* bloques_de_datos){
 
 			return -1;
 		}
-		log_trace(logger, "Fin Planificacion Bloque %d", i);
+		log_trace(logger, "Fin Planificacion parte %d", bloque->parte_numero);
 	}
 	//hasta aca tengo la lista de nodos, ahora solo me queda mandarselos al job
 

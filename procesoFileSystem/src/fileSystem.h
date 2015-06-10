@@ -767,7 +767,7 @@ t_list* fs_importar_archivo(char* archivo) {
 			nro_bloque++;
 			list_add(new, bd);
 
-			offset = bytes_leidos;
+			offset += bytes_leidos;
 			bytes_leidos = 0;
 		}
 	}

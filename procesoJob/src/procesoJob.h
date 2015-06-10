@@ -199,7 +199,7 @@ int conectar_con_marta(){
 
 	//hasta aca ya le envie los archivos a marta
 	//ahora me tiene que contestar donde estan(nodo) y que blqoues para lanzar los mappers
-
+	log_trace(logger, "*****************************************************");
 	//primero me manda la cantidad de mappers
 	log_trace(logger, "Comienzo a recibir los nodos-bloque donde lanzar los mappers");
 	mappers = recibir_mappers(fd);
@@ -220,6 +220,8 @@ int conectar_con_marta(){
 			lanzar_hilo_reduce(fd, reduce);
 			if(reduce->final){
 				//es el reduce final, hago break y me rajo
+				log_trace(logger, "**************************************************");
+				log_trace(logger, "Archivo final generado %s", reduce->info->resultado);
 				break;
 			}
 
@@ -232,11 +234,11 @@ int conectar_con_marta(){
 	msg = argv_message(JOB_TERMINO, 1, JOB_ID);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
-/*
+
 	msg = argv_message(MARTA_SALIR, 0);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
-*/
+
 
 
 	return 0;

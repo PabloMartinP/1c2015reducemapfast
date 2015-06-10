@@ -527,8 +527,7 @@ int enviar_mensaje_reduce(int fd, t_reduce* reduce){
 
 t_nodo_archivo* nodo_archivo_create(void){
 	t_nodo_archivo* new = malloc(sizeof(t_nodo_archivo));
-
-	//new->nodo_base = nodo_base_new()
+	new->nodo_base = NULL;
 
 	return new;
 }
@@ -1078,6 +1077,7 @@ char NODO_BASE_PRINT[30];
 char* nodo_base_to_string(t_nodo_base* nb){
 	memset(NODO_BASE_PRINT, 0, 30);
 	sprintf(NODO_BASE_PRINT, "id:%d, %s:%d", nb->id, nb->red.ip, nb->red.puerto);
+	printf("%s\n", NODO_BASE_PRINT );
 	return NODO_BASE_PRINT;
 }
 
@@ -1091,5 +1091,6 @@ t_reduce* reduce_create(int id, int job_id, char* resultado, t_nodo_base* nb){
 	new->info->job_id = job_id;
 	new->nodos_archivo = list_create();
 	new->final = false;
+
 	return new;
 }

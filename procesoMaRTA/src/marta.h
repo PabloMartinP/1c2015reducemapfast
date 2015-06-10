@@ -48,7 +48,8 @@ int marta_marcar_map_como_fallido(int job_id, int map_id);
 
 t_map* map_buscar(t_job* job, int map_id);
 t_map* marta_buscar_map(int job_id, int map_id);
-t_nodo_base* job_obtener_nodo_con_todos_sus_mappers_terminados(t_list* mappers);
+bool job_obtener_nodo_con_todos_sus_mappers_terminados(t_list* mappers, t_nodo_base* nb);
+bool map_termino(t_map* map);
 
 char* generar_nombre_reduce(int job_id, int reduce_id);
 char* generar_nombre_map(int job_id, int map_id);
@@ -162,9 +163,9 @@ bool terminaron_todos_los_reducers(t_list* reducers){
 }
 
 t_nodo_base* job_obtener_nodo_para_reduce_final_combiner(t_job* job){
-	t_reduce* reduce;
+	t_reduce* reduce = NULL;
 	t_nodo_base* nb = NULL;
-
+/*
 
 	int cant_archivos1 = 0, cant_archivos2=0;
 	bool _ordenar_por_cant_archivos_locales(t_reduce* red1, t_reduce* red2){
@@ -181,7 +182,7 @@ t_nodo_base* job_obtener_nodo_para_reduce_final_combiner(t_job* job){
 		return cant_archivos1 < cant_archivos2;
 	}
 	list_sort(job->reducers, (void*)_ordenar_por_cant_archivos_locales);
-
+*/
 	//agarro el primero, el que tiene mas archivos locales
 	reduce = list_get(job->reducers, 0);
 
@@ -194,26 +195,25 @@ int job_terminaron_todos_los_map_y_reduce(t_job* job){
 	return terminaron_todos_los_mappers(job->mappers) && terminaron_todos_los_reducers(job->reducers);
 }
 
+bool map_termino(t_map* map){
+	return map->info->termino;
+}
 
-t_nodo_base* job_obtener_nodo_con_todos_sus_mappers_terminados(t_list* mappers){
-	t_nodo_base* nb = NULL;;
+bool job_obtener_nodo_con_todos_sus_mappers_terminados(t_list* mappers, t_nodo_base* nb){
+	bool rs = false;
 
-
-	void _nodo_termino_todos_sus_mappers(t_map* map){
-		nb = map->archivo_nodo_bloque->base;
-
-		bool _nodo_termino(t_map* map_nodo){
-			return map_nodo->info->termino && nodo_base_igual_a(*(map_nodo->archivo_nodo_bloque->base), *(map->archivo_nodo_bloque->base));
-			//return map_nodo->info->termino && nodo_base_igual_a(*(map_nodo->archivo_nodo_bloque->base), *(map->archivo_nodo_base->nodo_base));
-		}
-		//si un nodo no termino todos sus mappers, no puedo lanzar el reduce de archivlos locales para con combiner
-		if(!list_all_satisfy(mappers, (void*)_nodo_termino)){
-			nb = NULL;
-		}
+	//filtro los nodos iguales a mi
+	bool _mismo_nodo(t_map* mapp){
+		return nodo_base_igual_a(*(mapp->archivo_nodo_bloque->base), *(nb));
 	}
-	list_iterate(mappers, (void*)_nodo_termino_todos_sus_mappers);
+	t_list* mappers_nodo = list_filter(mappers, (void*)_mismo_nodo);
 
-	return nb;
+	//si un nodo no termino todos sus mappers, no puedo lanzar el reduce de archivlos locales para con combiner
+	rs = list_all_satisfy(mappers_nodo, (void*) map_termino);
+
+	//list_destroy(mappers_nodo);
+
+	return rs;
 }
 
 

@@ -211,7 +211,7 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 			//cuando termina devuelve NULL;
 			if(i > 1024 ){
 				i =0;
-				printf("Contador %s\n", c);
+				printf("Contador %d\n", c);
 				c++;
 			}
 			i++;

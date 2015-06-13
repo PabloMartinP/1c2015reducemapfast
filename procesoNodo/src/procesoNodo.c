@@ -432,25 +432,29 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		log_trace(logger, "Empezando a leer stdout y guardar en archivo %s",new_file_map_disorder);
 		char* buffer = malloc(LEN_KEYVALUE);
 
-		int bytes_escritos=0, bytes_leidos=0;
-		int i=0;
+		size_t bytes_escritos=0, bytes_leidos=0;
+		size_t i=0;
 
 		//inicializo en el primer enter
-		int len_buff_write=0;
-		int len_buff_read=LEN_KEYVALUE;
+		size_t len_buff_write=0;
+		size_t len_buff_read=LEN_KEYVALUE;
 
 		if(len<len_buff_write)
 			len_buff_write = len;
 
 		do{
-			len_buff_write=len_hasta_enter(stdinn + (i*bytes_escritos));
-			bytes_escritos = write(PARENT_WRITE_FD, stdinn + (i*bytes_escritos), len_buff_write);
+			len_buff_write=len_hasta_enter(stdinn + bytes_leidos);
+			bytes_escritos = write(PARENT_WRITE_FD, stdinn + bytes_leidos, len_buff_write);
 			//printf("faltante > %d\n", len);
 			len = len - bytes_escritos;
 
 			bytes_leidos = bytes_leidos + len_buff_write;
-			count = read(PARENT_READ_FD, buffer, len_buff_read);
-			fwrite(buffer, count, 1, file_disorder);
+			//count = read(PARENT_READ_FD, buffer, len_buff_read);
+			if((i>0 && i % 5 == 0 ) || len==0){
+				count = read(PARENT_READ_FD, buffer, 1);
+				fwrite(buffer, count, 1, file_disorder);
+			}
+
 			i++;
 			if(bytes_leidos > pow(2,18)  ){
 				printf("faltantes >>>> %d\n", len);

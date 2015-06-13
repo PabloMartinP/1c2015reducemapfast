@@ -40,7 +40,7 @@
 	do{perror(msj);exit(EXIT_FAILURE);} while(0)
 
 #define MB_EN_B  1024*1024//1mb
-#define LEN_KEYVALUE 1024 //longitud de la key de map o reduce
+#define LEN_KEYVALUE 4096 //longitud de la key de map o reduce
 
 #define PATH_MAX_LEN 1024 //size maximo de un path
 

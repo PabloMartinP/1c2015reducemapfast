@@ -130,7 +130,7 @@ void* file_get_mapped(char* filename) {
 
 	stat(filename, &st);
 	//printf("%ld\n", st.st_size);
-	int size = st.st_size;
+	size_t size = st.st_size;
 
 	mapped = mmap(NULL, size, PROT_WRITE, MAP_SHARED, fd, 0);
 	close(fd);

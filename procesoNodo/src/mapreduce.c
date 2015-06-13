@@ -30,6 +30,8 @@ void* ejecutar_script(char* script, void* (*procesar_std)()) {
 		close(PARENT_WRITE_FD);
 
 		execv(argv[0], argv);
+
+
 		return NULL;
 	} else {
 		close(CHILD_READ_FD);

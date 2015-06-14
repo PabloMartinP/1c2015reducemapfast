@@ -22,6 +22,7 @@
 #include "config_nodo.h"
 #include <nodo.h>
 #include <strings.h>
+#include <math.h>
 #include <commons/collections/list.h>
 
 #include <util.h>

@@ -44,7 +44,8 @@
 
 #define PATH_MAX_LEN 1024 //size maximo de un path
 
-#define REG_SIZE 4
+#define REG_SIZE 10
+#define BACK_LOG 20
 
 /* Funciones Macro */
 #define FREE_NULL(p) \

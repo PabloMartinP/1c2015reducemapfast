@@ -254,7 +254,8 @@ int server_socket(uint16_t port) {
 	}
 
 	/* Listen to incoming connections. */
-	if (listen(sock_fd, 1) < 0) {
+	if (listen(sock_fd, BACK_LOG) < 0) {
+	//if (listen(sock_fd, 1) < 0) {
 		perror("listen");
 		return -4;
 	}

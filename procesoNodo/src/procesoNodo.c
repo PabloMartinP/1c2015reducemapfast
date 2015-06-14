@@ -431,6 +431,7 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 
 		log_trace(logger, "Empezando a leer stdout y guardar en archivo %s",new_file_map_disorder);
 		char* buffer = malloc(LEN_KEYVALUE);
+		memset(buffer, 0, LEN_KEYVALUE);
 
 		size_t bytes_escritos=0, bytes_leidos=0;
 		size_t i=0;
@@ -445,20 +446,44 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		do{
 			len_buff_write=len_hasta_enter(stdinn + bytes_leidos);
 			bytes_escritos = write(PARENT_WRITE_FD, stdinn + bytes_leidos, len_buff_write);
+			if(bytes_escritos==-1){
+				perror("write");
+				return -1;
+			}
 			//printf("faltante > %d\n", len);
 			len = len - bytes_escritos;
 
 			bytes_leidos = bytes_leidos + len_buff_write;
 			//count = read(PARENT_READ_FD, buffer, len_buff_read);
 			if((i>0 && i % 5 == 0 ) || len==0){
-				count = read(PARENT_READ_FD, buffer, 1);
+				close(PARENT_WRITE_FD);
+				close(pipes[0][0]);
+
+				//count = read(PARENT_READ_FD, buffer, 1);
+				count = read(PARENT_READ_FD, buffer, len_buff_read);
+				if(count==-1){
+					perror("read");
+					return -1;
+				}
+
+				//close(PARENT_READ_FD);
+
 				fwrite(buffer, count, 1, file_disorder);
+				memset(buffer, 0, LEN_KEYVALUE);
+
+				// pipes for parent to write and read
+	/*			if (pipe(pipes[PARENT_READ_PIPE]) == -1)
+					handle_error("pipe");
+*/
+				if ((pipe(pipes[PARENT_WRITE_PIPE])) == -1)
+					handle_error("pipe");
+
 			}
 
 			i++;
 			if(bytes_leidos > pow(2,18)  ){
 				printf("faltantes >>>> %d\n", len);
-				bytes_leidos  = 0;
+				//bytes_leidos  = 0;
 			}
 		}while(len>0);
 

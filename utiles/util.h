@@ -110,7 +110,8 @@ typedef enum {
 	MARTA_REDUCE_NODO,
 	MARTA_REDUCE_RESULTADO,
 	NODO_BASE,
-	JOB_SCRIPT
+	JOB_SCRIPT,
+	NODO_OK
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/
@@ -247,6 +248,10 @@ t_msg *recibir_mensaje(int sock_fd);
  * Envia los contenidos de un t_msg a un socket determinado.
  */
 int enviar_mensaje(int sock_fd, t_msg *msg);
+
+int enviar_mensaje_nodo_close(int fd);
+int recibir_mensaje_nodo_ok(int fd);
+int enviar_mensaje_nodo_ok(int fd);
 
 /****************** FUNCIONES T_MSG. ******************/
 

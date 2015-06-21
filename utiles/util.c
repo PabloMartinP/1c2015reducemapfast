@@ -210,6 +210,7 @@ int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*)) {
 					if (msg == NULL) {
 						/* Socket closed connection. */
 						//int status = remove_from_lists(i);
+						printf("Conexion cerrada %d\n", i);
 						close(i);
 						FD_CLR(i, &master);
 					} else {
@@ -270,7 +271,7 @@ int client_socket(char *ip, uint16_t port) {
 	/* Create the socket. */
 	sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock_fd < 0) {
-		perror("socket");
+		perror("sockettt");
 		return -1;
 	}
 
@@ -727,18 +728,25 @@ t_msg *recibir_mensaje(int sock_fd) {
 
 	/* Get message info. */
 	int status = recv(sock_fd, &(msg->header), sizeof(t_header), MSG_WAITALL);
-	if (status <= 0) {
+	if (status < 0) {
 		/* An error has ocurred or remote connection has been closed. */
+		perror("rec header");
 		FREE_NULL(msg);
 		return NULL;
 	}
+	if(status == 0 ){
+		printf("sock cerrado!%d\n", sock_fd);
+		FREE_NULL(msg);
+		return NULL;
+	}
+
 
 	/* Get message data. */
 	if (msg->header.argc > 0) {
 		msg->argv = malloc(msg->header.argc * sizeof(uint32_t));
 
-		if (recv(sock_fd, msg->argv, msg->header.argc * sizeof(uint32_t),
-		MSG_WAITALL) <= 0) {
+		if (recv(sock_fd, msg->argv, msg->header.argc * sizeof(uint32_t), MSG_WAITALL) <= 0) {
+			perror("rec args");
 			FREE_NULL(msg->argv);
 			FREE_NULL(msg);
 			return NULL;
@@ -749,6 +757,7 @@ t_msg *recibir_mensaje(int sock_fd) {
 		msg->stream = malloc(msg->header.length + 1);
 
 		if (recv(sock_fd, msg->stream, msg->header.length, MSG_WAITALL) <= 0) {
+			perror("rec stream");
 			FREE_NULL(msg->stream);
 			FREE_NULL(msg->argv);
 			FREE_NULL(msg);
@@ -759,6 +768,35 @@ t_msg *recibir_mensaje(int sock_fd) {
 	}
 
 	return msg;
+}
+int enviar_mensaje_nodo_ok(int fd){
+	t_msg* msg = argv_message(NODO_OK, 0);
+
+	int rs;
+	rs = enviar_mensaje(fd, msg);
+	destroy_message(msg);
+	return rs;
+
+}
+int recibir_mensaje_nodo_ok(int fd){
+	t_msg* msg = recibir_mensaje(fd);
+	int rs ;
+	rs = msg->header.id == NODO_OK;
+
+	destroy_message(msg);
+	return rs;
+}
+
+int enviar_mensaje_nodo_close(int fd){
+	int rs ;
+	t_msg* msg = argv_message(NODO_CHAU, 0);
+	rs = enviar_mensaje(fd, msg);
+	destroy_message(msg);
+
+
+
+	//close(fd);
+	return rs;
 }
 
 int enviar_mensaje(int sock_fd, t_msg *msg) {
@@ -780,10 +818,10 @@ int enviar_mensaje(int sock_fd, t_msg *msg) {
 
 	/* Send message(s). */
 	while (total < pending) {
-		int sent = send(sock_fd, buffer,
-				msg->header.length + sizeof msg->header
-						+ msg->header.argc * sizeof(uint32_t), MSG_NOSIGNAL);
+		//int sent = send(sock_fd, buffer, msg->header.length + sizeof msg->header	+ msg->header.argc * sizeof(uint32_t), MSG_NOSIGNAL);
+		int sent = send(sock_fd, buffer, msg->header.length + sizeof msg->header	+ msg->header.argc * sizeof(uint32_t), 0);
 		if (sent < 0) {
+			perror("send:::");
 			FREE_NULL(buffer);
 			return -1;
 		}

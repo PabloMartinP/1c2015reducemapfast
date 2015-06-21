@@ -17,7 +17,7 @@ bool nodo_esta_vivo(char* ip, int puerto){
 	int fd = client_socket(ip, puerto);
 
 	//le mando handshake a ver si me responde el HOLA
-	t_msg* msg = string_message(NODO_HOLA, "",0);
+	t_msg* msg = argv_message(NODO_HOLA, 0);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
 	msg = recibir_mensaje(fd);
@@ -25,6 +25,7 @@ bool nodo_esta_vivo(char* ip, int puerto){
 	//si responde NODO_HOLA esta activo
 	on = msg->header.id == NODO_HOLA;
 
+	//enviar_mensaje_nodo_close(fd);
 	destroy_message(msg);
 
 	return on;

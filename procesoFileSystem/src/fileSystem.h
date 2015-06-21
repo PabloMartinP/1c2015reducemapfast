@@ -62,7 +62,7 @@ size_t fs_tamanio_libre_bytes();
 int cant_registros(char** registros);
 t_list* fs_importar_archivo(char* archivo);
 t_archivo_bloque_con_copias* guardar_bloque(char* bloque_origen,	size_t offset);
-void fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque,	size_t tamanio_real);
+int fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque,	size_t tamanio_real);
 t_archivo_nodo_bloque** fs_get_tres_nodo_bloque_libres();
 bool ordenar_por_mayor_cant_bloques_libres(t_nodo* uno, t_nodo* dos);
 t_list* obtener_tres_nodos_disponibles();
@@ -205,6 +205,8 @@ char* fs_archivo_get_bloque(char* nombre, int dir_id, int numero_bloque) {
 				memccpy(datos_bloque, msg->stream, 1, msg->header.length + 1);
 
 				destroy_message(msg);
+				enviar_mensaje_nodo_close(fd);
+				//close(fd);
 
 				return datos_bloque;
 				//break;
@@ -618,8 +620,11 @@ int fs_agregar_nodo(int id_nodo) {
 			list_iterate(archivo->bloques_de_datos, (void*)_verificar_uso_de_nodo_enumero_bloque);
 		}
 		list_iterate(fs.archivos, (void*)_verificar_uso_de_nodo_en_archivo);
-	}
 
+	}
+	//le digo que cierre
+	enviar_mensaje_nodo_close(fd);
+	//close(fd);
 
 	printf("El nodo fue agregado al fs: \n");
 	nodo_print_info(nodo);
@@ -839,31 +844,27 @@ t_archivo_bloque_con_copias* guardar_bloque(char* bloque_origen,size_t bytes_a_c
 	return new;
 }
 
-void fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque, size_t tamanio_real) {
+int fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque, size_t tamanio_real) {
 	//me tengo que conectar con el nodo y pasarle el bloque
 	//obtengo info del bloque
-
+	int rs ;
 	printf("iniciando transferencia a Ip:%s:%d bloque %d\n", nb->base->red.ip,nb->base->red.puerto, nb->numero_bloque);
 	int fd = client_socket(nb->base->red.ip, nb->base->red.puerto);
 
-	t_msg* msg;
-	msg = argv_message(FS_HOLA, 0);
-	enviar_mensaje(fd, msg);
-	destroy_message(msg);
-	msg = recibir_mensaje(fd);
-	if (msg->header.id == NODO_HOLA) {
-		destroy_message(msg);
-		//le digo que grabe el blque en el nodo n
-		msg = string_message(FS_GRABAR_BLOQUE, bloque, 2, nb->numero_bloque, tamanio_real);
+	//le digo que grabe el blque en el nodo n
+	t_msg* msg = string_message(FS_GRABAR_BLOQUE, bloque, 2, nb->numero_bloque, tamanio_real);
 
-		enviar_mensaje(fd, msg);
-	}
-
+	rs = enviar_mensaje(fd, msg);
 	destroy_message(msg);
 
-	close(fd);
+	rs = recibir_mensaje_nodo_ok(fd);
+
+	//enviar_mensaje_nodo_close(fd);
+
+	//close(fd);
 
 	printf("transferencia realizada OK\n");
+	return rs;
 }
 
 void fs_print_no_operativo(){

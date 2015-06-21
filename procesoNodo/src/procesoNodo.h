@@ -24,6 +24,7 @@
 #include <strings.h>
 #include <math.h>
 #include <commons/collections/list.h>
+#include <pthread.h>
 
 #include <util.h>
 #include "mapreduce.h"
@@ -38,6 +39,7 @@ char FILE_LOG[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/proce
 bool FIN = false;
 char* _data = NULL;
 t_log* logger = NULL;
+pthread_mutex_t mx_log, mx_mr, mutex;
 /*
  * declaraciones
  */
@@ -58,7 +60,7 @@ void procesar_mensaje(int fd, t_msg* msg);
 int aplicar_reduce(t_reduce* reduce, char* script);
 char* generar_nombre_map_tmp();
 char* generar_nombre_script();
-void incicar_server();
+void iniciar_server();
 void agregar_cwd(char* file);
 
 int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino);
@@ -68,6 +70,10 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
 int aplicar_reduce_local(t_list* files, char*script_reduce,
 		char* filename_result);
 char* convertir_a_temp_path_filename(char* filename);
+int thread_aplicar_map(int fd);
+void incicar_server_sin_select();
+int _aplicar_map(void* param);
+void* atenderProceso(int* fd);
 //char* ejecutar_script_sort(char* filename);
 /*
  * graba el temp concatenandole el timenow en el filename para que sea unico

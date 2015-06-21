@@ -33,6 +33,7 @@ typedef struct{
 t_list* mappers;
 t_list* reducers;
 t_log* logger;
+pthread_mutex_t mutex_log;
 
 int JOB_ID;
 int conectar_con_marta();
@@ -65,13 +66,13 @@ int funcionReducing(t_reduce* reduce){
 
 	log_trace(logger, "Esperando respuesta a reducer %d en nodo %s",reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
 	msg = recibir_mensaje(fd);
-	log_trace(logger, "Respuesta recibida de mapper %d en nodo %s",reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
+	log_trace(logger, "Respuesta recibida de reducer %d en nodo %s",reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
 	if(msg->header.id==REDUCER_TERMINO){
-		log_trace(logger, "El mapper %d en nodo %s termino OK", reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
+		log_trace(logger, "El reducer %d en nodo %s termino OK", reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
 		resultado = true;
 	}
 	else{
-		log_trace(logger, "El mapper %d en nodo %s Termino CON ERRORES",reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
+		log_trace(logger, "El reducer %d en nodo %s Termino CON ERRORES",reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
 		resultado = false;
 	}
 	destroy_message(msg);
@@ -85,8 +86,11 @@ int funcionReducing(t_reduce* reduce){
 int funcionMapping(t_map* map){
 	t_msg* msg;
 	bool resultado;
+	pthread_mutex_lock(&mutex_log);
 	log_trace(logger, "Conectando con nodo %d - %s:%d", map->archivo_nodo_bloque->base->id,  map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
+	pthread_mutex_unlock(&mutex_log);
 	int fd = client_socket(map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
+	printf("nuevo Sock %d\n", fd);
 	//envio esto para que entre en el select del MAPPER y espera que recibir un mensaje_map
 	msg = argv_message(JOB_MAPPER, 0);
 	enviar_mensaje(fd, msg);destroy_message(msg);
@@ -96,8 +100,17 @@ int funcionMapping(t_map* map){
 	enviar_mensaje_script(fd, JOB_SCRIPT_MAPPER());
 
 
-	log_trace(logger, "Esperando respuesta a mapper %d en nodo %s:%d",map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
+	pthread_mutex_lock(&mutex_log);
+	log_trace(logger, "Esperando respuesta sock:%d a mapper %d en nodo %s:%d",fd, map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
+	pthread_mutex_unlock(&mutex_log);
+
 	msg = recibir_mensaje(fd);
+
+	if(msg==NULL){
+		printf("rec msg NULLLLLLLLLL sock %d, map: %d\n", fd, map->info->id);
+
+	}
+	pthread_mutex_lock(&mutex_log);
 	log_trace(logger, "Respuesta recibida de mapper %d en nodo %s:%d",map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
 	if(msg->header.id==MAPPER_TERMINO){
 		log_trace(logger, "El mapper %d en nodo %s:%d termino OK", map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
@@ -107,7 +120,10 @@ int funcionMapping(t_map* map){
 		log_trace(logger, "El mapper %d en nodo %s:%d Termino CON ERRORES",map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
 		resultado = false;
 	}
+	pthread_mutex_unlock(&mutex_log);
 	destroy_message(msg);
+	printf("NINNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\n");
+	enviar_mensaje_nodo_ok(fd);
 
 	close(fd);
 
@@ -359,7 +375,7 @@ int lanzar_hilos_mappers(int fd){
 		pthread_t *threads = malloc(list_size(mappers)*(sizeof(pthread_t)));
 		int i=0;
 		void _crear_hilo_mapper(t_map* map){
-			pthread_create(threads + i, NULL, (void*)funcionMapping, (void*)map); //que párametro  ponemos??
+			pthread_create(threads + i, NULL, (void*)funcionMapping, (void*)map);
 			i++;
 		}
 		list_iterate(mappers, (void*)_crear_hilo_mapper);
@@ -382,8 +398,8 @@ int lanzar_hilos_mappers(int fd){
 			i++;
 
 			//libero el map
-			archivo_nodo_bloque_destroy_free_base(map->archivo_nodo_bloque);
-			map_free(map);
+			//archivo_nodo_bloque_destroy_free_base(map->archivo_nodo_bloque);
+			//map_free(map);
 
 		}
 		list_iterate(mappers, (void*)_join_hilo_mapper);

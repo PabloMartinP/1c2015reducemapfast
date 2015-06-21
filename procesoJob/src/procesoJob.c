@@ -16,7 +16,7 @@ char FILE_LOG[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/proce
 int main(int argc, char *argv[]) {
 	jobConfig = config_create(FILE_CONFIG);
 	logger = log_create(FILE_LOG, "JOB", true, LOG_LEVEL_TRACE);
-
+	pthread_mutex_init(&mutex_log, NULL);
 
 	//test conexion con marta
 	conectar_con_marta();

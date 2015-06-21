@@ -103,7 +103,6 @@ int funcionMapping(t_map* map){
 	pthread_mutex_lock(&mutex_log);
 	log_trace(logger, "Esperando respuesta sock:%d a mapper %d en nodo %s:%d",fd, map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
 	pthread_mutex_unlock(&mutex_log);
-
 	msg = recibir_mensaje(fd);
 
 	if(msg==NULL){

@@ -16,8 +16,8 @@ int main(int argc, char *argv[]) {
 
 	//inicio el server para atender las peticiones del fs
 	//iniciar_server_thread();
-	//iniciar_server();
-	incicar_server_sin_select();
+	iniciar_server();
+	//incicar_server_sin_select();
 
 	//todo estas pruebas andan OK 0 leaks
 	/*
@@ -790,16 +790,17 @@ void procesar_mensaje(int fd, t_msg* msg) {
 		free(filename_script);
 		remove(filename_script);
 
+		pthread_mutex_lock(&mx_log);
 		msg = argv_message(MAPPER_TERMINO, 0);
 		rs = enviar_mensaje(fd, msg);
-		printf("Termino map %d sock %d\n", map->info->id, rs);
-		pthread_mutex_lock(&mx_log);
+		printf("Termino map %d sock %d\n", map->info->id, fd);
 		log_trace(logger, "Enviado MAPPER_TERMINO id %d al job sock %d", map->info->id, fd);
 		pthread_mutex_unlock(&mx_log);
 		destroy_message(msg);
 
 		recibir_mensaje_nodo_ok(fd);
 		printf("fin mapppppppppppppppp socket %d\n", fd);
+
 		/*
 		destroy_message(msg);
 		log_trace(logger,"******************************************************");
@@ -893,16 +894,20 @@ void incicar_server_sin_select() {
 	int nuevaConexion;
 	while (true) {
 
-
 		pthread_mutex_lock(&mutex);
 		nuevaConexion = accept_connection(listener);
+		if(nuevaConexion<0)
+			perror("accept");
 		pthread_mutex_lock(&mx_log);
 		log_trace(logger, "******************NuevaConexion sock %d\n", nuevaConexion);
 		pthread_mutex_unlock(&mx_log);
 		int* j = malloc(sizeof*j);
 		*j = nuevaConexion ;
 
-		pthread_create(&thread, NULL, (void*)atenderProceso, j);
+		if(	(pthread_create(&thread, NULL, (void*)atenderProceso, j)) <0){
+			perror("pthread_create");
+		}
+
 		pthread_detach(thread);
 
 		pthread_mutex_unlock(&mutex);
@@ -917,6 +922,11 @@ void* atenderProceso(int* socket){
 	printf("NuevoThread sock %d\n", fd);
 
 	t_msg* msg = recibir_mensaje(fd);
+	if(msg == NULL){
+		perror("recibir_msgggg");
+		printf("reccc msj %d\n", fd);
+		return NULL;
+	}
 
 	//pthread_mutex_lock(&mx_log);
 	procesar_mensaje(fd, msg);
@@ -925,6 +935,7 @@ void* atenderProceso(int* socket){
 	printf("FinThread sock %d\n", fd);
 	//close(fd);
 	free(socket);
+	socket  = NULL;
 	return NULL;
 }
 
@@ -972,8 +983,7 @@ void probar_conexion_fs() {
 			log_trace(logger, "No se pudo conectar con el fs");
 
 		//close(fs);
-		log_trace(logger, "Conectado con fs en %s:%d\n", NODO_IP_FS(),
-				NODO_PORT_FS());
+		log_trace(logger, "Conectado con fs en %s:%d\n", NODO_IP_FS(),NODO_PORT_FS());
 
 		log_trace(logger,
 				"Id: %d, %s:%d, Cant_bloques: %d, bin: %s, dirtmp: %s, nuevo:%d",

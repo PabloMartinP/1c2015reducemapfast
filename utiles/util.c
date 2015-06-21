@@ -295,8 +295,7 @@ int accept_connection(int sock_fd) {
 	struct sockaddr_in clientname;
 	size_t size = sizeof clientname;
 
-	int new_fd = accept(sock_fd, (struct sockaddr *) &clientname,
-			(socklen_t *) &size);
+	int new_fd = accept(sock_fd, (struct sockaddr *) &clientname,(socklen_t *) &size);
 	if (new_fd < 0) {
 		perror("accept");
 		return -1;
@@ -821,6 +820,7 @@ int enviar_mensaje(int sock_fd, t_msg *msg) {
 		//int sent = send(sock_fd, buffer, msg->header.length + sizeof msg->header	+ msg->header.argc * sizeof(uint32_t), MSG_NOSIGNAL);
 		int sent = send(sock_fd, buffer, msg->header.length + sizeof msg->header	+ msg->header.argc * sizeof(uint32_t), 0);
 		if (sent < 0) {
+			printf("sock_fd %d error\n", sock_fd);
 			perror("send:::");
 			FREE_NULL(buffer);
 			return -1;

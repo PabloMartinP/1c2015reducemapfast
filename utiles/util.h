@@ -12,6 +12,7 @@
 #include <netinet/in.h>
 #include <time.h>
 #include <stdlib.h>
+ #include <sys/time.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdarg.h>
@@ -339,6 +340,6 @@ t_reduce* reduce_create(int id, int job_id, char* resultado, t_nodo_base* nodo_d
 char* nodo_base_to_string(t_nodo_base* nb);
 void free_split(char** splitted);
 int split_count(char** splitted);
-
+int recv_timeout(int s , int timeout);
 
 #endif /* UTIL_H_ */

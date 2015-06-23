@@ -30,8 +30,11 @@
 #include "mapreduce.h"
 //#include "socket.h"
 
-char FILE_CONFIG[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/config.txt";
-char FILE_LOG[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/log.txt";
+//char FILE_CONFIG[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/config.txt";
+//char FILE_LOG[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/log.txt";
+char FILE_CONFIG[1024] = "config.txt";
+char FILE_LOG[1024] = "log.txt";
+
 //char CWD[PATH_MAX_LEN];//para guardar el currentworkingdirectory
 /*
  * variables
@@ -39,7 +42,7 @@ char FILE_LOG[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/proce
 bool FIN = false;
 char* _data = NULL;
 t_log* logger = NULL;
-pthread_mutex_t mx_log, mx_mr, mutex;
+pthread_mutex_t mx_log, mx_mr, mutex, mx_data;
 /*
  * declaraciones
  */

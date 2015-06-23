@@ -103,7 +103,27 @@ int funcionMapping(t_map* map){
 	pthread_mutex_lock(&mutex_log);
 	log_trace(logger, "Esperando respuesta sock:%d a mapper %d en nodo %s:%d",fd, map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
 	pthread_mutex_unlock(&mutex_log);
-	msg = recibir_mensaje(fd);
+
+	char buffer[32];
+	if (recv(fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0) {
+		printf("El  NODOOOO el sock %d conexionNNNNNNNNNNNNNNNNNNNNN \n", fd);
+		// if recv returns zero, that means the connection has been closed:
+
+		close(fd);
+		return -1;
+		// do something else, e.g. go on vacation
+	}else
+		printf("sock %d activo??????????\n", fd)	;
+
+	//pthread_mutex_lock(&mutex_log);
+	printf("Esperando a que le contesnte T_T sock %d map %d\n", fd, map->info->id);
+	while((msg = recibir_mensaje(fd))==NULL){
+		//if nothing was received then we want to wait a little before trying again, 0.1 seconds
+		printf("sock cerrado %d map %d\n", fd, map->info->id);
+		usleep(1000000);
+	}
+	printf("CONTESTARONNNNNNNNNNNNNNNNN sock %d map %d \n", fd, map->info->id);
+	//pthread_mutex_unlock(&mutex_log);
 
 	if(msg==NULL){
 		printf("rec msg NULLLLLLLLLL sock %d, map: %d\n", fd, map->info->id);
@@ -122,7 +142,7 @@ int funcionMapping(t_map* map){
 	pthread_mutex_unlock(&mutex_log);
 	destroy_message(msg);
 	printf("NINNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN\n");
-	enviar_mensaje_nodo_ok(fd);
+	//enviar_mensaje_nodo_ok(fd);
 
 	close(fd);
 

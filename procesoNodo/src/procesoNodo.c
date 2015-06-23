@@ -16,8 +16,8 @@ int main(int argc, char *argv[]) {
 
 	//inicio el server para atender las peticiones del fs
 	//iniciar_server_thread();
-	iniciar_server();
-	//incicar_server_sin_select();
+	//iniciar_server();
+	incicar_server_sin_select();
 
 	//todo estas pruebas andan OK 0 leaks
 	/*
@@ -104,8 +104,7 @@ int main(int argc, char *argv[]) {
 }
 
 //files es una lista de t_files_reduce
-int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
-		char* filename_result) {
+int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* filename_result) {
 	int i = 0;
 	int rs;
 	int cant_red_files, cant_total_files, cant_local_files;
@@ -203,6 +202,7 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
 			index_menor = get_index_menor(keys, cant_total_files);
 			//el menor lo mando a stdinn (keys[i])
 			//printf("%s\n", keys[index_menor]);
+
 			write(PARENT_WRITE_FD, keys[index_menor],
 					strlen(keys[index_menor]) + 1);
 			//leo el siguiente elmento del fdlocal[index_menor]
@@ -435,8 +435,7 @@ int _aplicar_map(void* param) {
 	recibir_mensaje_script_y_guardar(fd, filename_script);
 	int rs;
 	pthread_mutex_lock(&mx_log);
-	log_trace(logger, "Aplicando mapper %s sobre el bloque %d", filename_script,
-			map->archivo_nodo_bloque->numero_bloque);
+	log_trace(logger, "Aplicando mapper %s sobre el bloque %d", filename_script, map->archivo_nodo_bloque->numero_bloque);
 	pthread_mutex_unlock(&mx_log);
 	///////////////////////////////////////////////////////////////////////
 
@@ -444,13 +443,22 @@ int _aplicar_map(void* param) {
 	pthread_mutex_lock(&mx_log);
 	log_trace(logger, "_______________________socket %d", fd);
 	pthread_mutex_unlock(&mx_log);
-	rs = aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script,
-			map->info->resultado);
+	rs = aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script,map->info->resultado);
 	pthread_mutex_lock(&mx_log);
 	log_trace(logger, "Info fin thread: res: %d", rs);
 	log_trace(logger,
 			"*****************************************************************");
 	pthread_mutex_unlock(&mx_log);
+
+	char buffer[32];
+	if (recv(fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0) {
+		printf("El  NODOOOO el sock %d conexionNNNNNNNNNNNNNNNNNNNNN \n", fd);
+		// if recv returns zero, that means the connection has been closed:
+
+		//close(fd);
+		return -1;
+		// do something else, e.g. go on vacation
+	}
 
 	t_msg* msg = argv_message(MAPPER_TERMINO, 0);
 
@@ -459,6 +467,8 @@ int _aplicar_map(void* param) {
 		perror("holaaaa");
 
 	destroy_message(msg);
+
+
 	pthread_mutex_lock(&mx_log);
 	log_trace(logger, "Enviado MAPPER_TERMINO al job");
 	log_trace(logger, "Fin mapper guardado en %s", map->info->resultado);
@@ -514,6 +524,7 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		if (len < len_buff_write)
 			len_buff_write = len;
 
+		pthread_mutex_lock(&mx_mr);
 		do {
 			len_buff_write = len_hasta_enter(stdinn + bytes_leidos);
 			bytes_escritos = write(PARENT_WRITE_FD, stdinn + bytes_leidos,
@@ -575,6 +586,11 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		FREE_NULL(stdinn);
 
 		close(PARENT_READ_FD);
+		pthread_mutex_unlock(&mx_mr);
+
+
+		//////////////////////////////////////////////////////////
+
 		txt_close_file(file_disorder);
 		FREE_NULL(buffer);
 		pthread_mutex_lock(&mx_log);
@@ -714,10 +730,14 @@ int aplicar_reduce(t_reduce* reduce, char* script) {
 	}
 	list_iterate(reduce->nodos_archivo, (void*) _crear_files_reduce);
 
-	log_trace(logger, "**********************************************");
+
+	pthread_mutex_lock(&mx_mr);
 	aplicar_reduce_local_red(files_to_reduce, script, reduce->info->resultado);
+	pthread_mutex_unlock(&mx_mr);
+
+	pthread_mutex_lock(&mx_log);
 	log_trace(logger, "Guardado en %s\n", reduce->info->resultado);
-	log_trace(logger, "**********************************************");
+	pthread_mutex_unlock(&mx_log);
 
 	list_destroy_and_destroy_elements(files_to_reduce, free);
 
@@ -735,35 +755,41 @@ void procesar_mensaje(int fd, t_msg* msg) {
 	switch (msg->header.id) {
 	case JOB_REDUCER:
 		destroy_message(msg);
-		log_trace(logger,
-				"******************************************************");
+		pthread_mutex_lock(&mx_log);
+		log_trace(logger, "******************************************************");
 		log_trace(logger, "Recibido nuevo reducer");
+		pthread_mutex_unlock(&mx_log);
 		//recibo el reduce que me envio
 		reduce = NULL;
 		reduce = recibir_mensaje_reduce(fd);
 		filename_script = generar_nombre_reduce_tmp();
 		recibir_mensaje_script_y_guardar(fd, filename_script);
-		///////////////////////////////////////////////
-		log_trace(logger, "Aplicando reducer %s sobre %d archivos",
-				filename_script, list_size(reduce->nodos_archivo));
 
+		///////////////////////////////////////////////
+		pthread_mutex_lock(&mx_log);
+		log_trace(logger, "Aplicando reducer %s sobre %d archivos",	filename_script, list_size(reduce->nodos_archivo));
+		pthread_mutex_unlock(&mx_log);
 
 		aplicar_reduce(reduce, filename_script);
 
-		log_trace(logger, "Fin reducer guardado en %s",
-				reduce->info->resultado);
+		pthread_mutex_lock(&mx_log);
+		log_trace(logger, "Fin reducer guardado en %s",	reduce->info->resultado);
+		pthread_mutex_unlock(&mx_log);
 		free(filename_script);
 		remove(filename_script);
 
 		msg = argv_message(REDUCER_TERMINO, 0);
 		enviar_mensaje(fd, msg);
+		pthread_mutex_lock(&mx_log);
 		log_trace(logger, "Enviado REDUCER_TERMINO al job");
+		pthread_mutex_unlock(&mx_log);
 		destroy_message(msg);
 
 		//close(fd);
 
 		break;
 	case JOB_MAPPER:
+
 		destroy_message(msg);
 		pthread_mutex_lock(&mx_log);
 		log_trace(logger, "******************************************************");
@@ -780,9 +806,9 @@ void procesar_mensaje(int fd, t_msg* msg) {
 		log_trace(logger, "Aplicando mapper %s sobre el bloque %d sock %d",	filename_script, map->archivo_nodo_bloque->numero_bloque, fd);
 		pthread_mutex_unlock(&mx_log);
 
-		pthread_mutex_lock(&mx_mr);
+		//pthread_mutex_lock(&mx_mr);
 		aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
-		pthread_mutex_unlock(&mx_mr);
+		//pthread_mutex_unlock(&mx_mr);
 
 		pthread_mutex_lock(&mx_log);
 		log_trace(logger, "Fin mapper %d sock %d guardado en %s", map->info->id, fd, map->info->resultado);
@@ -792,22 +818,40 @@ void procesar_mensaje(int fd, t_msg* msg) {
 
 		pthread_mutex_lock(&mx_log);
 		msg = argv_message(MAPPER_TERMINO, 0);
+
+		char buffer[32];
+		if (recv(fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0) {
+			printf("El  JOBBBBB el sock %d conexionNNNNNNNNNNNNNNNNNNNNN \n",
+					fd);
+			// if recv returns zero, that means the connection has been closed:
+
+			close(fd);
+			break;
+			// do something else, e.g. go on vacation
+		}else
+			printf("sock %d activoOOO\n", fd);
+
+
 		rs = enviar_mensaje(fd, msg);
 		printf("Termino map %d sock %d\n", map->info->id, fd);
 		log_trace(logger, "Enviado MAPPER_TERMINO id %d al job sock %d", map->info->id, fd);
 		pthread_mutex_unlock(&mx_log);
 		destroy_message(msg);
 
-		recibir_mensaje_nodo_ok(fd);
+		//recibir_mensaje_nodo_ok(fd);
 		printf("fin mapppppppppppppppp socket %d\n", fd);
 
-		/*
+		/////////////////////////////////////////////////////////////////////////////
+/*
 		destroy_message(msg);
+		pthread_mutex_lock(&mx_log);
 		log_trace(logger,"******************************************************");
 		log_trace(logger, "Recibido nuevo mapper");
-		aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
-		//thread_aplicar_map(fd);
+		pthread_mutex_unlock(&mx_log);
+		//aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
+		thread_aplicar_map(fd);
 */
+
 		break;
 	case FS_AGREGO_NODO:
 		log_trace(logger, "El nodo se agrego al fs con id %d", msg->argv[0]);
@@ -891,16 +935,19 @@ void incicar_server_sin_select() {
 	log_trace(logger, "Iniciado server. Puerto: %d\n",NODO_PORT() );
 	pthread_t thread;
 	int listener = server_socket(NODO_PORT());
+	if(listener<0){
+		printf("ERRROr listener %d\n", NODO_PORT());
+		return ;
+	}
 	int nuevaConexion;
 	while (true) {
 
-		pthread_mutex_lock(&mutex);
+
 		nuevaConexion = accept_connection(listener);
 		if(nuevaConexion<0)
 			perror("accept");
-		pthread_mutex_lock(&mx_log);
 		log_trace(logger, "******************NuevaConexion sock %d\n", nuevaConexion);
-		pthread_mutex_unlock(&mx_log);
+
 		int* j = malloc(sizeof*j);
 		*j = nuevaConexion ;
 
@@ -910,7 +957,7 @@ void incicar_server_sin_select() {
 
 		pthread_detach(thread);
 
-		pthread_mutex_unlock(&mutex);
+
 	}
 
 }
@@ -933,7 +980,7 @@ void* atenderProceso(int* socket){
 
 	//pthread_mutex_unlock(&mx_log);
 	printf("FinThread sock %d\n", fd);
-	//close(fd);
+	close(fd);
 	free(socket);
 	socket  = NULL;
 	return NULL;
@@ -1019,6 +1066,8 @@ void inicializar() {
 	pthread_mutex_init(&mx_log, NULL);
 	pthread_mutex_init(&mx_mr, NULL);
 	pthread_mutex_init(&mutex, NULL);
+	pthread_mutex_init(&mx_data, NULL);
+
 
 	_data = data_get(NODO_ARCHIVOBIN());
 }
@@ -1048,12 +1097,15 @@ char* getFileContent(char* filename) {
 }
 
 void setBloque(int32_t numero, char* bloquedatos) {
+
+	pthread_mutex_lock(&mx_data);
 	log_info(logger, "Inicio setBloque(%d)", numero);
 
 	memset(_data + (numero * TAMANIO_BLOQUE_B), 0, TAMANIO_BLOQUE_B);
 	memcpy(_data + (numero * TAMANIO_BLOQUE_B), bloquedatos, TAMANIO_BLOQUE_B);
 
 	log_info(logger, "Fin setBloque(%d)", numero);
+	pthread_mutex_unlock(&mx_data);
 }
 /*
  * devuelve una copia del bloque, hacer free
@@ -1065,9 +1117,11 @@ char* getBloque(int32_t numero) {
 	char* bloque = NULL;
 	bloque = malloc(TAMANIO_BLOQUE_B);
 
+	pthread_mutex_lock(&mx_data);
 	//pthread_mutex_lock(&mx_log);
 	memcpy(bloque, &(_data[numero * TAMANIO_BLOQUE_B]), TAMANIO_BLOQUE_B);
 	//pthread_mutex_unlock(&mutex);
+	pthread_mutex_unlock(&mx_data);
 
 	//memcpy(bloque, _bloques[numero], TAMANIO_BLOQUE);
 	pthread_mutex_lock(&mx_log);

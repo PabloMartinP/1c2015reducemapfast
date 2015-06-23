@@ -6,7 +6,61 @@
  */
 
 #include "util.h"
+//Size of each chunk of data received, try changing this
+		#define CHUNK_SIZE 512
+		/*
+		    Receive data in multiple chunks by checking a non-blocking socket
+		    Timeout in seconds
+		*/
+		int recv_timeout(int s , int timeout)
+		{
+		    int size_recv , total_size= 0;
+		    struct timeval begin , now;
+		    char chunk[CHUNK_SIZE];
+		    double timediff;
 
+		    //make socket non blocking
+		    fcntl(s, F_SETFL, O_NONBLOCK);
+
+		    //beginning time
+		    gettimeofday(&begin , NULL);
+
+		    while(1)
+		    {
+		        gettimeofday(&now , NULL);
+
+		        //time elapsed in seconds
+		        timediff = (now.tv_sec - begin.tv_sec) + 1e-6 * (now.tv_usec - begin.tv_usec);
+
+		        //if you got some data, then break after timeout
+		        if( total_size > 0 && timediff > timeout )
+		        {
+		            break;
+		        }
+
+		        //if you got no data at all, wait a little longer, twice the timeout
+		        else if( timediff > timeout*2)
+		        {
+		            break;
+		        }
+
+		        memset(chunk ,0 , CHUNK_SIZE);  //clear the variable
+		        if((size_recv =  recv(s , chunk , CHUNK_SIZE , 0) ) < 0)
+		        {
+		            //if nothing was received then we want to wait a little before trying again, 0.1 seconds
+		            usleep(100000);
+		        }
+		        else
+		        {
+		            total_size += size_recv;
+		            printf("%s" , chunk);
+		            //reset beginning time
+		            gettimeofday(&begin , NULL);
+		        }
+		    }
+
+		    return total_size;
+		}
 
 size_t file_get_size(char* filename) {
 	struct stat st;
@@ -255,8 +309,8 @@ int server_socket(uint16_t port) {
 	}
 
 	/* Listen to incoming connections. */
-	if (listen(sock_fd, BACK_LOG) < 0) {
-	//if (listen(sock_fd, 1) < 0) {
+	//if (listen(sock_fd, BACK_LOG) < 0) {
+	if (listen(sock_fd, 1) < 0) {
 		perror("listen");
 		return -4;
 	}
@@ -721,14 +775,19 @@ t_nodo_base* recibir_mensaje_nodo_base(int fd){
 }
 
 t_msg *recibir_mensaje(int sock_fd) {
+
 	t_msg *msg = malloc(sizeof *msg);
 	msg->argv = NULL;
 	msg->stream = NULL;
 
 	/* Get message info. */
+
 	int status = recv(sock_fd, &(msg->header), sizeof(t_header), MSG_WAITALL);
+
+
 	if (status < 0) {
 		/* An error has ocurred or remote connection has been closed. */
+		printf("error al recibir header sock %d\n", sock_fd);
 		perror("rec header");
 		FREE_NULL(msg);
 		return NULL;
@@ -817,6 +876,18 @@ int enviar_mensaje(int sock_fd, t_msg *msg) {
 
 	/* Send message(s). */
 	while (total < pending) {
+		int sent = send(sock_fd, buffer,
+				msg->header.length + sizeof msg->header
+						+ msg->header.argc * sizeof(uint32_t), MSG_NOSIGNAL);
+		if (sent < 0) {
+			free(buffer);
+			return -1;
+		}
+		total += sent;
+		pending -= sent;
+	}
+	/*
+	while (total < pending) {
 		//int sent = send(sock_fd, buffer, msg->header.length + sizeof msg->header	+ msg->header.argc * sizeof(uint32_t), MSG_NOSIGNAL);
 		int sent = send(sock_fd, buffer, msg->header.length + sizeof msg->header	+ msg->header.argc * sizeof(uint32_t), 0);
 		if (sent < 0) {
@@ -827,7 +898,7 @@ int enviar_mensaje(int sock_fd, t_msg *msg) {
 		}
 		total += sent;
 		pending -= sent;
-	}
+	}*/
 
 	FREE_NULL(buffer);
 
@@ -1133,3 +1204,6 @@ t_reduce* reduce_create(int id, int job_id, char* resultado, t_nodo_base* nb){
 
 	return new;
 }
+
+
+

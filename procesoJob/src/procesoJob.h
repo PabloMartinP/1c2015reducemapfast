@@ -51,7 +51,23 @@ int funcionReducing(t_reduce* reduce);
 int funcionReducing(t_reduce* reduce){
 	bool resultado;
 
+	pthread_mutex_lock(&mutex_log);
 	log_trace(logger, "Conectando con nodo %s", nodo_base_to_string(reduce->nodo_base_destino));
+	pthread_mutex_unlock(&mutex_log);
+
+	/*
+	strcpy(reduce->nodo_base_destino->red.ip, "192.168.1.43");
+		reduce->nodo_base_destino->red.puerto = 6001;
+		reduce->nodo_base_destino->id = 43;
+
+	void __test(t_nodo_archivo* na){
+		strcpy(na->nodo_base->red.ip, "192.168.1.43");
+		na->nodo_base->red.puerto = 6001;
+		na->nodo_base->id = 43;
+	}
+	list_iterate(reduce->nodos_archivo, (void*)__test);
+*/
+
 	int fd = client_socket(reduce->nodo_base_destino->red.ip, reduce->nodo_base_destino->red.puerto);
 	t_msg* msg;
 
@@ -63,10 +79,22 @@ int funcionReducing(t_reduce* reduce){
 	enviar_mensaje_reduce(fd, reduce);
 	enviar_mensaje_script(fd, JOB_SCRIPT_REDUCER());
 
-
+	pthread_mutex_lock(&mutex_log);
 	log_trace(logger, "Esperando respuesta a reducer %d en nodo %s",reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
+	pthread_mutex_unlock(&mutex_log);
+
+
 	msg = recibir_mensaje(fd);
+
+	if(msg==NULL){
+		printf("ERRRRRRRoor reduce\n");
+
+	}
+
+
+	pthread_mutex_lock(&mutex_log);
 	log_trace(logger, "Respuesta recibida de reducer %d en nodo %s",reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
+
 	if(msg->header.id==REDUCER_TERMINO){
 		log_trace(logger, "El reducer %d en nodo %s termino OK", reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
 		resultado = true;
@@ -75,6 +103,8 @@ int funcionReducing(t_reduce* reduce){
 		log_trace(logger, "El reducer %d en nodo %s Termino CON ERRORES",reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
 		resultado = false;
 	}
+	pthread_mutex_unlock(&mutex_log);
+
 	destroy_message(msg);
 
 	close(fd);
@@ -87,6 +117,12 @@ int funcionMapping(t_map* map){
 	t_msg* msg;
 	bool resultado;
 	pthread_mutex_lock(&mutex_log);
+
+
+	/*strcpy(map->archivo_nodo_bloque->base->red.ip, "192.168.1.43");
+	map->archivo_nodo_bloque->base->red.puerto = 6001;
+	map->archivo_nodo_bloque->base->id = 43;*/
+
 	log_trace(logger, "Conectando con nodo %d - %s:%d", map->archivo_nodo_bloque->base->id,  map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
 	pthread_mutex_unlock(&mutex_log);
 	int fd = client_socket(map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
@@ -117,12 +153,17 @@ int funcionMapping(t_map* map){
 
 	//pthread_mutex_lock(&mutex_log);
 	printf("Esperando a que le contesnte T_T sock %d map %d\n", fd, map->info->id);
+	/*
 	while((msg = recibir_mensaje(fd))==NULL){
 		//if nothing was received then we want to wait a little before trying again, 0.1 seconds
 		printf("sock cerrado %d map %d\n", fd, map->info->id);
 		usleep(1000000);
-	}
-	printf("CONTESTARONNNNNNNNNNNNNNNNN sock %d map %d \n", fd, map->info->id);
+	}*/
+	msg = recibir_mensaje(fd);
+	if(msg!=NULL)
+		printf("CONTESTARONNNNNNNNNNNNNNNNN sock %d map %d \n", fd, map->info->id);
+	else
+		printf("NOOOOOOOOOOOOOOOOOOOOOOOOOOOsock %d map %d \n", fd, map->info->id);
 	//pthread_mutex_unlock(&mutex_log);
 
 	if(msg==NULL){

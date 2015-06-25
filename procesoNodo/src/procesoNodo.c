@@ -10,6 +10,7 @@ int main(int argc, char *argv[]) {
 	//por param le tiene que llegar el tamaño del archivo data.bin
 	//por ahora hardcodeo 100mb, serian 10 bloques de 20 mb
 
+
 	inicializar();
 
 	probar_conexion_fs();
@@ -18,86 +19,11 @@ int main(int argc, char *argv[]) {
 	//iniciar_server_thread();
 	//iniciar_server();
 	incicar_server_sin_select();
-
-	//todo estas pruebas andan OK 0 leaks
-	/*
-	 //test map OK
-	 char* timenow = temporal_get_string_time();
-
-	 char* file_map1 = string_new();
-	 string_append(&file_map1, "job_map_");
-	 string_append(&file_map1, timenow);
-	 string_append(&file_map1, "_0.txt");
-	 aplicar_map(0,
-	 "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/map.sh",
-	 file_map1);
-	 printf("%s\n", file_map1);
-
-	 char* file_map2 = string_new();
-	 string_append(&file_map2, "job_map_");
-	 string_append(&file_map2, timenow);
-	 string_append(&file_map2, "_1.txt");
-	 aplicar_map(1,
-	 "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/map.sh",
-	 file_map2);
-	 printf("%s\n", file_map2);
-	 //////////////////////////////////////////////////////////////////
-	 //test reduce local OK
-
-	 char* file_reduce_result = string_new();
-	 string_append(&file_reduce_result, "job_reduced_result_");
-	 string_append(&file_reduce_result, timenow);
-	 t_list* files = list_create();
-	 list_add(files, (void*) file_map1);
-	 list_add(files, (void*) file_map2);
-	 aplicar_reduce_local(files,
-	 "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/reduce.sh",
-	 file_reduce_result);
-	 list_destroy(files);
-	 FREE_NULL(file_reduce_result);
-
-	 //////////////////////////////////////////////////////////////////////////
-	 *//*
-	 //test reduce de los dos archivos mapeados y en otro nodo?
-	 //creo un archivo para reducir
-	 t_list* files_to_reduce = list_create();
-	 t_files_reduce* file_reduce1 = malloc(sizeof *file_reduce1);
-	 //strcpy(file_reduce1->archivo, file_map1);
-	 strcpy(file_reduce1->archivo, "6001.txt");
-	 strcpy(file_reduce1->ip, NODO_IP());
-	 file_reduce1->puerto = NODO_PORT();
-	 list_add(files_to_reduce, file_reduce1);
-
-	 //creo otro archivo para reducir
-	 t_files_reduce* file_reduce2 = malloc(sizeof *file_reduce2);
-	 strcpy(file_reduce2->archivo, "6002.txt");
-	 strcpy(file_reduce2->ip, NODO_IP());
-	 //file_reduce2->puerto = NODO_PORT();
-	 file_reduce2->puerto = 6002;
-	 list_add(files_to_reduce, file_reduce2);
-
-	 char* file_red_reduce_result = string_new();
-	 string_append(&file_red_reduce_result, "job_reduced_result_");
-	 string_append(&file_red_reduce_result, timenow);
-	 aplicar_reduce_local_red(files_to_reduce, "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/reduce.sh", file_red_reduce_result);
-	 printf("%s\n", file_red_reduce_result);
-
-	 free(file_red_reduce_result);
-	 list_destroy(files_to_reduce);
-	 free(file_reduce1);
-	 free(file_reduce2);
-
-	 free(file_reduce_result);
+	//iniciar_server_fork();
 
 
-	 free(file_map1);
-	 free(file_map2);
-
-	 FREE_NULL(timenow);
-	 */
 	//bool fin = true	;
-	while (!FIN)
-		;
+	//while (!FIN)		;
 	finalizar();
 
 	return EXIT_SUCCESS;
@@ -484,7 +410,7 @@ int _aplicar_map(void* param) {
 }
 
 int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
-	int _aplicar_map() {
+	int __aplicar_map() {
 		int res = 0;
 		int count;
 
@@ -524,7 +450,6 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		if (len < len_buff_write)
 			len_buff_write = len;
 
-		pthread_mutex_lock(&mx_mr);
 		do {
 			len_buff_write = len_hasta_enter(stdinn + bytes_leidos);
 			bytes_escritos = write(PARENT_WRITE_FD, stdinn + bytes_leidos,
@@ -586,7 +511,6 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		FREE_NULL(stdinn);
 
 		close(PARENT_READ_FD);
-		pthread_mutex_unlock(&mx_mr);
 
 
 		//////////////////////////////////////////////////////////
@@ -607,7 +531,7 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 		return res;
 	}
 
-	return (int) ejecutar_script(script_map, (void*) _aplicar_map);
+	return (int) ejecutar_script(script_map, (void*) __aplicar_map);
 }
 
 int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {
@@ -744,7 +668,7 @@ int aplicar_reduce(t_reduce* reduce, char* script) {
 	return 0;
 }
 
-void procesar_mensaje(int fd, t_msg* msg) {
+int procesar_mensaje(int fd, t_msg* msg) {
 	char* bloque;
 	char* filename_script;
 	int n_bloque = 0, rs;
@@ -806,9 +730,9 @@ void procesar_mensaje(int fd, t_msg* msg) {
 		log_trace(logger, "Aplicando mapper %s sobre el bloque %d sock %d",	filename_script, map->archivo_nodo_bloque->numero_bloque, fd);
 		pthread_mutex_unlock(&mx_log);
 
-		//pthread_mutex_lock(&mx_mr);
+		pthread_mutex_lock(&mx_mr);
 		aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
-		//pthread_mutex_unlock(&mx_mr);
+		pthread_mutex_unlock(&mx_mr);
 
 		pthread_mutex_lock(&mx_log);
 		log_trace(logger, "Fin mapper %d sock %d guardado en %s", map->info->id, fd, map->info->resultado);
@@ -922,13 +846,76 @@ void procesar_mensaje(int fd, t_msg* msg) {
 	default:
 		break;
 	}
-
+	return 0;
 }
 
 void iniciar_server() {
 	log_trace(logger, "Iniciado server. Puerto: %d\n", NODO_PORT());
 
 	server_socket_select(NODO_PORT(), procesar_mensaje);
+}
+
+void iniciar_server_fork(){
+	log_trace(logger, "Iniciado server. Puerto: %d\n", NODO_PORT());
+	int listener = server_socket(NODO_PORT());
+	if (listener < 0) {
+		printf("ERRROr listener %d\n", NODO_PORT());
+		return;
+	}
+
+	int nuevaConexion;
+	int pfork = 1;
+	t_msg* msg =  NULL;
+	while (pfork) {
+
+		nuevaConexion = accept_connection(listener);
+		if (nuevaConexion < 0){
+			perror("accept");
+			return;
+		}
+		log_trace(logger, "******************NuevaConexion sock %d\n", nuevaConexion);
+
+		 msg = recibir_mensaje(nuevaConexion);
+		if(msg!=NULL){
+
+			if(msg->header.id==JOB_REDUCER || msg->header.id == JOB_MAPPER ){
+				procesar_mensaje(nuevaConexion, msg);
+			}else{
+				pfork = fork();
+			}
+		}
+	}
+	if(pfork==0){
+		//hijo
+		printf("soy el hijo del fork;\n");
+		atenderProceso_fork(nuevaConexion, msg );
+		exit(0);
+	}
+}
+
+void* atenderProceso_fork(int fd, t_msg* msg){
+
+
+	printf("NuevoThread sock %d\n", fd);
+
+	if(msg == NULL){
+		perror("recibir_msgggg");
+		printf("reccc msj %d\n", fd);
+		return NULL;
+	}
+
+
+	//pthread_mutex_lock(&mx_log);
+	int rs = procesar_mensaje(fd, msg);
+	if(rs != 0){
+		printf("ERRRRRRORRRRRRRRRR\n");
+	}
+	//pthread_mutex_unlock(&mx_log);
+	printf("FinThread sock %d\n", fd);
+	close(fd);
+
+
+	return NULL;
 }
 
 void incicar_server_sin_select() {
@@ -941,7 +928,6 @@ void incicar_server_sin_select() {
 	}
 	int nuevaConexion;
 	while (true) {
-
 
 		nuevaConexion = accept_connection(listener);
 		if(nuevaConexion<0)
@@ -975,14 +961,18 @@ void* atenderProceso(int* socket){
 		return NULL;
 	}
 
-	//pthread_mutex_lock(&mx_log);
-	procesar_mensaje(fd, msg);
 
+	//pthread_mutex_lock(&mx_log);
+	int rs = procesar_mensaje(fd, msg);
+	if(rs != 0){
+		printf("ERRRRRRORRRRRRRRRR\n");
+	}
 	//pthread_mutex_unlock(&mx_log);
 	printf("FinThread sock %d\n", fd);
 	close(fd);
 	free(socket);
 	socket  = NULL;
+
 	return NULL;
 }
 
@@ -992,7 +982,7 @@ int NODO_CANT_BLOQUES() {
 
 void probar_conexion_fs() {
 
-	log_trace(logger, "Conectado al FS ... ");
+	log_trace(logger, "Conectado al FS ... %s:%d", NODO_IP_FS(), NODO_PORT_FS());
 
 	int fs;
 

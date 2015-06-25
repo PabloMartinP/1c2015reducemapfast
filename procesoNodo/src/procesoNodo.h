@@ -59,13 +59,13 @@ void probar_conexion_fs();
 void iniciar_server_thread();
 int NODO_CANT_BLOQUES();
 char* generar_nombre_reduce_tmp();
-void procesar_mensaje(int fd, t_msg* msg);
+int procesar_mensaje(int fd, t_msg* msg);
 int aplicar_reduce(t_reduce* reduce, char* script);
 char* generar_nombre_map_tmp();
 char* generar_nombre_script();
 void iniciar_server();
 void agregar_cwd(char* file);
-
+void* atenderProceso_fork(int socket, t_msg* msg);
 int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino);
 int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
 		char* filename_result);
@@ -75,6 +75,7 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,
 char* convertir_a_temp_path_filename(char* filename);
 int thread_aplicar_map(int fd);
 void incicar_server_sin_select();
+void iniciar_server_fork();
 int _aplicar_map(void* param);
 void* atenderProceso(int* fd);
 //char* ejecutar_script_sort(char* filename);

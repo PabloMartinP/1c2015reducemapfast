@@ -205,11 +205,11 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 			//obtengo cual es el menor
 			index_menor = get_index_menor(keys, cant_total_files);
 			//el menor lo mando a stdinn (keys[i])
-			fprintf(stdout, "%s\n", keys[index_menor]);
+			//fprintf(stdout, "%s\n", keys[index_menor]);
 
 			rs = write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , keys[index_menor], strlen(keys[index_menor]) );
-			fprintf(stdout, "res write. %d\n", rs);
-			fprintf(stdout, "strlen: %d\n", strlen(keys[index_menor]));
+			//fprintf(stdout, "res write. %d\n", rs);
+			//fprintf(stdout, "strlen: %d\n", strlen(keys[index_menor]));
 
 
 			//leo el siguiente elmento del fdlocal[index_menor]
@@ -286,8 +286,8 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 		while ((count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer, LEN_KEYVALUE)) > 0) {
 			//guardo en el archivo resultado
 			fwrite(buffer, count, 1, file_reduced);
+			//fprintf(stdout, "count: %d, res: %s\n", count, buffer);
 			memset(buffer, 0, LEN_KEYVALUE);
-			fprintf(stdout, "count: %d, res: %s\n", count, buffer);
 		}
 		if (count == -1) {
 			perror("errroread");
@@ -649,7 +649,16 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 		do {
 			len_buff_write = len_hasta_enter(stdinn + bytes_leidos);
+
+			/*
+			char*_data = malloc(len_buff_write + 1);
+			memcpy(_data, stdinn + bytes_leidos, len_buff_write);
+			_data[len_buff_write ] = 0;
+			printf("write: %s\n", _data);
+			free(_data);
+			*/
 			bytes_escritos = write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , stdinn + bytes_leidos, len_buff_write);
+
 
 			if (bytes_escritos == -1) {
 				perror("writeeeeee");
@@ -659,7 +668,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			len = len - bytes_escritos;
 
 			bytes_leidos = bytes_leidos + len_buff_write;
-			fprintf(stdout, "bytes escritos: %d\n", bytes_escritos);
+			//fprintf(stdout, "bytes escritos: %d\n", bytes_escritos);
 
 			//printf("contador %d bloque %d\n", i, n_bloque);
 
@@ -708,8 +717,8 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 		while ((count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer,LEN_KEYVALUE)) > 0) {
 			fwrite(buffer, count, 1, file_disorder);
+			//fprintf(stdout, "bytes leidos>>>> %d buffer: %s\n", count, buffer);
 			memset(buffer, 0, LEN_KEYVALUE);
-			fprintf(stdout, "bytes leidos>>>> %d\n", count);
 		}
 
 		fclose(file_disorder);

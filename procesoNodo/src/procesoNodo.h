@@ -8,6 +8,8 @@
 #ifndef PROCESONODO_H_
 #define PROCESONODO_H_
 
+//#include <stdbool.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -21,14 +23,24 @@
 #include <pthread.h>
 #include "config_nodo.h"
 #include <nodo.h>
-#include <strings.h>
+#include <semaphore.h>
 #include <math.h>
 #include <commons/collections/list.h>
-#include <pthread.h>
 
 #include <util.h>
-#include "mapreduce.h"
+//#include "mapreduce.h"
 //#include "socket.h"
+
+#include <sys/types.h>
+#include <sys/wait.h>
+
+#define NUM_PIPES          2
+
+#define PARENT_WRITE_PIPE  0
+#define PARENT_READ_PIPE   1
+
+#define READ_FD  0
+#define WRITE_FD 1
 
 //char FILE_CONFIG[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/config.txt";
 //char FILE_LOG[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/log.txt";
@@ -42,7 +54,7 @@ char FILE_LOG[1024] = "log.txt";
 bool FIN = false;
 char* _data = NULL;
 t_log* logger = NULL;
-pthread_mutex_t mx_log, mx_mr, mutex, mx_data;
+pthread_mutex_t mx_log, mutex, mx_data;
 /*
  * declaraciones
  */
@@ -74,6 +86,7 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,
 		char* filename_result);
 char* convertir_a_temp_path_filename(char* filename);
 int thread_aplicar_map(int fd);
+int aplicar_map_final(int n_bloque, char* script_map, char* filename_result);
 void incicar_server_sin_select();
 void iniciar_server_fork();
 int _aplicar_map(void* param);
@@ -85,6 +98,10 @@ void* atenderProceso(int* fd);
 int grabar_en_temp(char* filename, char* data);
 bool file_reduce_es_local(t_files_reduce* fr);
 bool file_reduce_es_de_red(t_files_reduce* fr);
+
+bool alguna_key_distinta_null(char** keys, int cant);
+
+int get_index_menor(char** keys, int cant);
 /*
  * devuelve el archivo creado en el  temp del nodo
  */

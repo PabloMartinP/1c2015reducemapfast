@@ -18,8 +18,13 @@
 
 #include <stdio.h>
 
+FILE* txt_open_for_append_closeonfork(char* path){
+	int fd = open(path, O_CREAT | O_RDWR, 0644);
+	return fdopen (fd, "a");
+}
 
 FILE* txt_open_for_append(char* path) {
+
 	return fopen(path, "a");
 }
 

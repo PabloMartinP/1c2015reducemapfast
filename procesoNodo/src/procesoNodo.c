@@ -1,3 +1,4 @@
+
 #include "procesoNodo.h"
 
 typedef struct {
@@ -24,13 +25,90 @@ int main(int argc, char *argv[]) {
 
 	//bool fin = true	;
 	//while (!FIN)		;
-	finalizar();
+	//finalizar();
 
 	return EXIT_SUCCESS;
 }
 
 //files es una lista de t_files_reduce
 int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* filename_result) {
+	pthread_mutex_t mx_mr;
+	pthread_mutex_init(&mx_mr, NULL);
+
+	int pipes[NUM_PIPES][2];
+
+	int _ejecutar_script(char* script, int (*procesar_std)()) {
+		// pipes for parent to write and read
+
+		if (pipe(pipes[PARENT_READ_PIPE]) == -1)
+			handle_error("pipe");
+
+		if ((pipe(pipes[PARENT_WRITE_PIPE])) == -1)
+			handle_error("pipe");
+
+		///////////////////////////////////////////
+
+		int p = fork();
+		if (p < 0)
+			handle_error("fork pipe stdin stdout");
+
+		if (p == 0) {
+			//hijo
+			/*pthread_mutex_t mutex;
+			pthread_mutex_init(&mutex, NULL);
+			pthread_mutex_lock(&mutex);*/
+			char *argv[] = { script, NULL };
+			//fflush(stdin);
+			if (dup2(pipes[PARENT_WRITE_PIPE][READ_FD], STDIN_FILENO) < 0) {
+				perror("dup2 STDIN_FILENO");
+				exit(0);
+			}
+			//fflush(stdout);
+			if (dup2(pipes[PARENT_READ_PIPE][WRITE_FD], STDOUT_FILENO) < 0) {
+				perror("dup2 STDIN_FILENO");
+				exit(0);
+			}
+
+			close(pipes[PARENT_WRITE_PIPE][READ_FD]);
+			close(pipes[PARENT_READ_PIPE][WRITE_FD]);
+			close(pipes[PARENT_READ_PIPE][READ_FD]);
+			close(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
+			//close(CHILD_READ_FD);
+			//close(CHILD_WRITE_FD);
+			//close(PARENT_READ_FD);
+			//close(PARENT_WRITE_FD);
+
+
+			/*pthread_mutex_unlock(&mutex);
+			pthread_mutex_destroy(&mutex);*/
+			execv(argv[0], argv);
+
+			perror("Errro execv");
+			exit(0);
+
+			return 0;
+		} else {
+			//waitpid(p, NULL, NULL);
+			close(pipes[PARENT_WRITE_PIPE][READ_FD]);
+			close(pipes[PARENT_READ_PIPE][WRITE_FD]);
+
+			int rs =  procesar_std();
+			int status=0;
+			wait(&status);
+
+			puts("listo");
+
+			//wait(0);
+			return rs;
+
+		}
+		return 0;
+	}
+
+	/*
+	 * reduce********************************************************
+	 */
+
 	int i = 0;
 	int rs;
 	int cant_red_files, cant_total_files, cant_local_files;
@@ -39,8 +117,7 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 	t_list* red_files;	// = list_create();
 
 	//creo ambas listas
-	local_files_reduce = list_filter(files_reduces,
-			(void*) file_reduce_es_local);
+	local_files_reduce = list_filter(files_reduces,	(void*) file_reduce_es_local);
 	red_files = list_filter(files_reduces, (void*) file_reduce_es_de_red);
 	/*
 	 list_add_all(local_files_reduce,
@@ -120,6 +197,7 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 		}
 		//aca ya tengo todas las keys
 
+
 		//empiezo a insertar en stdin
 		i = 0;
 		int c = 0;
@@ -127,10 +205,13 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 			//obtengo cual es el menor
 			index_menor = get_index_menor(keys, cant_total_files);
 			//el menor lo mando a stdinn (keys[i])
-			//printf("%s\n", keys[index_menor]);
+			fprintf(stdout, "%s\n", keys[index_menor]);
 
-			write(PARENT_WRITE_FD, keys[index_menor],
-					strlen(keys[index_menor]) + 1);
+			rs = write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , keys[index_menor], strlen(keys[index_menor]) );
+			fprintf(stdout, "res write. %d\n", rs);
+			fprintf(stdout, "strlen: %d\n", strlen(keys[index_menor]));
+
+
 			//leo el siguiente elmento del fdlocal[index_menor]
 			len_key = LEN_KEYVALUE;
 			if (index_menor < cant_local_files) {
@@ -143,22 +224,29 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 				}
 			} else {
 				FREE_NULL(keys[index_menor]);
-				keys[index_menor] = recibir_linea(
-						fdred[cant_local_files - index_menor]);
+				keys[index_menor] = recibir_linea(fdred[cant_local_files - index_menor]);
 			}
+
 			//cuando termina devuelve NULL;
 			if (i > 1024) {
 				i = 0;
-				printf("Contador %d\n", c);
+				if(c % 100 == 0)
+					fprintf(stdout, "Contador %d\n", c);
+
 				c++;
 			}
 			i++;
 		}
 
-		log_trace(logger, "Termino de enviarle datos por stdin");
+		pthread_mutex_lock(&mx_mr);
+		log_trace(logger, "Termino de enviarle datos por stdin.------------------");
+		pthread_mutex_unlock(&mx_mr);
+
+
 		//si llego hasta aca termino de enviarle cosas por stdin,
 		//cierro el stdin
-		close(PARENT_WRITE_FD);
+		puts("antes de cerrar");
+		close(pipes[PARENT_WRITE_PIPE][WRITE_FD] );
 
 		//cierro los archivos locales
 		for (i = 0; i < cant_local_files; i++) {
@@ -176,43 +264,77 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 		//free(fdred);
 		FREE_NULL(fdred);
 
-		//limpio las keys -- ya estan limpias
-		/*
-		 for (i = 0; i < cant_total_files; i++) {
-		 free(keys[i]);
-		 }*/
-		//limpio key
 		FREE_NULL(keys);
-		/////////////////////////////////////////////////
-		//empiezo a leer el stdout
-		log_trace(logger, "Ahora leo el stdout");
-		int count;
+
+		pthread_mutex_destroy(&mx_mr);
+		return 0;
+	}
+
+	//lanzo hilo para leer mientras escribe en stdin para que no se bloquee en el read
+	pthread_t th_read;
+	i = 0;
+	int _read_reduce() {
 		char* new_file_reduced;
 		new_file_reduced = convertir_a_temp_path_filename(filename_result);	//genero filename absoluto
 		FILE* file_reduced = txt_open_for_append(new_file_reduced);	//creo el file
 		FREE_NULL(new_file_reduced);		//limpio el nombre
-		char* buffer = malloc(LEN_KEYVALUE);//creo un buffer para ir almacenando el stdout
-		i = 0;
-		do {
-			count = read(PARENT_READ_FD, buffer, LEN_KEYVALUE);
+		//char* buffer = malloc(LEN_KEYVALUE);//creo un buffer para ir almacenando el stdout
+		char buffer[LEN_KEYVALUE];
+
+		int count;
+		fprintf(stdout, "Comienzo a leer del hilo\n");
+		while ((count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer, LEN_KEYVALUE)) > 0) {
 			//guardo en el archivo resultado
 			fwrite(buffer, count, 1, file_reduced);
-			if (count > 0) {
-				buffer[count] = '\0';
-				printf("Lectura %d de stdout: %s\n", i, buffer);
-				i++;
-			}
-		} while (count != 0);
-		close(PARENT_READ_FD);
+			memset(buffer, 0, LEN_KEYVALUE);
+			fprintf(stdout, "count: %d, res: %s\n", count, buffer);
+		}
+		if (count == -1) {
+			perror("errroread");
+		}
 		fclose(file_reduced);
-		FREE_NULL(buffer);
+		close(pipes[PARENT_READ_PIPE][READ_FD]);
 
-//////////////////////////////////////////////
-
+		puts("reduce fin hilo reader");
 		return 0;
+
+	}
+	pthread_create(&th_read, NULL, (void*) _read_reduce, NULL);
+
+	rs =  _ejecutar_script(script_reduce, (void*) _reduce_local_red);
+	pthread_join(th_read, NULL);
+	return rs;
+}
+
+int get_index_menor(char** keys, int cant){
+	char key_men[LEN_KEYVALUE];
+	memset(key_men, 255, 255);
+
+	int index = 0;
+	int i;
+	for(i=0;i<cant;i++){
+		if (keys[i] != NULL)
+			if (strcmp(keys[i], key_men) < 0) {
+				//key_men = keys[i];
+				strcpy(key_men, keys[i]);
+				index = i;
+			}
+	}
+	return index;
+}
+
+
+bool alguna_key_distinta_null(char** keys, int cant){
+	bool rs = false;
+	int i;
+	for(i=0;i<cant;i++){
+		if(keys[i] != NULL){
+			rs = true;
+			break;
+		}
 	}
 
-	return (int) ejecutar_script(script_reduce, (void*) _reduce_local_red);
+	return rs;
 }
 
 bool file_reduce_es_de_red(t_files_reduce* fr) {
@@ -221,9 +343,9 @@ bool file_reduce_es_de_red(t_files_reduce* fr) {
 bool file_reduce_es_local(t_files_reduce* fr) {
 	return nodo_es_local(fr->ip, fr->puerto);
 }
-
+/*
 int aplicar_reduce_local(t_list* files, char*script_reduce,
-		char* filename_result) {
+	char* filename_result) {
 	int i = 0;
 	int rs;
 	int cant_files = list_size(files);
@@ -274,7 +396,7 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,
 			index_menor = get_index_menor(keys, cant_files);
 			//el menor lo mando a stdinn (keys[i])
 			printf("%s\n", keys[index_menor]);
-			write(PARENT_WRITE_FD, keys[index_menor],
+			write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , keys[index_menor],
 					strlen(keys[index_menor]) + 1);
 			//leo el siguiente elmento del fd[index_menor]
 			len_key = LEN_KEYVALUE;
@@ -291,7 +413,7 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,
 		}
 		//si llego hasta aca termino de enviarle cosas por stdin,
 		//cierro el stdin
-		close(PARENT_WRITE_FD);
+		close(pipes[PARENT_WRITE_PIPE][WRITE_FD] );
 
 		int count;
 		char* new_file_reduced;
@@ -301,7 +423,7 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,
 		char* buffer = malloc(1024);//creo un buffer para ir almacenando el stdout
 		i = 0;
 		do {
-			count = read(PARENT_READ_FD, buffer, 1024);
+			count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer, 1024);
 			fwrite(buffer, count, 1, file_reduced);
 			if (count > 0) {
 				buffer[count] = '\0';
@@ -310,7 +432,7 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,
 
 			i++;
 		} while (count != 0);
-		close(PARENT_READ_FD);
+		close(pipes[PARENT_READ_PIPE][READ_FD]);
 		fclose(file_reduced);
 		FREE_NULL(buffer);
 
@@ -329,7 +451,7 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,
 
 	return (int) ejecutar_script(script_reduce, (void*) _reduce_local);
 }
-
+*/
 bool nodo_es_local(char* ip, int puerto) {
 	return string_equals_ignore_case(ip, NODO_IP()) && puerto == NODO_PORT();
 }
@@ -341,7 +463,7 @@ char* convertir_a_temp_path_filename(char* filename) {
 	string_append(&new_path_file, filename);
 	return new_path_file;
 }
-
+/*
 int thread_aplicar_map(int fd) {
 	pthread_t th;
 
@@ -350,7 +472,8 @@ int thread_aplicar_map(int fd) {
 
 	return 0;
 }
-
+*/
+/*
 int _aplicar_map(void* param) {
 	int fd = *((int *) param);
 
@@ -408,11 +531,89 @@ int _aplicar_map(void* param) {
 
 	return rs;
 }
+*/
 
-int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
+
+int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
+
+
+	pthread_mutex_t mx_mr;/* mutex para que no haya deadlock por el fork*/
+	pthread_mutex_init(&mx_mr, NULL);
+	int pipes[NUM_PIPES][2];
+
+	int _ejecutar_script(char* script, int (*procesar_std)()) {
+		// pipes for parent to write and read
+
+		if (pipe(pipes[PARENT_READ_PIPE]) == -1)
+			handle_error("pipe");
+
+		if ((pipe(pipes[PARENT_WRITE_PIPE])) == -1)
+			handle_error("pipe");
+
+		///////////////////////////////////////////
+
+		int p = fork();
+		if (p < 0)
+			handle_error("fork pipe stdin stdout");
+
+		if (p == 0) {
+			//hijo
+			/*pthread_mutex_t mutex;
+			pthread_mutex_init(&mutex, NULL);
+			pthread_mutex_lock(&mutex);*/
+			char *argv[] = { script, NULL };
+			//fflush(stdin);
+			if (dup2(pipes[PARENT_WRITE_PIPE][READ_FD], STDIN_FILENO) < 0) {
+				perror("dup2 STDIN_FILENO");
+				exit(0);
+			}
+			//fflush(stdout);
+			if (dup2(pipes[PARENT_READ_PIPE][WRITE_FD], STDOUT_FILENO) < 0) {
+				perror("dup2 STDIN_FILENO");
+				exit(0);
+			}
+
+			close(pipes[PARENT_WRITE_PIPE][READ_FD]);
+			close(pipes[PARENT_READ_PIPE][WRITE_FD]);
+			close(pipes[PARENT_READ_PIPE][READ_FD]);
+			close(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
+			//close(CHILD_READ_FD);
+			//close(CHILD_WRITE_FD);
+			//close(PARENT_READ_FD);
+			//close(PARENT_WRITE_FD);
+
+
+			/*pthread_mutex_unlock(&mutex);
+			pthread_mutex_destroy(&mutex);*/
+			execv(argv[0], argv);
+
+			perror("Errro execv");
+			exit(0);
+
+			return 0;
+		} else {
+			//waitpid(p, NULL, NULL);
+			close(pipes[PARENT_WRITE_PIPE][READ_FD]);
+			close(pipes[PARENT_READ_PIPE][WRITE_FD]);
+
+			int rs =  procesar_std();
+			int status=0;
+			wait(&status);
+
+			puts("listo");
+
+			//wait(0);
+			return rs;
+
+		}
+		return 0;
+	}
+	/*
+	 * funcion map
+	 */
 	int __aplicar_map() {
 		int res = 0;
-		int count;
+		//int count;
 
 		// Write to child’s stdin
 		char* stdinn = getBloque(n_bloque);
@@ -426,112 +627,116 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result) {
 			stdinn[len - 1] = '\n';
 		}
 
-		pthread_mutex_lock(&mx_log);
+		pthread_mutex_lock(&mx_mr);
 		log_trace(logger, "Escribiendo en stdin bloque %d", n_bloque);
-		pthread_mutex_unlock(&mx_log);
+		pthread_mutex_unlock(&mx_mr);
 		// Read from child’s stdout
-		char* new_file_map_disorder = convertir_a_temp_path_filename(filename_result);
-		string_append(&new_file_map_disorder, "-disorder.tmp");
-		FILE* file_disorder = txt_open_for_append(new_file_map_disorder);
 
-		pthread_mutex_lock(&mx_log);
-		log_trace(logger, "Empezando a leer stdout y guardar en archivo %s", new_file_map_disorder);
-		pthread_mutex_unlock(&mx_log);
-		char* buffer = malloc(LEN_KEYVALUE);
-		memset(buffer, 0, LEN_KEYVALUE);
+		//FILE* file_disorder = txt_open_for_append_closeonfork(new_file_map_disorder);
+
+
 
 		size_t bytes_escritos = 0, bytes_leidos = 0;
 		size_t i = 0;
 
 		//inicializo en el primer enter
 		size_t len_buff_write = 0;
-		size_t len_buff_read = LEN_KEYVALUE;
+		//size_t len_buff_read = LEN_KEYVALUE;
 
 		if (len < len_buff_write)
 			len_buff_write = len;
 
+
 		do {
 			len_buff_write = len_hasta_enter(stdinn + bytes_leidos);
-			bytes_escritos = write(PARENT_WRITE_FD, stdinn + bytes_leidos,
-					len_buff_write);
+			bytes_escritos = write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , stdinn + bytes_leidos, len_buff_write);
+
 			if (bytes_escritos == -1) {
-				perror("write");
+				perror("writeeeeee");
 				return -1;
 			}
-			//printf("faltante > %d\n", len);
+
 			len = len - bytes_escritos;
 
 			bytes_leidos = bytes_leidos + len_buff_write;
-			//count = read(PARENT_READ_FD, buffer, len_buff_read);
-			if ((i > 0 && i % 5 == 0) || len == 0) {
-				close(PARENT_WRITE_FD);
-				close(pipes[0][0]);
+			fprintf(stdout, "bytes escritos: %d\n", bytes_escritos);
 
-				//count = read(PARENT_READ_FD, buffer, 1);
-				count = read(PARENT_READ_FD, buffer, len_buff_read);
-				if (count == -1) {
-					perror("read");
-					return -1;
-				}
-
-				//close(PARENT_READ_FD);
-
-				fwrite(buffer, count, 1, file_disorder);
-				//printf("faltantes >>>> %d\n", len);
-				memset(buffer, 0, LEN_KEYVALUE);
-
-				// pipes for parent to write and read
-				/*			if (pipe(pipes[PARENT_READ_PIPE]) == -1)
-				 handle_error("pipe");
-				 */
-				if ((pipe(pipes[PARENT_WRITE_PIPE])) == -1)
-					handle_error("pipe");
-
-			}
+			//printf("contador %d bloque %d\n", i, n_bloque);
 
 			i++;
-			/*
-			 if(bytes_leidos > pow(2,18)  ){
-			 printf("faltantes >>>> %d\n", len);
-			 //bytes_leidos  = 0;
-			 }*/
+
 		} while (len > 0);
 
-		if (res == -1) {
-			pthread_mutex_lock(&mx_log);
+		if (res < 0) {
+			pthread_mutex_lock(&mx_mr);
 			log_trace(logger, "Error al escribir en stdin");
-			pthread_mutex_unlock(&mx_log);
+			pthread_mutex_unlock(&mx_mr);
 			return -1;
 		}
 
-		close(PARENT_WRITE_FD);
-		pthread_mutex_lock(&mx_log);
+
+		pthread_mutex_lock(&mx_mr);
 		log_trace(logger, "Fin escritura stdin bloque %d", n_bloque);
-		pthread_mutex_unlock(&mx_log);
+		pthread_mutex_unlock(&mx_mr);
 		FREE_NULL(stdinn);
 
-		close(PARENT_READ_FD);
 
+		fprintf(stdout, "antes del close\n");
+		close(pipes[PARENT_WRITE_PIPE][WRITE_FD] );
 
-		//////////////////////////////////////////////////////////
+		fprintf(stdout, "despues del close\n");
+		//pthread_join(pth_read, NULL);
 
-		txt_close_file(file_disorder);
-		FREE_NULL(buffer);
-		pthread_mutex_lock(&mx_log);
-		log_trace(logger, "Fin lectura stdout, guardado en archivo %s",	new_file_map_disorder);
-		log_trace(logger, "Ordenando archivo %s", new_file_map_disorder);
-		pthread_mutex_unlock(&mx_log);
+		pthread_mutex_destroy(&mx_mr);
 
-		ordenar_y_guardar_en_temp(new_file_map_disorder, filename_result);//guardo el file definitivo en el tmp
-		FREE_NULL(new_file_map_disorder);
-		pthread_mutex_lock(&mx_log);
-		log_trace(logger, "Fin orden, generado archivo final > %s",	filename_result);
-		pthread_mutex_unlock(&mx_log);
 
 		return res;
 	}
 
-	return (int) ejecutar_script(script_map, (void*) __aplicar_map);
+	pthread_t pth_read;
+	int _read() {
+		char* new_file_map_disorder = convertir_a_temp_path_filename(filename_result);
+		string_append(&new_file_map_disorder, "-disorder.tmp");
+		FILE* file_disorder = txt_open_for_append(new_file_map_disorder);
+		char buffer[LEN_KEYVALUE];
+		memset(buffer, 0, LEN_KEYVALUE);
+
+		int count;
+		pthread_mutex_lock(&mx_mr);
+		log_trace(logger, "Empezando a leer stdout y guardar en archivo %s", new_file_map_disorder);
+		pthread_mutex_unlock(&mx_mr);
+
+		while ((count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer,LEN_KEYVALUE)) > 0) {
+			fwrite(buffer, count, 1, file_disorder);
+			memset(buffer, 0, LEN_KEYVALUE);
+			fprintf(stdout, "bytes leidos>>>> %d\n", count);
+		}
+
+		fclose(file_disorder);
+
+		pthread_mutex_lock(&mx_mr);
+		log_trace(logger, "Fin lectura stdout, guardado en archivo %s",	new_file_map_disorder);
+		log_trace(logger, "Ordenando archivo %s", new_file_map_disorder);
+		pthread_mutex_unlock(&mx_mr);
+
+		if (count == -1) {
+			perror("map readddd");
+		}
+		ordenar_y_guardar_en_temp(new_file_map_disorder, filename_result);//guardo el file definitivo en el tmp
+		FREE_NULL(new_file_map_disorder);
+		pthread_mutex_lock(&mx_mr);
+		log_trace(logger, "Fin orden, generado archivo final > %s",	filename_result);
+		pthread_mutex_unlock(&mx_mr);
+
+		close(pipes[PARENT_READ_PIPE][READ_FD]);
+
+		puts("map Fin hilo lectura stdout\n");
+		return 0;
+	}
+	pthread_create(&pth_read, NULL, (void*) _read, NULL);
+	int rs =  _ejecutar_script(script_map, (void*) __aplicar_map);
+	pthread_join(pth_read, NULL);
+	return rs;
 }
 
 int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {
@@ -546,9 +751,10 @@ int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {
 
 	//printf("%s\n", commando_ordenar);
 
-	log_trace(logger, "Empezando a ordenar archivo: %s", commando_ordenar);
+	//pthread_mutex_lock(&mutex);
+	//log_trace(logger, "Empezando a ordenar archivo: %s", commando_ordenar);
 	system(commando_ordenar);
-	log_trace(logger, "Fin Comando ordenar");
+	//log_trace(logger, "Fin Comando ordenar");
 	FREE_NULL(commando_ordenar);
 
 	//borro el file
@@ -655,9 +861,9 @@ int aplicar_reduce(t_reduce* reduce, char* script) {
 	list_iterate(reduce->nodos_archivo, (void*) _crear_files_reduce);
 
 
-	pthread_mutex_lock(&mx_mr);
+
 	aplicar_reduce_local_red(files_to_reduce, script, reduce->info->resultado);
-	pthread_mutex_unlock(&mx_mr);
+
 
 	pthread_mutex_lock(&mx_log);
 	log_trace(logger, "Guardado en %s\n", reduce->info->resultado);
@@ -730,9 +936,11 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		log_trace(logger, "Aplicando mapper %s sobre el bloque %d sock %d",	filename_script, map->archivo_nodo_bloque->numero_bloque, fd);
 		pthread_mutex_unlock(&mx_log);
 
-		pthread_mutex_lock(&mx_mr);
-		aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
-		pthread_mutex_unlock(&mx_mr);
+		//pthread_mutex_lock(&mx_mr);
+		rs = aplicar_map_final(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
+		if(rs<0)
+			printf("errrrrrrrrrrrrrrror map %d\n", map->archivo_nodo_bloque->numero_bloque);
+		//pthread_mutex_unlock(&mx_mr);
 
 		pthread_mutex_lock(&mx_log);
 		log_trace(logger, "Fin mapper %d sock %d guardado en %s", map->info->id, fd, map->info->resultado);
@@ -852,7 +1060,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 void iniciar_server() {
 	log_trace(logger, "Iniciado server. Puerto: %d\n", NODO_PORT());
 
-	server_socket_select(NODO_PORT(), procesar_mensaje);
+	server_socket_select(NODO_PORT(), (void*) procesar_mensaje);
 }
 
 void iniciar_server_fork(){
@@ -866,6 +1074,7 @@ void iniciar_server_fork(){
 	int nuevaConexion;
 	int pfork = 1;
 	t_msg* msg =  NULL;
+	signal(SIGCHLD, SIG_IGN);
 	while (pfork) {
 
 		nuevaConexion = accept_connection(listener);
@@ -881,6 +1090,7 @@ void iniciar_server_fork(){
 			if(msg->header.id==JOB_REDUCER || msg->header.id == JOB_MAPPER ){
 				procesar_mensaje(nuevaConexion, msg);
 			}else{
+
 				pfork = fork();
 			}
 		}
@@ -889,14 +1099,16 @@ void iniciar_server_fork(){
 		//hijo
 		printf("soy el hijo del fork;\n");
 		atenderProceso_fork(nuevaConexion, msg );
-		exit(0);
+		printf("exit(0) sock %d\n", nuevaConexion);
+		//exit(0);
+		//_exit(0);
 	}
 }
 
 void* atenderProceso_fork(int fd, t_msg* msg){
 
 
-	printf("NuevoThread sock %d\n", fd);
+	printf("nuevo fork sock %d\n", fd);
 
 	if(msg == NULL){
 		perror("recibir_msgggg");
@@ -911,9 +1123,8 @@ void* atenderProceso_fork(int fd, t_msg* msg){
 		printf("ERRRRRRORRRRRRRRRR\n");
 	}
 	//pthread_mutex_unlock(&mx_log);
-	printf("FinThread sock %d\n", fd);
+	printf("Fin fork sock %d\n", fd);
 	close(fd);
-
 
 	return NULL;
 }
@@ -1054,7 +1265,7 @@ void inicializar() {
 	 */
 
 	pthread_mutex_init(&mx_log, NULL);
-	pthread_mutex_init(&mx_mr, NULL);
+
 	pthread_mutex_init(&mutex, NULL);
 	pthread_mutex_init(&mx_data, NULL);
 

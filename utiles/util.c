@@ -329,6 +329,9 @@ int client_socket(char *ip, uint16_t port) {
 		return -1;
 	}
 
+	//make socket non blocking
+	//fcntl(sock_fd, F_SETFL, O_NONBLOCK);
+
 	/* Fill server ip / port info. */
 	servername.sin_family = AF_INET;
 	servername.sin_addr.s_addr = inet_addr(ip);
@@ -876,9 +879,8 @@ int enviar_mensaje(int sock_fd, t_msg *msg) {
 
 	/* Send message(s). */
 	while (total < pending) {
-		int sent = send(sock_fd, buffer,
-				msg->header.length + sizeof msg->header
-						+ msg->header.argc * sizeof(uint32_t), MSG_NOSIGNAL);
+		//int sent = send(sock_fd, buffer, msg->header.length + sizeof msg->header + msg->header.argc * sizeof(uint32_t), MSG_NOSIGNAL);
+		int sent = send(sock_fd, buffer, msg->header.length + sizeof msg->header + msg->header.argc * sizeof(uint32_t), 0);
 		if (sent < 0) {
 			free(buffer);
 			return -1;

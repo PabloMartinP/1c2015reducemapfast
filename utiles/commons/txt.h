@@ -18,7 +18,9 @@
 #define TXT_H_
 
 #include <stdio.h>
+#include <fcntl.h>
 
+FILE* txt_open_for_append_closeonfork(char* path);
 /**
 * @NAME: txt_open_for_append
 * @DESC: Abre un archivo para agregarle contenido al final

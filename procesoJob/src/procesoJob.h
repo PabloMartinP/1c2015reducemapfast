@@ -285,31 +285,42 @@ int conectar_con_marta(){
 	lanzar_hilos_mappers(fd);
 
 
-	t_reduce* reduce = NULL;
+	pthread_t th_procesar_reduces;
 
-	for(;;){
-		//recibo un reduce
-		reduce = recibir_mensaje_reduce(fd);
 
-		if(reduce!=NULL){
-			//ahora me queda enviarselos al nodo
-			lanzar_hilo_reduce(fd, reduce);
-			if(reduce->final){
-				//es el reduce final, hago break y me rajo
-				log_trace(logger, "**************************************************");
-				log_trace(logger, "Archivo final %s generado en %s", reduce->info->resultado, nodo_base_to_string(reduce->nodo_base_destino));
-				break;
+	void _procesar_reduces(){
+		t_reduce* reduce = NULL;
+		for (;;) {
+			//recibo un reduce
+			reduce = recibir_mensaje_reduce(fd);
+
+			if (reduce != NULL) {
+				//ahora me queda enviarselos al nodo
+				lanzar_hilo_reduce(fd, reduce);
+				if (reduce->final) {
+					//es el reduce final, hago break y me rajo
+					log_trace(logger,
+							"**************************************************");
+					log_trace(logger, "Archivo final %s generado en %s",
+							reduce->info->resultado,
+							nodo_base_to_string(reduce->nodo_base_destino));
+					break;
+				}
+
+			} else {
+				break;	//hubo un error del reduce
 			}
-
-		}else{
-			break;//hubo un error del reduce
 		}
-	}
-	log_trace(logger, "Sali del for por algo");
+		log_trace(logger, "Sali del for por algo");
+		msg = argv_message(JOB_TERMINO, 1, JOB_ID);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
 
-	msg = argv_message(JOB_TERMINO, 1, JOB_ID);
-	enviar_mensaje(fd, msg);
-	destroy_message(msg);
+	}
+	pthread_create(&th_procesar_reduces, NULL, (void*)_procesar_reduces, NULL);
+	pthread_join(th_procesar_reduces, NULL);
+
+
 
 	msg = argv_message(MARTA_SALIR, 0);
 	enviar_mensaje(fd, msg);

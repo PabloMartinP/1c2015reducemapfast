@@ -25,6 +25,7 @@ int archivo_a_usar();
 
 int enviar_maps(int fd, t_job* job);
 t_reduce* crear_reduce_final(t_job* job, t_nodo_base* nb);
+int crear_y_enviar_reduce_final(t_job* job, int fd);
 t_reduce* crear_reduce_local(t_job* job, t_nodo_base* nb);
 
 t_list* nodos_usados();
@@ -224,15 +225,25 @@ void procesar (int fd, t_msg*msg){
 					//ya termino todos sus mappers
 					//lanzo el reduce de los archivos locales al nodo
 
-					log_trace(logger, "El nodo %s tiene que aplicar map sobre sus archivos temporales", nodo_base_to_string(map->archivo_nodo_bloque->base));
+					//log_trace(logger, "El nodo %s tiene que aplicar map sobre sus archivos temporales", nodo_base_to_string(map->archivo_nodo_bloque->base));
 					enviar_reduce_local(fd, map->archivo_nodo_bloque->base, job);
 				}else{
 					log_trace(logger, "No puede, Todavia no terminaron sus maps locales");
 				}
-
 			}else{
 				//si es sin combiner tengo que esperar a que terminen todos los mappers
 				log_trace(logger, "Es SIN combiner, no hago ningun reduce hasta el final");
+				log_trace(logger, "Verifico si ya terminaron sus maps");
+
+				if(terminaron_todos_los_mappers(job->mappers) ){
+					log_trace(logger, "Ya termino todos sus mappers, como es sin combiner hago el reduce final");
+					crear_y_enviar_reduce_final(job, fd);
+
+				}else{
+					log_trace(logger, "No terminaron todos sus maps, no puedo crear el reduce final");
+				}
+
+
 			}
 
 			log_trace(logger, "FIN MAPPER_TERMINO *****************************************************************");
@@ -263,28 +274,9 @@ void procesar (int fd, t_msg*msg){
 						//hago el reduce final
 						log_trace(logger, "El job %d termino todos sus mappers y reducers", job->id);
 						log_trace(logger, "*************************************************");
-						log_trace(logger, "Hago el reduce final");
 
-						//tengo que seleccionar el nodo que mas archivos tenga archivos locales
-						//
-						nb = NULL;
-						nb = job_obtener_nodo_para_reduce_final_combiner(job);
+						crear_y_enviar_reduce_final(job, fd);
 
-						log_trace(logger, "Nodo con mas archivos locales %s (donde se aplica el reduce final)\n", nodo_base_to_string(nb));
-
-						t_reduce* reduce = NULL;
-						reduce = crear_reduce_final(job, nb);
-
-						log_trace(logger, "Creado reduce %d  para el job %d, cant-nodo-archivo: %d, nodo_destino: %s", reduce->info->id, job->id, list_size(reduce->nodos_archivo), nodo_base_to_string(reduce->nodo_base_destino));
-						log_trace(logger, "Resultado: %s", reduce->info->resultado);
-						list_add(job->reducers, reduce);
-
-						enviar_mensaje_reduce(fd, reduce);
-						/*//envio el mensaje que indica que no hay mas reduces
-						msg = argv_message(FIN_REDUCES, 0);
-						enviar_mensaje(fd, msg);
-						destroy_message(msg);
-	*/
 						//marco al job como que lanzo el reduce final
 						//job->empezo_reduce_final = true;
 
@@ -323,6 +315,28 @@ void procesar (int fd, t_msg*msg){
 		default:
 			break;
 	}
+}
+
+int crear_y_enviar_reduce_final(t_job* job, int fd){
+	log_trace(logger, "Hago el reduce final");
+
+	//tengo que seleccionar el nodo que mas archivos tenga archivos locales
+	//
+	t_nodo_base* nb = NULL;
+	nb = job_obtener_nodo_para_reduce_final_combiner(job);
+
+	log_trace(logger,"Nodo con mas archivos locales %s (donde se aplica el reduce final)", nodo_base_to_string(nb));
+
+	t_reduce* reduce = NULL;
+	reduce = crear_reduce_final(job, nb);
+
+	log_trace(logger,"Creado reduce %d  para el job %d, cant-nodo-archivo: %d, nodo_destino: %s", reduce->info->id, job->id, list_size(reduce->nodos_archivo), 	nodo_base_to_string(reduce->nodo_base_destino));
+	log_trace(logger, "Resultado: %s", reduce->info->resultado);
+	list_add(job->reducers, reduce);
+
+	enviar_mensaje_reduce(fd, reduce);
+
+	return 0;
 }
 
 t_reduce* crear_reduce_final(t_job* job, t_nodo_base* nb){
@@ -595,27 +609,52 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job){
 	//si no esta vivo busco alguna otra copia
 	int copia_cant_veces_usada[BLOQUE_CANT_COPIAS];	//inicializo en un nmero maximo para sacar el menor
 	log_trace(logger, "Cantidad de copias del bloque: %d", BLOQUE_CANT_COPIAS);
-	for (n_copia = BLOQUE_CANT_COPIAS-1; n_copia >= 0; n_copia--) {//o tambien list_size(nodos_Bloque)
-		anb = list_get(nodos_bloque, n_copia);//tomo el 3, despues 2 y luego 1, por eso empieza en n_copia = BLOQUE_CANT_COPIAS
-		log_trace(logger, "Copia numero: %d, nodo_id: %d, %s:%d", n_copia+1, anb->base->id, anb->base->red.ip, anb->base->red.puerto);
-		if (nodo_esta_vivo(anb->base->red.ip, anb->base->red.puerto)) {
-			copia_cant_veces_usada[n_copia] = marta_contar_nodo(anb->base->id, job);
-			log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", anb->base->id, anb->base->red.ip, anb->base->red.puerto, copia_cant_veces_usada[n_copia]);
-			if(copia_cant_veces_usada[n_copia]==0){//si es igual a 0 no se esta usando, se termino la busqueda de un nodo no usado
-				log_trace(logger, "nodo_id %d correspondiente a la copia %d", anb->base->id, n_copia+1);
-				return n_copia;//-1 porque la lista empieza en -1
+
+
+	if(job->combiner){
+		for (n_copia = BLOQUE_CANT_COPIAS-1; n_copia >= 0; n_copia--) {//o tambien list_size(nodos_Bloque)
+			anb = list_get(nodos_bloque, n_copia);//tomo el 3, despues 2 y luego 1, por eso empieza en n_copia = BLOQUE_CANT_COPIAS
+			log_trace(logger, "Copia numero: %d, nodo_id: %d, %s:%d", n_copia+1, anb->base->id, anb->base->red.ip, anb->base->red.puerto);
+			if (nodo_esta_vivo(anb->base->red.ip, anb->base->red.puerto)) {
+				copia_cant_veces_usada[n_copia] = marta_contar_nodo(anb->base->id, job);
+				log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", anb->base->id, anb->base->red.ip, anb->base->red.puerto, copia_cant_veces_usada[n_copia]);
+				if(copia_cant_veces_usada[n_copia]==0){//si es igual a 0 no se esta usando, se termino la busqueda de un nodo no usado
+					log_trace(logger, "nodo_id %d correspondiente a la copia %d", anb->base->id, n_copia+1);
+					return n_copia;//-1 porque la lista empieza en -1
+				}
+			} else{
+				log_trace(logger, "Nodo id:%d, %s:%d no disponible", anb->base->id, anb->base->red.ip, anb->base->red.puerto);
+				//en caso de que no este vivo le asigno un nro alto asi no lo tiene encuenta cuando saca el menor
+				copia_cant_veces_usada[n_copia] = MAX;
 			}
-		} else{
-			log_trace(logger, "Nodo id:%d, %s:%d no disponible", anb->base->id, anb->base->red.ip, anb->base->red.puerto);
-			//en caso de que no este vivo le asigno un nro alto asi no lo tiene encuenta cuando saca el menor
-			copia_cant_veces_usada[n_copia] = MAX;
+		}
+	}else{
+		for (n_copia = 0; n_copia <3; n_copia++) {//o tambien list_size(nodos_Bloque)
+			anb = list_get(nodos_bloque, n_copia);//tomo 1, despues el 2, luego el 3, porque en la c1 hay mas probab que esten la mayoria de los bloques
+			log_trace(logger, "Copia numero: %d, nodo_id: %d, %s:%d", n_copia+1, anb->base->id, anb->base->red.ip, anb->base->red.puerto);
+			if (nodo_esta_vivo(anb->base->red.ip, anb->base->red.puerto)) {
+				copia_cant_veces_usada[n_copia] = marta_contar_nodo(anb->base->id, job);
+				log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", anb->base->id, anb->base->red.ip, anb->base->red.puerto, copia_cant_veces_usada[n_copia]);
+				if(copia_cant_veces_usada[n_copia]==0){//si es igual a 0 no se esta usando, se termino la busqueda de un nodo no usado
+					log_trace(logger, "nodo_id %d correspondiente a la copia %d", anb->base->id, n_copia+1);
+					return n_copia;//-1 porque la lista empieza en -1
+				}
+			} else{
+				log_trace(logger, "Nodo id:%d, %s:%d no disponible", anb->base->id, anb->base->red.ip, anb->base->red.puerto);
+				//en caso de que no este vivo le asigno un nro alto asi no lo tiene encuenta cuando saca el menor
+				copia_cant_veces_usada[n_copia] = MAX;
+			}
 		}
 	}
+	/*
+	 * fin planificacion de combiner y sin combiner
+	 */
+
 
 	log_trace(logger, "todos los nodos estan siendo usados por marta, elijo el que menos veces este siendo usado");
 	//si llego hasta aca significa que todos los nodos de las 3 copias estan siendo usados
 	//ahora solo me queda sacar el menor y usarlo
-	int copia_menos_usada = -1;t_nodo_base* nb;
+	int copia_menos_usada = -1;
 	int copia_cant_veces_menos_usada = MAX;
 	for (n_copia = 0; n_copia < BLOQUE_CANT_COPIAS; n_copia++) {
 		anb = list_get(nodos_bloque, n_copia);
@@ -634,7 +673,7 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job){
 		return copia_menos_usada;
 	} else {
 		//errror todos los bloques
-		log_trace(logger, "TOdos los nodos desconectados!!!!!!!!!!!!!!");
+		log_trace(logger, "Todos los nodos desconectados!!!!!!!!!!!!!!");
 		return -1;
 	}
 }
@@ -642,12 +681,10 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job){
 
 int planificar_mappers(t_job* job, t_list* bloques_de_datos){
 
-
-
 	//int nodo_id;
 	int numero_copia;
 	int i;
-	t_archivo_nodo_bloque* cnb;
+	t_archivo_nodo_bloque* anb;
 	t_archivo_bloque_con_copias* bloque;
 	for (i = 0; i < list_size(bloques_de_datos); i++) {
 		bloque = list_get(bloques_de_datos, i);
@@ -655,13 +692,13 @@ int planificar_mappers(t_job* job, t_list* bloques_de_datos){
 
 
 		numero_copia = obtener_numero_copia_disponible_para_map(bloque->nodosbloque, job);
-		cnb =  list_get(bloque->nodosbloque, numero_copia);
-		if (cnb!=NULL) {
-			log_trace(logger, "obtener_numero_copia_disponible_para_map: %d en %s:%d", cnb->base->id, cnb->base->red.ip, cnb->base->red.puerto);
+		anb =  list_get(bloque->nodosbloque, numero_copia);
+		if (anb!=NULL) {
+			log_trace(logger, "obtener_numero_copia_disponible_para_map: %d en %s:%d", anb->base->id, anb->base->red.ip, anb->base->red.puerto);
 			JOB_MAP_ID++;
 			//t_nodo_estado_map* ne = marta_create_nodo_estado(cnb);
 			char* nombre_temp_map = generar_nombre_map(job->id, JOB_MAP_ID);
-			t_map* map = marta_create_map(JOB_MAP_ID, job->id, nombre_temp_map, cnb);
+			t_map* map = marta_create_map(JOB_MAP_ID, job->id, nombre_temp_map, anb);
 			FREE_NULL(nombre_temp_map);
 			//lo agrego a la lista de marta
 			list_add(job->mappers, (void*)map);

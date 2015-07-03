@@ -22,9 +22,12 @@ int main(void) {
 
 	while(!FIN);
 
+	printf("Finalizando marta\n");
 	marta_destroy();
 	log_destroy(logger);
 	config_destroy(config);
+
+
 
 	return EXIT_SUCCESS;
 }

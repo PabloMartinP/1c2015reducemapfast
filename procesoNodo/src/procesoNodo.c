@@ -614,7 +614,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 	pthread_mutex_lock(&mutex);
 	contador_ftok++;
-	pthread_mutex_lock(&mutex);
+	pthread_mutex_unlock(&mutex);
 
 	//shmkey = ftok("/dev/null", 5); /* valid directory name and a number */
 	shmkey = ftok("/dev/null", contador_ftok); /* valid directory name and a number */

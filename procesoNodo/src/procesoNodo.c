@@ -7,6 +7,8 @@ typedef struct {
 	char resultado[255];
 } th_map;
 
+int contador_ftok=0;//para inicializar el semaforo
+
 int main(int argc, char *argv[]) {
 	//por param le tiene que llegar el tamaño del archivo data.bin
 	//por ahora hardcodeo 100mb, serian 10 bloques de 20 mb
@@ -609,7 +611,14 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 	unsigned int value; /*      semaphore value         */
 
 	/* initialize a shared variable in shared memory */
-	shmkey = ftok("/dev/null", 5); /* valid directory name and a number */
+
+	pthread_mutex_lock(&mutex);
+	contador_ftok++;
+	pthread_mutex_lock(&mutex);
+
+	//shmkey = ftok("/dev/null", 5); /* valid directory name and a number */
+	shmkey = ftok("/dev/null", contador_ftok); /* valid directory name and a number */
+
 	printf("shmkey for p = %d\n", shmkey);
 	shmid = shmget(shmkey, sizeof(int), 0644 | IPC_CREAT);
 	if (shmid < 0) { /* shared memory error check */
@@ -693,8 +702,8 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			close(pipes[PARENT_READ_PIPE][WRITE_FD]);
 
 			int rs =  procesar_std();
-			int status=0;
-			wait(&status);
+			//int status=0;
+			//wait(&status);
 
 			puts("listo");
 

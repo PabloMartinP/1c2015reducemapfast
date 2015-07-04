@@ -536,7 +536,7 @@ int _aplicar_map(void* param) {
 
 int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
-
+	int aux;
 	pthread_mutex_t mx_mr;/* mutex para que no haya deadlock por el fork*/
 	pthread_mutex_init(&mx_mr, NULL);
 	int pipes[NUM_PIPES][2];
@@ -650,15 +650,14 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 		do {
 			len_buff_write = len_hasta_enter(stdinn + bytes_leidos);
 
-			/*
-			char*_data = malloc(len_buff_write + 1);
-			memcpy(_data, stdinn + bytes_leidos, len_buff_write);
-			_data[len_buff_write ] = 0;
-			printf("write: %s\n", _data);
-			free(_data);
-			*/
-			bytes_escritos = write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , stdinn + bytes_leidos, len_buff_write);
+			pthread_mutex_lock(&mx_mr);
+			aux = 0;
+			do{
+				aux= write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , stdinn + bytes_leidos, len_buff_write - aux);
+				bytes_escritos+= aux;
+			}while(bytes_escritos!=len_buff_write);
 
+			pthread_mutex_unlock(&mx_mr);
 
 			if (bytes_escritos == -1) {
 				perror("writeeeeee");
@@ -691,12 +690,11 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 
 		fprintf(stdout, "antes del close\n");
+		pthread_mutex_lock(&mx_mr);
 		close(pipes[PARENT_WRITE_PIPE][WRITE_FD] );
+		pthread_mutex_unlock(&mx_mr);
 
 		fprintf(stdout, "despues del close\n");
-		//pthread_join(pth_read, NULL);
-
-		pthread_mutex_destroy(&mx_mr);
 
 
 		return res;
@@ -737,7 +735,6 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 		log_trace(logger, "Fin orden, generado archivo final > %s",	filename_result);
 		pthread_mutex_unlock(&mx_mr);
 
-		close(pipes[PARENT_READ_PIPE][READ_FD]);
 
 		puts("map Fin hilo lectura stdout\n");
 		return 0;
@@ -745,6 +742,12 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 	pthread_create(&pth_read, NULL, (void*) _read, NULL);
 	int rs =  _ejecutar_script(script_map, (void*) __aplicar_map);
 	pthread_join(pth_read, NULL);
+
+
+	close(pipes[PARENT_READ_PIPE][READ_FD]);
+
+	pthread_mutex_destroy(&mx_mr);
+
 	return rs;
 }
 

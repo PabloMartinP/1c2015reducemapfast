@@ -652,10 +652,13 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 			pthread_mutex_lock(&mx_mr);
 			aux = 0;
+			bytes_escritos = 0;
 			do{
 				aux= write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , stdinn + bytes_leidos, len_buff_write - aux);
-				bytes_escritos+= aux;
-			}while(bytes_escritos!=len_buff_write);
+				//fprintf(stdout, "bytesEscritos: %d\n", aux);
+				bytes_escritos= bytes_escritos + aux;
+			}while(aux!=len_buff_write);
+			//fprintf(stdout, "*************total: %d\n", bytes_escritos);
 
 			pthread_mutex_unlock(&mx_mr);
 

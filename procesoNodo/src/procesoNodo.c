@@ -536,6 +536,37 @@ int _aplicar_map(void* param) {
 
 int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
+	int i; /*      loop variables          */
+	key_t shmkey; /*      shared memory key       */
+	int shmid; /*      shared memory id        */
+	sem_t *sem; /*      synch semaphore         *//*shared */
+	pid_t pid; /*      fork pid                */
+	int *p; /*      shared variable         *//*shared */
+	unsigned int n; /*      fork count              */
+	unsigned int value; /*      semaphore value         */
+
+	/* initialize a shared variable in shared memory */
+	shmkey = ftok("/dev/null", 5); /* valid directory name and a number */
+	printf("shmkey for p = %d\n", shmkey);
+	shmid = shmget(shmkey, sizeof(int), 0644 | IPC_CREAT);
+	if (shmid < 0) { /* shared memory error check */
+		perror("shmget\n");
+		exit(1);
+	}
+
+	p = (int *) shmat(shmid, NULL, 0); /* attach p to shared memory */
+	*p = 0;
+	printf("p=%d is allocated in shared memory.\n\n", *p);
+	///////////////////////////////////////////
+	value = 0;
+	/* initialize semaphores for shared processes */
+	sem = sem_open("pSem", O_CREAT | O_EXCL, 0644, value);
+	/* name of semaphore is "pSem", semaphore is reached using this name */
+	sem_unlink("pSem");
+	/* unlink prevents the semaphore existing forever */
+	/* if a crash occurs during the execution         */
+	printf ("semaphores initialized.\n\n");
+	///////////////////////////////////
 	int aux;
 	pthread_mutex_t mx_mr;/* mutex para que no haya deadlock por el fork*/
 	pthread_mutex_init(&mx_mr, NULL);
@@ -585,6 +616,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 			/*pthread_mutex_unlock(&mutex);
 			pthread_mutex_destroy(&mutex);*/
+			sem_post(sem);
 			execv(argv[0], argv);
 
 			perror("Errro execv");
@@ -593,6 +625,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			return 0;
 		} else {
 			//waitpid(p, NULL, NULL);
+			sem_wait(sem);
 			close(pipes[PARENT_WRITE_PIPE][READ_FD]);
 			close(pipes[PARENT_READ_PIPE][WRITE_FD]);
 
@@ -750,6 +783,13 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 	close(pipes[PARENT_READ_PIPE][READ_FD]);
 
 	pthread_mutex_destroy(&mx_mr);
+
+	/* shared memory detach */
+	shmdt(p);
+	shmctl(shmid, IPC_RMID, 0);
+
+	/* cleanup semaphores */
+	sem_destroy (sem);
 
 	return rs;
 }

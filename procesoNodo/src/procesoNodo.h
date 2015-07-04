@@ -8,6 +8,13 @@
 #ifndef PROCESONODO_H_
 #define PROCESONODO_H_
 
+#include <stdlib.h>         /* exit(), malloc(), free() */
+#include <sys/types.h>      /* key_t, sem_t, pid_t      */
+#include <sys/shm.h>        /* shmat(), IPC_RMID        */
+#include <errno.h>          /* errno, ECHILD            */
+#include <semaphore.h>      /* sem_open(), sem_destroy(), sem_wait().. */
+#include <fcntl.h>          /* O_CREAT, O_EXEC          */
+
 //#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>

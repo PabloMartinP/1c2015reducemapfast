@@ -19,8 +19,9 @@
 #include "util.h"
 #define BLOQUE_CANT_COPIAS 3
 
-#define TAMANIO_BLOQUE_MB 20
-#define TAMANIO_BLOQUE_B  (1024 * 1024 * 20) //20mb
+#define TAMANIO_BLOQUE_MB 5
+#define TAMANIO_BLOQUE_B  (1024 * 1024 * TAMANIO_BLOQUE_MB) //20mb
+
 
 
 typedef struct { //estructura que tiene las tres copias del bloque

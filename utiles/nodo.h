@@ -19,7 +19,7 @@
 #include "util.h"
 #define BLOQUE_CANT_COPIAS 3
 
-#define TAMANIO_BLOQUE_MB 5
+#define TAMANIO_BLOQUE_MB 10
 #define TAMANIO_BLOQUE_B  (1024 * 1024 * TAMANIO_BLOQUE_MB) //20mb
 
 

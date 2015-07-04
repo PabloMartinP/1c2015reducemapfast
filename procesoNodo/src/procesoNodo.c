@@ -1367,7 +1367,7 @@ void* data_get(char* filename) {
 	TAMANIO_DATA = file_get_size(filename);
 	CANT_BLOQUES = TAMANIO_DATA / TAMANIO_BLOQUE_B;
 
-	log_trace(logger, "Cant-bloques de 20mb: %d", CANT_BLOQUES);
+	log_trace(logger, "Cant-bloques de %dmb: %d", TAMANIO_BLOQUE_MB, CANT_BLOQUES);
 	//el archivo ya esta creado con el size maximo
 	return file_get_mapped(filename);
 }

@@ -1482,7 +1482,9 @@ void* data_get(char* filename) {
 	if (!file_exists(filename)) {
 		TAMANIO_DATA = 1024 * 1024 * NODO_TAMANIO_DATA_DEFAULT_MB(); //100MB
 		char CREAR_DATA[1024];
-		sprintf(CREAR_DATA, "truncate -s %dM %s", TAMANIO_DATA, filename);
+		sprintf(CREAR_DATA, "truncate -s %dM %s", NODO_TAMANIO_DATA_DEFAULT_MB(), filename);
+
+		printf("%s\n", CREAR_DATA);
 		system(CREAR_DATA);
 		/*
 		FILE* file = NULL;

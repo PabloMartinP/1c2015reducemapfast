@@ -1,6 +1,7 @@
 
 #include "procesoNodo.h"
 
+
 typedef struct {
 	int numero_bloque;
 	char script_map[255];
@@ -1256,7 +1257,17 @@ void* atenderProceso_fork(int fd, t_msg* msg){
 	return NULL;
 }
 
+bool requiere_hilo(t_msg* msg){
+	return msg->header.id == FS_GRABAR_BLOQUE
+			|| msg->header.id == NODO_GET_FILECONTENT_DATA
+			|| msg->header.id == NODO_GET_BLOQUE
+			|| msg->header.id == JOB_MAPPER
+			|| msg->header.id == JOB_REDUCER;
+}
+
 void incicar_server_sin_select() {
+
+
 	log_trace(logger, "Iniciado server. Puerto: %d\n",NODO_PORT() );
 	pthread_t thread;
 	int listener = server_socket(NODO_PORT());
@@ -1272,44 +1283,51 @@ void incicar_server_sin_select() {
 			perror("accept");
 		log_trace(logger, "******************NuevaConexion sock %d\n", nuevaConexion);
 
-		int* j = malloc(sizeof*j);
-		*j = nuevaConexion ;
+		t_socket_msg* smsg = malloc(sizeof(t_socket_msg));
+		smsg->socket = nuevaConexion;
 
-		if(	(pthread_create(&thread, NULL, (void*)atenderProceso, j)) <0){
-			perror("pthread_create");
+		//recibo el mensaje para saber si es algo para lanzar hilo
+		smsg->msg = recibir_mensaje(smsg->socket);
+		if (smsg->msg == NULL) {
+			perror("recibir_msgggg");
+			printf("reccc msj %d\n", smsg->socket);
+			//return NULL;
 		}
 
-		pthread_detach(thread);
+		if(requiere_hilo(smsg->msg)){
+			if(	(pthread_create(&thread, NULL, (void*)atenderProceso, smsg)) <0){
+				perror("pthread_create");
+			}
+			pthread_detach(thread);
+		}else{
+			//si no requiere hilo
+			procesar_mensaje(smsg->socket, smsg->msg);
+		}
+
+
+
 
 
 	}
 
 }
 
-void* atenderProceso(int* socket){
+void* atenderProceso(t_socket_msg* smsg){
 
-	int fd = *socket;
+	int fd = smsg->socket;
 
 	printf("NuevoThread sock %d\n", fd);
 
-	t_msg* msg = recibir_mensaje(fd);
-	if(msg == NULL){
-		perror("recibir_msgggg");
-		printf("reccc msj %d\n", fd);
-		return NULL;
-	}
-
-
 	//pthread_mutex_lock(&mx_log);
-	int rs = procesar_mensaje(fd, msg);
+	int rs = procesar_mensaje(fd, smsg->msg);
 	if(rs != 0){
 		printf("ERRRRRRORRRRRRRRRR\n");
 	}
 	//pthread_mutex_unlock(&mx_log);
 	printf("FinThread sock %d\n", fd);
 	close(fd);
-	free(socket);
-	socket  = NULL;
+	free(smsg);
+
 
 	return NULL;
 }

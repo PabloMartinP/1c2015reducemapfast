@@ -55,6 +55,13 @@ char FILE_CONFIG[1024] = "config.txt";
 char FILE_LOG[1024] = "log.txt";
 
 //char CWD[PATH_MAX_LEN];//para guardar el currentworkingdirectory
+
+typedef struct {
+	int socket;
+	t_msg* msg;
+} t_socket_msg;
+
+
 /*
  * variables
  */
@@ -95,9 +102,10 @@ char* convertir_a_temp_path_filename(char* filename);
 int thread_aplicar_map(int fd);
 int aplicar_map_final(int n_bloque, char* script_map, char* filename_result);
 void incicar_server_sin_select();
+bool requiere_hilo(t_msg* msg);
 void iniciar_server_fork();
 int _aplicar_map(void* param);
-void* atenderProceso(int* fd);
+void* atenderProceso(t_socket_msg* msg);
 //char* ejecutar_script_sort(char* filename);
 /*
  * graba el temp concatenandole el timenow en el filename para que sea unico

@@ -67,6 +67,8 @@
 
 /* FIN Funciones Macro */
 
+#define MAP 0
+#define REDUCE 1
 
 
 /****************** IDS DE MENSAJES. ******************/
@@ -102,6 +104,8 @@ typedef enum {
 	JOB_REDUCER,
 	REDUCER_TERMINO,
 	MAPPER_TERMINO,  //cuando el mapper termino aviso
+	MAPPER_GET,
+	REDUCER_GET,
 	MARTA_REDUCE_CANT,
 	REDUCE_INFO,
 	FIN_REDUCES,
@@ -112,7 +116,8 @@ typedef enum {
 	MARTA_REDUCE_RESULTADO,
 	NODO_BASE,
 	JOB_SCRIPT,
-	NODO_OK
+	NODO_OK,
+	JOB_SOCKET_NUEVOS_REDUCE
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/

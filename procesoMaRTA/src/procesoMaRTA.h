@@ -26,6 +26,7 @@ int archivo_a_usar();
 int enviar_maps(int fd, t_job* job);
 t_reduce* crear_reduce_final(t_job* job, t_nodo_base* nb);
 int crear_y_enviar_reduce_final(t_job* job, int fd);
+int enviar_map(int socket, int job_id, int map_id);
 t_reduce* crear_reduce_local(t_job* job, t_nodo_base* nb);
 
 t_list* nodos_usados();
@@ -120,9 +121,11 @@ void procesar (int fd, t_msg*msg){
 	int res = 0;
 	int job_id, map_id, reduce_id;
 	t_job* job;
+	t_map* map;
+	t_reduce* reduce;
 	t_nodo_base* nb;
 	//int i;
-	t_reduce* reduce;
+
 
 	//print_msg(msg);
 
@@ -166,7 +169,14 @@ void procesar (int fd, t_msg*msg){
 			job_crear_y_planificar_mappers(job);
 
 
-			enviar_maps(fd, job);
+			msg = argv_message(JOB_CANT_MAPPERS, 1, list_size(job->mappers));
+			enviar_mensaje(fd, msg);
+			log_trace(logger,	"Le paso al job la cantidad de mappers que son(suma de todos los archivos): %d",msg->argv[0]);
+			destroy_message(msg);
+
+			//despues de enviarle los mappers que son el job lanza un connect por cada hilo dondeme va pidiendo que map quiere que le pase
+
+			//enviar_maps(fd, job);
 
 			//agrego el job a la lista de jobs
 			list_add(marta.jobs, (void*) job);
@@ -187,6 +197,23 @@ void procesar (int fd, t_msg*msg){
 			//porque el reduce se empieza cuando terminaron todos los mappers
 
 
+
+			break;
+		case MAPPER_GET:
+			//el job me pide que le de un mapper en particular
+			job_id = msg->argv[0];
+			map_id = msg->argv[1];
+
+			enviar_map(fd, job_id, map_id);
+
+			break;
+
+		case JOB_SOCKET_NUEVOS_REDUCE:
+			job_id = msg->argv[0];
+			destroy_message(msg);
+
+			job = job_buscar(job_id);
+			job->socket_reduce = msg->argv[1];
 
 			break;
 		case MAPPER_TERMINO:
@@ -226,7 +253,8 @@ void procesar (int fd, t_msg*msg){
 					//lanzo el reduce de los archivos locales al nodo
 
 					//log_trace(logger, "El nodo %s tiene que aplicar map sobre sus archivos temporales", nodo_base_to_string(map->archivo_nodo_bloque->base));
-					enviar_reduce_local(fd, map->archivo_nodo_bloque->base, job);
+					//enviar_reduce_local(fd, map->archivo_nodo_bloque->base, job);
+					enviar_reduce_local(job->socket_reduce, map->archivo_nodo_bloque->base, job);
 				}else{
 					log_trace(logger, "No puede, Todavia no terminaron sus maps locales");
 				}
@@ -237,12 +265,11 @@ void procesar (int fd, t_msg*msg){
 
 				if(terminaron_todos_los_mappers(job->mappers) ){
 					log_trace(logger, "Ya termino todos sus mappers, como es sin combiner hago el reduce final");
-					crear_y_enviar_reduce_final(job, fd);
+					crear_y_enviar_reduce_final(job, job->socket_reduce);
 
 				}else{
 					log_trace(logger, "No terminaron todos sus maps, no puedo crear el reduce final");
 				}
-
 
 			}
 
@@ -275,7 +302,8 @@ void procesar (int fd, t_msg*msg){
 						log_trace(logger, "El job %d termino todos sus mappers y reducers", job->id);
 						log_trace(logger, "*************************************************");
 
-						crear_y_enviar_reduce_final(job, fd);
+						//crear_y_enviar_reduce_final(job, fd);
+						crear_y_enviar_reduce_final(job, job->socket_reduce);
 
 						//marco al job como que lanzo el reduce final
 						//job->empezo_reduce_final = true;
@@ -315,6 +343,23 @@ void procesar (int fd, t_msg*msg){
 		default:
 			break;
 	}
+}
+
+int enviar_map(int socket, int job_id, int map_id){
+	t_map* map = NULL;
+	map = marta_buscar_map(job_id, map_id);
+
+	enviar_mensaje_map(socket, map);
+
+	map->info->empezo = true;
+	log_trace(logger,
+			"Mapper %d enviado al job %d, Nodo_id: %d, %s:%d, bloque:%d",
+			map->info->id, job_id, map->archivo_nodo_bloque->base->id,
+			map->archivo_nodo_bloque->base->red.ip,
+			map->archivo_nodo_bloque->base->red.puerto,
+			map->archivo_nodo_bloque->numero_bloque);
+
+	return 0;
 }
 
 int crear_y_enviar_reduce_final(t_job* job, int fd){

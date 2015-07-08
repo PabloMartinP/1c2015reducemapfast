@@ -211,6 +211,7 @@ void procesar (int fd, t_msg*msg){
 
 			reduce = marta_job_buscar_reduce_no_empezado(job_id);
 			enviar_mensaje_reduce(fd, reduce);
+			reduce->info->empezo = true;
 
 			break;
 		case MAPPER_GET:
@@ -328,6 +329,9 @@ void procesar (int fd, t_msg*msg){
 					printf("FALTANTEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE\n");
 					avisar_ningun_mapreduce(fd);
 				}
+			}else{
+				printf("Termino el reduce final\n");
+				avisar_ningun_mapreduce(fd);
 			}
 
 

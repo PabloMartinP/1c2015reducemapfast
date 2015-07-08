@@ -437,6 +437,14 @@ int nuevo_hilo_reducer(){
 	//cierro la conexion con marta
 	close(socket_marta);
 
+	if(reduce->final){
+		printf("Termino el reducefinalllllllllllllllllllllllllllllllllllllllll\n");
+		pthread_mutex_lock(&mutex_log);
+		REDUCE_FINAL = true;
+		sem_post(sem);
+		pthread_mutex_unlock(&mutex_log);
+	}
+
 	return 0;
 
 }
@@ -542,10 +550,10 @@ int avisar_marta_termino(int socket_marta, int map_o_reduce, int map_reduce_id, 
 	//se desbloquee y lea el reduce
 	msg = recibir_mensaje(socket_marta);
 	if (msg->header.id == REDUCE_DISPONIBLE) {
-		printf(" mapreduce %d genera NUEVOREDUCE\n", map_reduce_id);
+		printf("_________________ mapreduce %d genera NUEVOREDUCE\n", map_reduce_id);
 		sem_post(sem);
 	} else {
-		printf("mapreduce %d no genera ningun MAPREDUCE\n", map_reduce_id);
+		printf("_________________mapreduce %d no genera ningun MAPREDUCE\n", map_reduce_id);
 	}
 
 	return 0;

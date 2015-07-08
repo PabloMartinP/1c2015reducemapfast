@@ -22,7 +22,6 @@ typedef struct {
 	t_list* mappers;//guarda t_maps
 	t_list* reducers; //guarda t_reduce
 	//bool empezo_reduce_final;
-	int socket_reduce;
 }t_job;
 
 

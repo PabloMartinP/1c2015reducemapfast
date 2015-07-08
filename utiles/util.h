@@ -83,6 +83,7 @@ typedef enum {
 	FS_HOLA,
 	NODO_HOLA,
 	FS_GRABAR_BLOQUE,
+	JOB_NUEVO_REDUCE,
 	NODO_CHAU,
 	NODO_GET_BLOQUE,
 	NODO_GET_FILECONTENT_DATA,//envia el mensaje sin header, puro flujo de bytes
@@ -106,18 +107,20 @@ typedef enum {
 	MAPPER_TERMINO,  //cuando el mapper termino aviso
 	MAPPER_GET,
 	REDUCER_GET,
+	REDUCER_GET_ANY,
 	MARTA_REDUCE_CANT,
 	REDUCE_INFO,
 	FIN_REDUCES,
 	ANB_NUMERO_BLOQUE,
 	ARCHIVO_A_REDUCIR,
+	REDUCE_DISPONIBLE,
+	MAPREDUCE_NINGUNO, //aviso quel fin del map o reduce no genera ningun nuevo map o reduce
 	MAPREDUCE_INFO,
 	MARTA_REDUCE_NODO,
 	MARTA_REDUCE_RESULTADO,
 	NODO_BASE,
 	JOB_SCRIPT,
-	NODO_OK,
-	JOB_SOCKET_NUEVOS_REDUCE
+	NODO_OK
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/

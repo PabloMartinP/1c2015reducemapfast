@@ -22,6 +22,13 @@
 
 #include <util.h>
 
+#include <stdlib.h>         /* exit(), malloc(), free() */
+#include <sys/types.h>      /* key_t, sem_t, pid_t      */
+#include <sys/shm.h>        /* shmat(), IPC_RMID        */
+#include <errno.h>          /* errno, ECHILD            */
+#include <semaphore.h>      /* sem_open(), sem_destroy(), sem_wait().. */
+#include <fcntl.h>          /* O_CREAT, O_EXEC          */
+
 /*
 typedef struct{
 	int id;
@@ -30,6 +37,8 @@ typedef struct{
 }t_reduce_job;
 */
 
+sem_t *sem; /*      synch semaphore         *//*shared */
+bool REDUCE_FINAL = false;
 t_list* mappers;
 t_list* reducers;
 t_log* logger;
@@ -41,7 +50,7 @@ t_list* recibir_mappers(int fd);
 
 int lanzar_hilos_mappers(int fd);
 void crearHiloMapper();
-int nuevo_hilo_reducer(int* red_id_p);
+int nuevo_hilo_reducer();
 int funcionMapping(t_map* map);
 //void reduce_job_free(t_reduce_job* job);
 int lanzar_hilo_reduce(int fd, t_reduce* reduce);
@@ -290,7 +299,6 @@ int conectar_con_marta(){
 	destroy_message(msg);
 	close(fd);//cierro el fd de marta porque voy a lanzar un connect por cada hilo
 
-
 	procesar_mappers(cant_mappers);
 
 	procesar_reduces();
@@ -341,52 +349,43 @@ int conectar_con_marta(){
 
 int procesar_reduces(){
 	t_msg* msg = NULL;
-	int socket_marta_nuevos_reduces;
 	pthread_t th_nuevo_reduce;
-	t_reduce* reduce = NULL;
-	socket_marta_nuevos_reduces = client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA());
 	//me conecto a marta para que cuando haya un nuevo reduce me avise por este socket
-	msg = argv_message(JOB_SOCKET_NUEVOS_REDUCE, 1, JOB_ID);
-	enviar_mensaje(socket_marta_nuevos_reduces, msg);
-	destroy_message(msg);
-	int* reduce_id;
+	t_reduce *reduce;
 	void _procesar_reduces() {
 		for (;;) {
-			//espero hasta que marta me envie un nuevo reduce con el ID
-			msg = recibir_mensaje(socket_marta_nuevos_reduces);
+			sem_wait(sem);
 
-			reduce_id = malloc(sizeof(*reduce_id));
-			*reduce_id = msg->argv[0];
-			destroy_message(msg);
-
-			pthread_create(&th_nuevo_reduce, NULL, (void*)nuevo_hilo_reducer, (void*)reduce_id);
-			pthread_detach(th_nuevo_reduce);
-
-			if (reduce->final) {
+			if(REDUCE_FINAL){
 				//es el reduce final, hago break y me rajo
 				pthread_mutex_lock(&mutex_log);
 				log_trace(logger, "**************************************************");
-				log_trace(logger, "Archivo final %s generado en %s",reduce->info->resultado,nodo_base_to_string(reduce->nodo_base_destino));
+				log_trace(logger, "FINALllllllllllllllllllllllllllllll*");
+				//log_trace(logger, "Archivo final %s generado en %s",reduce->info->resultado,nodo_base_to_string(reduce->nodo_base_destino));
 				pthread_mutex_unlock(&mutex_log);
 				break;
 			}
+
+			pthread_create(&th_nuevo_reduce, NULL, (void*)nuevo_hilo_reducer, NULL);
+			pthread_detach(th_nuevo_reduce);
+
 			//itero hasta que me devuevan el reduce final
 		}
 
 		pthread_mutex_lock(&mutex_log);
 		log_trace(logger, "Sali del for por algo");
 		pthread_mutex_unlock(&mutex_log);
-		int fd = client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA());
+		int socket_marta = client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA());
 		msg = argv_message(JOB_TERMINO, 1, JOB_ID);
-		enviar_mensaje(fd, msg);
+		enviar_mensaje(socket_marta, msg);
 		destroy_message(msg);
 
 
 		msg = argv_message(MARTA_SALIR, 0);
-		enviar_mensaje(fd, msg);
+		enviar_mensaje(socket_marta, msg);
 		destroy_message(msg);
 
-		close(fd);
+		close(socket_marta);
 
 	}
 
@@ -399,8 +398,8 @@ int procesar_reduces(){
 
 
 
-int nuevo_hilo_reducer(int* reduce_id_p){
-	int reduce_id = *reduce_id_p;
+int nuevo_hilo_reducer(){
+	//int reduce_id = *reduce_id_p;
 
 	//connecto con marta
 	int socket_marta = client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA());
@@ -408,7 +407,7 @@ int nuevo_hilo_reducer(int* reduce_id_p){
 	t_msg* msg = NULL;
 
 	//le pido a marta el mapper map_id
-	msg = argv_message(REDUCER_GET, 2, JOB_ID, reduce_id);
+	msg = argv_message(REDUCER_GET_ANY, 2, JOB_ID);
 	enviar_mensaje(socket_marta, msg);
 	destroy_message(msg);
 
@@ -433,13 +432,13 @@ int nuevo_hilo_reducer(int* reduce_id_p){
 	int res = 0;
 	res = funcionReducing(reduce);
 
-	avisar_marta_termino(socket_marta, REDUCE, reduce_id, res);
+	avisar_marta_termino(socket_marta, REDUCE, reduce->info->id, res);
 
 	//cierro la conexion con marta
 	close(socket_marta);
 
-	FREE_NULL(reduce_id_p);
 	return 0;
+
 }
 
 
@@ -447,10 +446,11 @@ int procesar_mappers(int cant_mappers){
 	pthread_t th_map;
 	int *map_id;
 	int i;
-	for (i = 0; i < cant_mappers; i++) {
+	for (i = 1; i <= cant_mappers; i++) {
 		log_trace(logger, "Mapper %d", i);
 
 		map_id = malloc(sizeof(*map_id));
+		*map_id = i;
 		pthread_create(&th_map, NULL, (void*)nuevo_hilo_mapper, (void*)map_id);
 		pthread_detach(th_map);
 	}
@@ -501,6 +501,8 @@ int nuevo_hilo_mapper(int* map_id_p){
 
 	avisar_marta_termino(socket_marta, MAP, map_id, res_map);
 
+
+
 	//cierro la conexion con marta
 	close(socket_marta);
 
@@ -535,6 +537,16 @@ int avisar_marta_termino(int socket_marta, int map_o_reduce, int map_reduce_id, 
 	else
 		log_trace(logger, "Mensaje enviado a marta con resultado: %d del REDUCE %d", resultado, map_reduce_id);
 	pthread_mutex_unlock(&mutex_log);
+
+	//si marta me contesta diciendome que hay un nuevo reduce, habilito el sem para que el hilo que lee reducers
+	//se desbloquee y lea el reduce
+	msg = recibir_mensaje(socket_marta);
+	if (msg->header.id == REDUCE_DISPONIBLE) {
+		printf(" mapreduce %d genera NUEVOREDUCE\n", map_reduce_id);
+		sem_post(sem);
+	} else {
+		printf("mapreduce %d no genera ningun MAPREDUCE\n", map_reduce_id);
+	}
 
 	return 0;
 }

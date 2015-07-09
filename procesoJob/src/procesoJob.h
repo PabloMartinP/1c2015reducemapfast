@@ -37,7 +37,7 @@ typedef struct{
 }t_reduce_job;
 */
 
-sem_t *sem; /*      synch semaphore         *//*shared */
+sem_t sem; /*      synch semaphore         *//*shared */
 bool REDUCE_FINAL = false;
 t_list* mappers;
 t_list* reducers;
@@ -128,6 +128,7 @@ int funcionReducing(t_reduce* reduce){
 
 int funcionMapping(t_map* map){
 	t_msg* msg;
+	int rs ;
 	bool resultado;
 	pthread_mutex_lock(&mutex_log);
 
@@ -139,20 +140,41 @@ int funcionMapping(t_map* map){
 	log_trace(logger, "Conectando con nodo %d - %s:%d", map->archivo_nodo_bloque->base->id,  map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
 	pthread_mutex_unlock(&mutex_log);
 	int fd = client_socket(map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
-	printf("nuevo Sock %d\n", fd);
+	if(fd<0){
+		printf("RRRORR client_socket %d, map %d\n", fd, map->info->id);
+		perror("client_sock");
+		exit(1);
+	}
+
+	printf("____________nuevo Sock %d map:%d\n", fd, map->info->id);
 	//envio esto para que entre en el select del MAPPER y espera que recibir un mensaje_map
 	msg = argv_message(JOB_MAPPER, 0);
-	enviar_mensaje(fd, msg);destroy_message(msg);
 
-	enviar_mensaje_map(fd, map);
+	rs = enviar_mensaje(fd, msg);
+	destroy_message(msg);
+	if(rs>0){
+		printf("RRRORR enviar_msg1 %d, map %d\n", fd, map->info->id);
+		perror("client_sock");
+		exit(1);
+	}
 
-	enviar_mensaje_script(fd, JOB_SCRIPT_MAPPER());
 
+	rs = enviar_mensaje_map(fd, map);
+	if(rs>0){
+		printf("RRRORR enviar_msg2 %d, map %d\n", fd, map->info->id);
+		exit(1);
+	}
+
+	rs = enviar_mensaje_script(fd, JOB_SCRIPT_MAPPER());
+	if(rs>0){
+		printf("RRRORR enviar_msg3 %d, map %d\n", fd, map->info->id);
+		exit(1);
+	}
 
 	pthread_mutex_lock(&mutex_log);
 	log_trace(logger, "Esperando respuesta sock:%d a mapper %d en nodo %s:%d",fd, map->info->id, map->archivo_nodo_bloque->base->red.ip, map->archivo_nodo_bloque->base->red.puerto);
 	pthread_mutex_unlock(&mutex_log);
-
+/*
 	char buffer[32];
 	if (recv(fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0) {
 		printf("El  NODOOOO el sock %d conexionNNNNNNNNNNNNNNNNNNNNN \n", fd);
@@ -163,7 +185,7 @@ int funcionMapping(t_map* map){
 		// do something else, e.g. go on vacation
 	}else
 		printf("sock %d activo??????????\n", fd)	;
-
+*/
 	//pthread_mutex_lock(&mutex_log);
 	printf("Esperando a que le contesnte T_T sock %d map %d\n", fd, map->info->id);
 	/*
@@ -354,7 +376,7 @@ int procesar_reduces(){
 	t_reduce *reduce;
 	void _procesar_reduces() {
 		for (;;) {
-			sem_wait(sem);
+			sem_wait(&sem);
 
 			if(REDUCE_FINAL){
 				//es el reduce final, hago break y me rajo
@@ -434,14 +456,11 @@ int nuevo_hilo_reducer(){
 
 	avisar_marta_termino(socket_marta, REDUCE, reduce->info->id, res);
 
-	//cierro la conexion con marta
-	close(socket_marta);
-
 	if(reduce->final){
 		printf("Termino el reducefinalllllllllllllllllllllllllllllllllllllllll\n");
 		pthread_mutex_lock(&mutex_log);
 		REDUCE_FINAL = true;
-		sem_post(sem);
+		sem_post(&sem);
 		pthread_mutex_unlock(&mutex_log);
 	}
 
@@ -511,8 +530,6 @@ int nuevo_hilo_mapper(int* map_id_p){
 
 
 
-	//cierro la conexion con marta
-	close(socket_marta);
 
 	FREE_NULL(map_id_p);
 	return 0;
@@ -551,8 +568,16 @@ int avisar_marta_termino(int socket_marta, int map_o_reduce, int map_reduce_id, 
 	msg = recibir_mensaje(socket_marta);
 	if (msg->header.id == REDUCE_DISPONIBLE) {
 		printf("_________________ mapreduce %d genera NUEVOREDUCE\n", map_reduce_id);
-		sem_post(sem);
+		destroy_message(msg);
+		//cierro la conexion con marta
+		close(socket_marta);
+
+		//habilito nuevo hilo
+		sem_post(&sem);
 	} else {
+		destroy_message(msg);
+		//cierro la conexion con marta
+		close(socket_marta);
 		printf("_________________mapreduce %d no genera ningun MAPREDUCE\n", map_reduce_id);
 	}
 

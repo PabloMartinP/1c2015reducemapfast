@@ -82,15 +82,36 @@ int funcionReducing(t_reduce* reduce){
 */
 
 	int fd = client_socket(reduce->nodo_base_destino->red.ip, reduce->nodo_base_destino->red.puerto);
+	if(fd<0){
+		printf("RRRORR client_sock RRRRRRR%d, map %d\n", fd, reduce->info->id);
+		perror("client_sock");
+		exit(1);
+	}
+	int rs;
 	t_msg* msg;
 
 	//envio esto asi entra en el select del reduce
 	msg = argv_message(JOB_REDUCER, 0);
-	enviar_mensaje(fd, msg);destroy_message(msg);
+	rs = enviar_mensaje(fd, msg);destroy_message(msg);
+	if(rs<0){
+		printf("error RRRRR sendmsg1 sock %d, red %d\n", fd, reduce->info->id);
+		perror("envisar_msg");
+		exit(1);
+	}
 
 
-	enviar_mensaje_reduce(fd, reduce);
-	enviar_mensaje_script(fd, JOB_SCRIPT_REDUCER());
+	rs = enviar_mensaje_reduce(fd, reduce);
+	if(rs<0){
+		printf("error RRRRR sendmsg2 sock %d, red %d\n", fd, reduce->info->id);
+		perror("envisar_msg");
+		exit(1);
+	}
+	rs = enviar_mensaje_script(fd, JOB_SCRIPT_REDUCER());
+	if(rs<0){
+		printf("error RRRRR sendmsg3 sock %d, red %d\n", fd, reduce->info->id);
+		perror("envisar_msg");
+		exit(1);
+	}
 
 	pthread_mutex_lock(&mutex_log);
 	log_trace(logger, "Esperando respuesta a reducer %d en nodo %s",reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
@@ -152,7 +173,7 @@ int funcionMapping(t_map* map){
 
 	rs = enviar_mensaje(fd, msg);
 	destroy_message(msg);
-	if(rs>0){
+	if(rs<0){
 		printf("RRRORR enviar_msg1 %d, map %d\n", fd, map->info->id);
 		perror("client_sock");
 		exit(1);
@@ -160,13 +181,13 @@ int funcionMapping(t_map* map){
 
 
 	rs = enviar_mensaje_map(fd, map);
-	if(rs>0){
+	if(rs<0){
 		printf("RRRORR enviar_msg2 %d, map %d\n", fd, map->info->id);
 		exit(1);
 	}
 
 	rs = enviar_mensaje_script(fd, JOB_SCRIPT_MAPPER());
-	if(rs>0){
+	if(rs<0){
 		printf("RRRORR enviar_msg3 %d, map %d\n", fd, map->info->id);
 		exit(1);
 	}

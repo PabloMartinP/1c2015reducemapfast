@@ -789,7 +789,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			aux = 0;
 			bytes_escritos = 0;
 			do{
-				aux= write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , stdinn + bytes_leidos, len_buff_write - aux);
+				aux= write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , stdinn + bytes_leidos+aux, len_buff_write - aux);
 				//fprintf(stdout, "bytesEscritos: %d\n", aux);
 				bytes_escritos= bytes_escritos + aux;
 			}while(aux!=len_buff_write);
@@ -991,13 +991,17 @@ char* generar_nombre_script() {
 	return file_map1;
 }
 
-char* generar_nombre_map_tmp() {
+char* generar_nombre_map_tmp(t_mapreduce* mapreduce) {
 	char* timenow = temporal_get_string_time();
 
-	char* file_map1 = string_new();
+	/*char* file_map1 = string_new();
 	string_append(&file_map1, "job_script_map_");
 	string_append(&file_map1, timenow);
 	string_append(&file_map1, ".sh");
+	*/
+	char* file_map1 = NULL;
+	file_map1 = string_from_format("script_job_%d_map_%d_%s.sh", mapreduce->job_id, mapreduce->id, timenow);
+
 
 	char* tmp;
 	tmp = convertir_a_temp_path_filename(file_map1);
@@ -1007,13 +1011,15 @@ char* generar_nombre_map_tmp() {
 	return tmp;
 }
 
-char* generar_nombre_reduce_tmp() {
+char* generar_nombre_reduce_tmp(t_mapreduce* mapreduce) {
 	char* timenow = temporal_get_string_time();
 
-	char* file_map1 = string_new();
+	/*char* file_map1 = string_new();
 	string_append(&file_map1, "job_script_reduce_");
 	string_append(&file_map1, timenow);
-	string_append(&file_map1, ".sh");
+	string_append(&file_map1, ".sh");*/
+	char* file_map1 = NULL;
+	file_map1 = string_from_format("script_job_%d_reduce_%d_%s.sh", mapreduce->job_id, mapreduce->id, timenow);
 
 	char* tmp;
 	tmp = convertir_a_temp_path_filename(file_map1);
@@ -1069,7 +1075,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		//recibo el reduce que me envio
 		reduce = NULL;
 		reduce = recibir_mensaje_reduce(fd);
-		filename_script = generar_nombre_reduce_tmp();
+		filename_script = generar_nombre_reduce_tmp(reduce->info);
 		recibir_mensaje_script_y_guardar(fd, filename_script);
 
 		///////////////////////////////////////////////
@@ -1106,7 +1112,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		map = NULL;
 		map = recibir_mensaje_map(fd);
 		log_trace(logger, "Recibido nuevo mapper %d socck %d", map->info->id, fd);
-		filename_script = generar_nombre_map_tmp();
+		filename_script = generar_nombre_map_tmp(map->info);
 		recibir_mensaje_script_y_guardar(fd, filename_script);
 		///////////////////////////////////////////////////////////////////////
 		pthread_mutex_lock(&mx_log);

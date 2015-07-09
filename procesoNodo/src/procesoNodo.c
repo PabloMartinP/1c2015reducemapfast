@@ -35,10 +35,10 @@ int main(int argc, char *argv[]) {
 //files es una lista de t_files_reduce
 int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* filename_result) {
 
-	//key_t shmkey; /*      shared memory key       */
-	//int shmid; /*      shared memory id        */
-	//sem_t *sem; /*      synch semaphore         *//*shared */
-	//sem = sem_crear(&shmid, &shmkey);
+	key_t shmkey; /*      shared memory key       */
+	int shmid; /*      shared memory id        */
+	sem_t *sem; /*      synch semaphore         *//*shared */
+	sem = sem_crear(&shmid, &shmkey);
 
 	//key_t shmkey_read; /*      shared memory key       */
 	//int shmid_read; /*      shared memory id        */
@@ -96,18 +96,18 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 
 			/*pthread_mutex_unlock(&mutex);
 			 pthread_mutex_destroy(&mutex);*/
-			//sem_post(sem);
+			sem_post(sem);
 			execv(argv[0], argv);
 
 			perror("Errro execv");
-			fprintf(stdout, "argv[0]:%s\n", argv[0]);
+			printf("argv[0]:%s\n", argv[0]);
 			exit(0);
 
 			return 0;
 		} else {
 			//waitpid(p, NULL, NULL);
 			printf("*************************************ANtes wait\n");
-			//sem_wait(sem);
+			sem_wait(sem);
 			printf("*************************************Despues wait\n");
 
 			close(pipes[PARENT_WRITE_PIPE][READ_FD]);
@@ -359,6 +359,12 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 	pthread_join(th_read, NULL);
 
 	close(pipes[PARENT_READ_PIPE][READ_FD]);
+
+	/* shared memory detach */
+	shmctl(shmid, IPC_RMID, 0);
+		/* cleanup semaphores */
+	sem_destroy (sem);
+
 
 	/* cleanup semaphores */
 	sem_destroy(&sem_read);
@@ -646,10 +652,10 @@ sem_t* sem_crear(int* shmid, key_t* shmkey){
 
 
 int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
-	//key_t shmkey; /*      shared memory key       */
-	//int shmid; /*      shared memory id        */
-	//sem_t *sem; /*      synch semaphore         *//*shared */
-	//sem = sem_crear(&shmid, &shmkey);
+	key_t shmkey; /*      shared memory key       */
+	int shmid; /*      shared memory id        */
+	sem_t *sem; /*      synch semaphore         *//*shared */
+	sem = sem_crear(&shmid, &shmkey);
 
 	//key_t shmkey_read; /*      shared memory key       */
 	//int shmid_read; /*      shared memory id        */
@@ -708,18 +714,18 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 			/*pthread_mutex_unlock(&mutex);
 			pthread_mutex_destroy(&mutex);*/
-			//sem_post(sem);
+			sem_post(sem);
 			execv(argv[0], argv);
 
 			perror("Errro execv");
-			fprintf(stdout, "argv[0]:%s\n", argv[0]);
+			printf("argv[0]:%s\n", argv[0]);
 			exit(0);
 
 			return 0;
 		} else {
 			//waitpid(p, NULL, NULL);
 			printf("*************************************ANtes wait\n");
-			//sem_wait(sem);
+			sem_wait(sem);
 			printf("*************************************Despues wait\n");
 
 			close(pipes[PARENT_WRITE_PIPE][READ_FD]);
@@ -895,14 +901,10 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 	pthread_mutex_destroy(&mx_mr);
 
 	/* shared memory detach */
-	//shmctl(shmid, IPC_RMID, 0);
+	shmctl(shmid, IPC_RMID, 0);
 	/* cleanup semaphores */
-	//sem_destroy (sem);
+	sem_destroy (sem);
 
-	/* shared memory detach */
-	//shmctl(shmid_read, IPC_RMID, 0);
-	/* cleanup semaphores */
-	//sem_destroy (sem_read);
 	sem_destroy(&sem_read);
 
 	return rs;

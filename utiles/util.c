@@ -681,6 +681,7 @@ int recibir_mensaje_script_y_guardar(int fd, char* path_destino_script){
 	destroy_message(msg);
 	//settear permisos de ejecucion
 	chmod(path_destino_script, S_IRWXU);
+	//chmod(path_destino_script, S_IRUSR | S_IWUSR |S_IXUSR);
 
 	return 0;
 }

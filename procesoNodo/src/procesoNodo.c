@@ -19,6 +19,7 @@ int main(int argc, char *argv[]) {
 
 	probar_conexion_fs();
 
+	signal(SIGCHLD, SIG_IGN);
 	//inicio el server para atender las peticiones del fs
 	//iniciar_server_thread();
 	//iniciar_server();

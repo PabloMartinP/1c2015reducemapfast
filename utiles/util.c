@@ -591,12 +591,14 @@ t_nodo_archivo* nodo_archivo_create(void){
 }
 
 t_reduce* recibir_mensaje_reduce(int fd){
+
 	t_msg* msg;
 	t_nodo_archivo* na;
 	t_reduce* reduce;
 	int cant_reduces, i;
 
 	msg = recibir_mensaje(fd);
+	printf("*************************\n");
 	if (msg->header.id == REDUCE_INFO) {
 		//envio el nombre resultado, red_id, job_id, cant_nodos_archivo
 		//le paso null porque todavia no tengo el nb, viene en la proxima recibir_mensaje
@@ -635,6 +637,7 @@ t_reduce* recibir_mensaje_reduce(int fd){
 	}
 
 	printf("Fin recepcion de nodos-archivo\n");
+	printf("*************************\n");
 
 	return reduce;
 }

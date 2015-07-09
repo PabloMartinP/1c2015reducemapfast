@@ -91,7 +91,9 @@ char* generar_nombre_map_tmp();
 char* generar_nombre_script();
 void iniciar_server();
 void agregar_cwd(char* file);
+
 void* atenderProceso_fork(int socket, t_msg* msg);
+sem_t* sem_crear(int* shmid, key_t* shmkey);
 int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino);
 int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
 		char* filename_result);

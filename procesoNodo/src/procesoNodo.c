@@ -36,47 +36,21 @@ int main(int argc, char *argv[]) {
 //files es una lista de t_files_reduce
 int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* filename_result) {
 
-
-	int i; /*      loop variables          */
 	key_t shmkey; /*      shared memory key       */
 	int shmid; /*      shared memory id        */
 	sem_t *sem; /*      synch semaphore         *//*shared */
-	//pid_t pid; /*      fork pid                */
-	int *p; /*      shared variable         *//*shared */
-	//unsigned int n; /*      fork count              */
-	unsigned int value; /*      semaphore value         */
+	sem = sem_crear(&shmid, &shmkey);
 
-	/* initialize a shared variable in shared memory */
-	shmkey = ftok("/dev/null", 5); /* valid directory name and a number */
-	printf("shmkey for p = %d\n", shmkey);
-	shmid = shmget(shmkey, sizeof(int), 0644 | IPC_CREAT);
-	if (shmid < 0) { /* shared memory error check */
-		perror("shmget\n");
-		exit(1);
-	}
+	key_t shmkey_read; /*      shared memory key       */
+	int shmid_read; /*      shared memory id        */
+	sem_t *sem_read; /*      synch semaphore         *//*shared */
+	sem_read = sem_crear(&shmid_read, &shmkey_read);
 
-	p = (int *) shmat(shmid, NULL, 0); /* attach p to shared memory */
-	*p = 0;
-	printf("p=%d is allocated in shared memory.\n\n", *p);
-	///////////////////////////////////////////
-	value = 0;
-	/* initialize semaphores for shared processes */
-	sem = sem_open("pSem", O_CREAT | O_EXCL, 0644, value);
-	/* name of semaphore is "pSem", semaphore is reached using this name */
-	sem_unlink("pSem");
-	/* unlink prevents the semaphore existing forever */
-	/* if a crash occurs during the execution         */
-	printf ("semaphores initialized.\n\n");
 	///////////////////////////////////
-
-	///////////////////////////////////////////////////////////////////////////
-
-	pthread_mutex_t mx_mr;
+	int aux;
+	pthread_mutex_t mx_mr;/* mutex para que no haya deadlock por el fork*/
 	pthread_mutex_init(&mx_mr, NULL);
-
 	int pipes[NUM_PIPES][2];
-
-
 
 	int _ejecutar_script(char* script, int (*procesar_std)()) {
 		// pipes for parent to write and read
@@ -122,8 +96,12 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 
 			/*pthread_mutex_unlock(&mutex);
 			pthread_mutex_destroy(&mutex);*/
-			sem_post(sem);//para desbloquear al wait de mas adelante
+
+
+			sem_post(sem);
 			execv(argv[0], argv);
+
+			fprintf(stdout, "argv[0]:%s\n", argv[0]);
 
 			perror("Errro execv");
 			exit(0);
@@ -131,13 +109,17 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 			return 0;
 		} else {
 			//waitpid(p, NULL, NULL);
+			printf("*************************************ANtes wait\n");
 			sem_wait(sem);
+			printf("*************************************Despues wait\n");
 			close(pipes[PARENT_WRITE_PIPE][READ_FD]);
 			close(pipes[PARENT_READ_PIPE][WRITE_FD]);
 
+			sem_post(sem_read);//habilito que empiece el hilo de lectura
+
 			int rs =  procesar_std();
-			int status=0;
-			wait(&status);
+			//int status=0;
+			//wait(&status);
 
 			puts("listo");
 
@@ -151,74 +133,84 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 	 * reduce********************************************************
 	 */
 
-	int rs;
-	int cant_red_files, cant_total_files, cant_local_files;
-	t_list* local_files = list_create();	//tmp para guardar los fr locales
-	t_list* local_files_reduce;	// = list_create();	//lista que solo tiene los nombres de los archivos temp
-	t_list* red_files;	// = list_create();
-
-	//creo ambas listas
-	local_files_reduce = list_filter(files_reduces,	(void*) file_reduce_es_local);
-	red_files = list_filter(files_reduces, (void*) file_reduce_es_de_red);
-	/*
-	 list_add_all(local_files_reduce,
-	 list_filter(files_reduces, (void*) file_reduce_es_local));
-	 list_add_all(red_files,
-	 list_filter(files_reduces, (void*) file_reduce_es_de_red));
-	 */
-	//cargo la lista local_files solo con los path absolutos
-	void _convertir_a_absoluto(t_files_reduce* fr) {
-		list_add(local_files, convertir_a_temp_path_filename(fr->archivo));
-	}
-	list_iterate(local_files_reduce, (void*) _convertir_a_absoluto);
-
-	cant_total_files = list_size(files_reduces);
-	//leo la cantidad de cada lista
-	cant_red_files = list_size(red_files);
-	cant_local_files = list_size(local_files);
-
-	//creo un descriptor de archivo por cada file local
-	FILE** fdlocal = malloc(cant_local_files * sizeof(FILE*));
-	//abro los archivos locales
-	i = 0;
-	void _open_file(char* filename) {
-		fdlocal[i] = fopen(filename, "r");
-		i++;
-	}
-	list_iterate(local_files, (void*) _open_file);
-
-	//hasta aca tengo los archivos locales abiertos, listos para empezar a leer
-	//ahora tengo que decirle a los nodos que stan en red que me devuelvan su archivo para empezara leer
-	int* fdred = malloc(cant_red_files * sizeof(int));
-	i = 0;
-	void _request_file_to_nodo(t_files_reduce* fr) {
-		fdred[i] = client_socket(fr->ip, fr->puerto);
-		t_msg* msg = string_message(NODO_GET_FILECONTENT_DATA, fr->archivo, 0);
-		//envio el mensaje al nodo pidiendole el archivo
-		enviar_mensaje(fdred[i], msg);
-		destroy_message(msg);
-		i++;
-	}
-	list_iterate(red_files, (void*) _request_file_to_nodo);
-
-	//hasta aca ya le pedi a todos los nodos que me devuelvan el archivo, estan esperando que los lea
-	//ahora me queda leer tanto los fdlocal como los fdred
-
-	//limpio las listas que ya no las voy a usar
-	//list_destroy(local_files);
-	list_destroy_and_destroy_elements(local_files, (void*) free);
-	list_destroy(red_files);
-	list_destroy(local_files_reduce);
-
-	int aux, bytes_escritos; //para el do write
-	int index_menor; //para guardar el menor item
-	//creo una lista de key para guardar las key de cada file
-	size_t len_key = LEN_KEYVALUE;
-	char* key = NULL;
-	char** keys = malloc(sizeof(char*) * (cant_total_files));
 	int _reduce_local_red() {
-		int i = 0;
 
+
+
+		int rs;
+		int cant_red_files, cant_total_files, cant_local_files;
+		t_list* local_files = list_create();//tmp para guardar los fr locales
+		t_list* local_files_reduce;	// = list_create();	//lista que solo tiene los nombres de los archivos temp
+		t_list* red_files;	// = list_create();
+
+		//creo ambas listas
+		local_files_reduce = list_filter(files_reduces,
+				(void*) file_reduce_es_local);
+		red_files = list_filter(files_reduces, (void*) file_reduce_es_de_red);
+		/*
+		 list_add_all(local_files_reduce,
+		 list_filter(files_reduces, (void*) file_reduce_es_local));
+		 list_add_all(red_files,
+		 list_filter(files_reduces, (void*) file_reduce_es_de_red));
+		 */
+		//cargo la lista local_files solo con los path absolutos
+		void _convertir_a_absoluto(t_files_reduce* fr) {
+			list_add(local_files, convertir_a_temp_path_filename(fr->archivo));
+		}
+		list_iterate(local_files_reduce, (void*) _convertir_a_absoluto);
+
+		cant_total_files = list_size(files_reduces);
+		//leo la cantidad de cada lista
+		cant_red_files = list_size(red_files);
+		cant_local_files = list_size(local_files);
+
+		//creo un descriptor de archivo por cada file local
+		FILE** fdlocal = malloc(cant_local_files * sizeof(FILE*));
+		//abro los archivos locales
+		int i = 0;
+		void _open_file(char* filename) {
+			fdlocal[i] = fopen(filename, "r");
+			if (fdlocal[i] == NULL) {
+				printf("ERRROR fopen r");
+				exit(1);
+			}
+			i++;
+		}
+		list_iterate(local_files, (void*) _open_file);
+
+		//hasta aca tengo los archivos locales abiertos, listos para empezar a leer
+		//ahora tengo que decirle a los nodos que stan en red que me devuelvan su archivo para empezara leer
+		int* fdred = malloc(cant_red_files * sizeof(int));
+		i = 0;
+		void _request_file_to_nodo(t_files_reduce* fr) {
+			fdred[i] = client_socket(fr->ip, fr->puerto);
+			t_msg* msg = string_message(NODO_GET_FILECONTENT_DATA, fr->archivo,
+					0);
+			//envio el mensaje al nodo pidiendole el archivo
+			enviar_mensaje(fdred[i], msg);
+			destroy_message(msg);
+			i++;
+		}
+		list_iterate(red_files, (void*) _request_file_to_nodo);
+
+		//hasta aca ya le pedi a todos los nodos que me devuelvan el archivo, estan esperando que los lea
+		//ahora me queda leer tanto los fdlocal como los fdred
+
+		//limpio las listas que ya no las voy a usar
+		//list_destroy(local_files);
+		list_destroy_and_destroy_elements(local_files, (void*) free);
+		list_destroy(red_files);
+		list_destroy(local_files_reduce);
+
+		int bytes_escritos; //para el do write
+		int index_menor; //para guardar el menor item
+		//creo una lista de key para guardar las key de cada file
+		size_t len_key = LEN_KEYVALUE;
+		char* key = NULL;
+		char** keys = malloc(sizeof(char*) * (cant_total_files));
+
+
+		i = 0;
 		//cargo las keys de los archivos locales, con su primer valor
 		for (i = 0; i < cant_local_files; i++) {
 			//rs = getline(&(keys[i]), &len_key, fd[i]);
@@ -329,7 +321,7 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 
 	//lanzo hilo para leer mientras escribe en stdin para que no se bloquee en el read
 	pthread_t th_read;
-	i = 0;
+	//int i = 0;
 	int _read_reduce() {
 		char* new_file_reduced;
 		new_file_reduced = convertir_a_temp_path_filename(filename_result);	//genero filename absoluto
@@ -339,6 +331,7 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 		char buffer[LEN_KEYVALUE];
 
 		int count;
+		sem_wait(sem_read);
 		fprintf(stdout, "Comienzo a leer del hilo\n");
 		while ((count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer, LEN_KEYVALUE)) > 0) {
 			//guardo en el archivo resultado
@@ -355,19 +348,25 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 		return 0;
 
 	}
-	pthread_create(&th_read, NULL, (void*) _read_reduce, NULL);
 
+	int rs;
+	pthread_create(&th_read, NULL, (void*) _read_reduce, NULL);
 	rs =  _ejecutar_script(script_reduce, (void*) _reduce_local_red);
+
+
 	pthread_join(th_read, NULL);
 
 	close(pipes[PARENT_READ_PIPE][READ_FD]);
 
 	/* shared memory detach */
-	shmdt(p);
 	shmctl(shmid, IPC_RMID, 0);
-
 	/* cleanup semaphores */
-	sem_destroy (sem);
+	sem_destroy(sem);
+
+	/* shared memory detach */
+	shmctl(shmid_read, IPC_RMID, 0);
+	/* cleanup semaphores */
+	sem_destroy(sem_read);
 
 	return rs;
 }
@@ -600,45 +599,68 @@ int _aplicar_map(void* param) {
 */
 
 
-int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
-
-	//int i; /*      loop variables          */
-	key_t shmkey; /*      shared memory key       */
-	int shmid; /*      shared memory id        */
-	sem_t *sem; /*      synch semaphore         *//*shared */
+sem_t* sem_crear(int* shmid, key_t* shmkey){
+	sem_t* sem= NULL;
 	//pid_t pid; /*      fork pid                */
-	int *p; /*      shared variable         *//*shared */
 	//unsigned int n; /*      fork count              */
 	unsigned int value; /*      semaphore value         */
 
 	/* initialize a shared variable in shared memory */
 
 	pthread_mutex_lock(&mutex);
+	char* sem_name = string_from_format("pSem_%d", contador_ftok);
 	contador_ftok++;
+	//shmkey = ftok("/dev/null", 5); /* valid directory name and a number */
+	*shmkey = ftok("/dev/null", contador_ftok); /* valid directory name and a number */
 	pthread_mutex_unlock(&mutex);
 
-	//shmkey = ftok("/dev/null", 5); /* valid directory name and a number */
-	shmkey = ftok("/dev/null", contador_ftok); /* valid directory name and a number */
 
-	printf("shmkey for p = %d\n", shmkey);
-	shmid = shmget(shmkey, sizeof(int), 0644 | IPC_CREAT);
-	if (shmid < 0) { /* shared memory error check */
+
+	printf("shmkey for p = %d\n", *shmkey);
+	*shmid = shmget(*shmkey, sizeof(int), 0644 | IPC_CREAT);
+	if (*shmid < 0) { /* shared memory error check */
 		perror("shmget\n");
 		exit(1);
 	}
 
-	p = (int *) shmat(shmid, NULL, 0); /* attach p to shared memory */
-	*p = 0;
-	printf("p=%d is allocated in shared memory.\n\n", *p);
 	///////////////////////////////////////////
 	value = 0;
 	/* initialize semaphores for shared processes */
-	sem = sem_open("pSem", O_CREAT | O_EXCL, 0644, value);
+	//sem = sem_open("pSem", O_CREAT | O_EXCL, 0644, value);
+
+
+	//sem = sem_open("pSem", O_CREAT , 0644, value);
+	sem = sem_open(sem_name, O_CREAT , 0644, value);
+	if(sem==SEM_FAILED){
+		perror("sem_open___");
+		printf("***************************************************sdfadfasd\n");
+		exit(1);
+	}
+
 	/* name of semaphore is "pSem", semaphore is reached using this name */
-	sem_unlink("pSem");
+	//sem_unlink("pSem");
+	sem_unlink(sem_name);
 	/* unlink prevents the semaphore existing forever */
 	/* if a crash occurs during the execution         */
 	printf ("semaphores initialized.\n\n");
+
+	FREE_NULL(sem_name);
+
+	return sem;
+}
+
+
+int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
+	key_t shmkey; /*      shared memory key       */
+	int shmid; /*      shared memory id        */
+	sem_t *sem; /*      synch semaphore         *//*shared */
+	sem = sem_crear(&shmid, &shmkey);
+
+	key_t shmkey_read; /*      shared memory key       */
+	int shmid_read; /*      shared memory id        */
+	sem_t *sem_read; /*      synch semaphore         *//*shared */
+	sem_read = sem_crear(&shmid_read, &shmkey_read);
+
 	///////////////////////////////////
 	int aux;
 	pthread_mutex_t mx_mr;/* mutex para que no haya deadlock por el fork*/
@@ -693,15 +715,20 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			execv(argv[0], argv);
 
 			perror("Errro execv");
+			fprintf(stdout, "argv[0]:%s\n", argv[0]);
 			exit(0);
 
 			return 0;
 		} else {
 			//waitpid(p, NULL, NULL);
+			printf("*************************************ANtes wait\n");
 			sem_wait(sem);
+			printf("*************************************Despues wait\n");
+
 			close(pipes[PARENT_WRITE_PIPE][READ_FD]);
 			close(pipes[PARENT_READ_PIPE][WRITE_FD]);
 
+			sem_post(sem_read);
 			int rs =  procesar_std();
 			//int status=0;
 			//wait(&status);
@@ -818,6 +845,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 		memset(buffer, 0, LEN_KEYVALUE);
 
 		int count;
+		sem_wait(sem_read);
 		pthread_mutex_lock(&mx_mr);
 		log_trace(logger, "Empezando a leer stdout y guardar en archivo %s", new_file_map_disorder);
 		pthread_mutex_unlock(&mx_mr);
@@ -848,8 +876,10 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 		puts("map Fin hilo lectura stdout\n");
 		return 0;
 	}
+
 	pthread_create(&pth_read, NULL, (void*) _read, NULL);
 	int rs =  _ejecutar_script(script_map, (void*) __aplicar_map);
+
 	pthread_join(pth_read, NULL);
 
 
@@ -858,11 +888,14 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 	pthread_mutex_destroy(&mx_mr);
 
 	/* shared memory detach */
-	shmdt(p);
 	shmctl(shmid, IPC_RMID, 0);
-
 	/* cleanup semaphores */
 	sem_destroy (sem);
+
+	/* shared memory detach */
+	shmctl(shmid_read, IPC_RMID, 0);
+	/* cleanup semaphores */
+	sem_destroy (sem_read);
 
 	return rs;
 }
@@ -1033,8 +1066,8 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		pthread_mutex_lock(&mx_log);
 		log_trace(logger, "Fin reducer guardado en %s",	reduce->info->resultado);
 		pthread_mutex_unlock(&mx_log);
-		free(filename_script);
 		remove(filename_script);
+		free(filename_script);
 
 		msg = argv_message(REDUCER_TERMINO, 0);
 		enviar_mensaje(fd, msg);
@@ -1073,8 +1106,8 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		pthread_mutex_lock(&mx_log);
 		log_trace(logger, "Fin mapper %d sock %d guardado en %s", map->info->id, fd, map->info->resultado);
 		pthread_mutex_unlock(&mx_log);
-		free(filename_script);
 		remove(filename_script);
+		free(filename_script);
 
 		pthread_mutex_lock(&mx_log);
 		msg = argv_message(MAPPER_TERMINO, 0);

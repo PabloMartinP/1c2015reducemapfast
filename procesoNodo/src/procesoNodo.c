@@ -351,10 +351,27 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 
 	}
 
+	/*
+pthread_create(&pth_read, NULL, (void*) _read, NULL);
+	int rs ;
+	pthread_t pth_write;
+	void _writemap(){
+		rs =  _ejecutar_script(script_map, (void*) __aplicar_map);
+	}
+	pthread_create(&pth_write, NULL, (void*)_writemap, NULL);
+	pthread_join(pth_write, NULL);
+	pthread_join(pth_read, NULL);
+
+*/
 	int rs;
 	pthread_create(&th_read, NULL, (void*) _read_reduce, NULL);
-	rs =  _ejecutar_script(script_reduce, (void*) _reduce_local_red);
-
+	//rs =  _ejecutar_script(script_reduce, (void*) _reduce_local_red);
+	pthread_t pth_write;
+	void _writereduce() {
+		rs =  _ejecutar_script(script_reduce, (void*) _reduce_local_red);
+	}
+	pthread_create(&pth_write, NULL, (void*) _writereduce, NULL);
+	pthread_join(pth_write, NULL);
 
 	pthread_join(th_read, NULL);
 
@@ -523,10 +540,12 @@ bool nodo_es_local(char* ip, int puerto) {
 }
 
 char* convertir_a_temp_path_filename(char* filename) {
+	pthread_mutex_lock(&mutex);
 	char* new_path_file = string_new();
 	string_append(&new_path_file, NODO_DIRTEMP());
 	string_append(&new_path_file, "/");
 	string_append(&new_path_file, filename);
+	pthread_mutex_unlock(&mutex);
 	return new_path_file;
 }
 /*
@@ -891,8 +910,13 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 	}
 
 	pthread_create(&pth_read, NULL, (void*) _read, NULL);
-	int rs =  _ejecutar_script(script_map, (void*) __aplicar_map);
-
+	int rs ;
+	pthread_t pth_write;
+	void _writemap(){
+		rs =  _ejecutar_script(script_map, (void*) __aplicar_map);
+	}
+	pthread_create(&pth_write, NULL, (void*)_writemap, NULL);
+	pthread_join(pth_write, NULL);
 	pthread_join(pth_read, NULL);
 
 

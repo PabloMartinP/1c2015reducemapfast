@@ -9,6 +9,33 @@
 
 
 
+void map_free_all(t_map* map){
+	//FREE_NULL(map->info->nodo_base);
+	FREE_NULL(map->info->resultado);
+	FREE_NULL(map->info);
+	archivo_nodo_bloque_destroy_free_base(map->archivo_nodo_bloque);
+	FREE_NULL(map);
+
+}
+
+void mapreduce_destroy(t_mapreduce* mr){
+	FREE_NULL(mr->resultado);
+	FREE_NULL(mr);
+}
+
+void reduce_free(t_reduce* reduce){
+
+	mapreduce_destroy(reduce->info);
+
+	FREE_NULL(reduce->nodo_base_destino);
+
+
+	list_destroy_and_destroy_elements(reduce->nodos_archivo, (void*)nodo_archivo_destroy);
+	FREE_NULL(reduce);
+}
+
+
+
 //bool nodo_esta_vivo(t_nodo* nodo){
 bool nodo_esta_vivo(char* ip, int puerto){
 	bool on ;

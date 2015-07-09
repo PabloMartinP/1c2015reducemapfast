@@ -62,6 +62,7 @@ void archivo_nodo_bloque_destroy_no_free_base(t_archivo_nodo_bloque* anb);
 void bloque_de_datos_destroy_free_base(t_archivo_bloque_con_copias* bloque_de_datos);
 void bloque_de_datos_destroy_no_free_base(t_archivo_bloque_con_copias* bloque_de_datos);
 
+void map_free_all(t_map* map);
 //void bloque_de_datos_destroy(t_archivo_bloque_con_copias* bloque_de_datos);
 //void archivo_nodo_bloque_destroy(t_archivo_nodo_bloque* anb);
 t_bloque* nodo_get_bloque_libre(t_nodo* nodo);
@@ -69,6 +70,8 @@ t_bloque* nodo_get_bloque_para_copiar(t_nodo* nodo);
 
 
 void nodo_archivo_destroy(t_nodo_archivo* na);
+void reduce_free(t_reduce* reduce);
+void mapreduce_destroy(t_mapreduce* mr);
 int nodo_cant_bloques_libres(t_nodo* nodo);
 int nodo_cant_bloques_usados(t_nodo* nodo);
 int nodo_cant_bloques(t_nodo* nodo);

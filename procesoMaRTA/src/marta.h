@@ -78,7 +78,7 @@ char* generar_nombre_job(int job_id, int mapreduce_id, char*map_o_reduce){
 	char* file_map1 = string_new();
 	string_append(&file_map1, "job_");
 
-	char str[3];
+	char str[4];
 
 	sprintf(str, "%d", job_id);
 	string_append(&file_map1, str);
@@ -277,9 +277,10 @@ void job_destroy(t_job* job){
 	}
 	list_destroy_and_destroy_elements(job->archivos,(void*)_archivo_destroy);
 
-
 	FREE_NULL(job->resultado);
 	list_destroy(job->mappers);//en teoria no hay ninguno
+	list_destroy(job->reducers);
+	//list_destroy_and_destroy_elements(job->reducers, (void*)reduce_free);
 	FREE_NULL(job);
 }
 

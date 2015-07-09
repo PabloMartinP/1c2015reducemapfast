@@ -27,8 +27,7 @@ int main(int argc, char *argv[]) {
 
 
 	//bool fin = true	;
-	//while (!FIN)		;
-	//finalizar();
+	finalizar();
 
 	return EXIT_SUCCESS;
 }
@@ -36,15 +35,17 @@ int main(int argc, char *argv[]) {
 //files es una lista de t_files_reduce
 int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* filename_result) {
 
-	key_t shmkey; /*      shared memory key       */
-	int shmid; /*      shared memory id        */
-	sem_t *sem; /*      synch semaphore         *//*shared */
-	sem = sem_crear(&shmid, &shmkey);
+	//key_t shmkey; /*      shared memory key       */
+	//int shmid; /*      shared memory id        */
+	//sem_t *sem; /*      synch semaphore         *//*shared */
+	//sem = sem_crear(&shmid, &shmkey);
 
-	key_t shmkey_read; /*      shared memory key       */
-	int shmid_read; /*      shared memory id        */
-	sem_t *sem_read; /*      synch semaphore         *//*shared */
-	sem_read = sem_crear(&shmid_read, &shmkey_read);
+	//key_t shmkey_read; /*      shared memory key       */
+	//int shmid_read; /*      shared memory id        */
+	//sem_t *sem_read; /*      synch semaphore         *//*shared */
+	//sem_read = sem_crear(&shmid_read, &shmkey_read);
+	sem_t sem_read;
+	sem_init(&sem_read, 0, 0);
 
 	///////////////////////////////////
 	int aux;
@@ -70,8 +71,8 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 		if (p == 0) {
 			//hijo
 			/*pthread_mutex_t mutex;
-			pthread_mutex_init(&mutex, NULL);
-			pthread_mutex_lock(&mutex);*/
+			 pthread_mutex_init(&mutex, NULL);
+			 pthread_mutex_lock(&mutex);*/
 			char *argv[] = { script, NULL };
 			//fflush(stdin);
 			if (dup2(pipes[PARENT_WRITE_PIPE][READ_FD], STDIN_FILENO) < 0) {
@@ -93,31 +94,32 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 			//close(PARENT_READ_FD);
 			//close(PARENT_WRITE_FD);
 
-
 			/*pthread_mutex_unlock(&mutex);
-			pthread_mutex_destroy(&mutex);*/
-
-
-			sem_post(sem);
+			 pthread_mutex_destroy(&mutex);*/
+			//sem_post(sem);
 			execv(argv[0], argv);
 
-			fprintf(stdout, "argv[0]:%s\n", argv[0]);
-
 			perror("Errro execv");
+			fprintf(stdout, "argv[0]:%s\n", argv[0]);
 			exit(0);
 
 			return 0;
 		} else {
 			//waitpid(p, NULL, NULL);
 			printf("*************************************ANtes wait\n");
-			sem_wait(sem);
+			//sem_wait(sem);
 			printf("*************************************Despues wait\n");
+
 			close(pipes[PARENT_WRITE_PIPE][READ_FD]);
 			close(pipes[PARENT_READ_PIPE][WRITE_FD]);
 
-			sem_post(sem_read);//habilito que empiece el hilo de lectura
+			sem_post(&sem_read);
+			int rs;
+			rs = procesar_std();
 
-			int rs =  procesar_std();
+			//pthread_t th_stdin;
+			//pthread_create(&th_stdin, NULL, (void*)procesar_std(), NULL);
+			//pthread_join(th_stdin, (void*)&rs);
 			//int status=0;
 			//wait(&status);
 
@@ -331,7 +333,7 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 		char buffer[LEN_KEYVALUE];
 
 		int count;
-		sem_wait(sem_read);
+		sem_wait(&sem_read);
 		fprintf(stdout, "Comienzo a leer del hilo\n");
 		while ((count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer, LEN_KEYVALUE)) > 0) {
 			//guardo en el archivo resultado
@@ -358,15 +360,8 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 
 	close(pipes[PARENT_READ_PIPE][READ_FD]);
 
-	/* shared memory detach */
-	shmctl(shmid, IPC_RMID, 0);
 	/* cleanup semaphores */
-	sem_destroy(sem);
-
-	/* shared memory detach */
-	shmctl(shmid_read, IPC_RMID, 0);
-	/* cleanup semaphores */
-	sem_destroy(sem_read);
+	sem_destroy(&sem_read);
 
 	return rs;
 }
@@ -651,15 +646,17 @@ sem_t* sem_crear(int* shmid, key_t* shmkey){
 
 
 int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
-	key_t shmkey; /*      shared memory key       */
-	int shmid; /*      shared memory id        */
-	sem_t *sem; /*      synch semaphore         *//*shared */
-	sem = sem_crear(&shmid, &shmkey);
+	//key_t shmkey; /*      shared memory key       */
+	//int shmid; /*      shared memory id        */
+	//sem_t *sem; /*      synch semaphore         *//*shared */
+	//sem = sem_crear(&shmid, &shmkey);
 
-	key_t shmkey_read; /*      shared memory key       */
-	int shmid_read; /*      shared memory id        */
-	sem_t *sem_read; /*      synch semaphore         *//*shared */
-	sem_read = sem_crear(&shmid_read, &shmkey_read);
+	//key_t shmkey_read; /*      shared memory key       */
+	//int shmid_read; /*      shared memory id        */
+	//sem_t *sem_read; /*      synch semaphore         *//*shared */
+	//sem_read = sem_crear(&shmid_read, &shmkey_read);
+	sem_t sem_read;
+	sem_init(&sem_read, 0, 0);
 
 	///////////////////////////////////
 	int aux;
@@ -711,7 +708,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 			/*pthread_mutex_unlock(&mutex);
 			pthread_mutex_destroy(&mutex);*/
-			sem_post(sem);
+			//sem_post(sem);
 			execv(argv[0], argv);
 
 			perror("Errro execv");
@@ -722,14 +719,19 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 		} else {
 			//waitpid(p, NULL, NULL);
 			printf("*************************************ANtes wait\n");
-			sem_wait(sem);
+			//sem_wait(sem);
 			printf("*************************************Despues wait\n");
 
 			close(pipes[PARENT_WRITE_PIPE][READ_FD]);
 			close(pipes[PARENT_READ_PIPE][WRITE_FD]);
 
-			sem_post(sem_read);
-			int rs =  procesar_std();
+			sem_post(&sem_read);
+			int rs ;
+			rs =  procesar_std();
+
+			//pthread_t th_stdin;
+			//pthread_create(&th_stdin, NULL, (void*)procesar_std(), NULL);
+			//pthread_join(th_stdin, (void*)&rs);
 			//int status=0;
 			//wait(&status);
 
@@ -783,7 +785,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 		do {
 			len_buff_write = len_hasta_enter(stdinn + bytes_leidos);
 
-			pthread_mutex_lock(&mx_mr);
+			//pthread_mutex_lock(&mx_mr);
 			aux = 0;
 			bytes_escritos = 0;
 			do{
@@ -793,20 +795,16 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			}while(aux!=len_buff_write);
 			//fprintf(stdout, "*************total: %d\n", bytes_escritos);
 
-			pthread_mutex_unlock(&mx_mr);
-
+			//pthread_mutex_unlock(&mx_mr);
+/*
 			if (bytes_escritos == -1) {
 				perror("writeeeeee");
 				return -1;
-			}
-
+			}*/
 			len = len - bytes_escritos;
-
 			bytes_leidos = bytes_leidos + len_buff_write;
 			//fprintf(stdout, "bytes escritos: %d\n", bytes_escritos);
-
 			//printf("contador %d bloque %d\n", i, n_bloque);
-
 			i++;
 
 		} while (len > 0);
@@ -838,17 +836,24 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 	pthread_t pth_read;
 	int _read() {
+		printf("antes sem_wait(sem_read)\n");
+		sem_wait(&sem_read);
+		printf("Despues (sem_read)\n");
 		char* new_file_map_disorder = convertir_a_temp_path_filename(filename_result);
 		string_append(&new_file_map_disorder, "-disorder.tmp");
 		FILE* file_disorder = txt_open_for_append(new_file_map_disorder);
+		if(file_disorder == NULL){
+			printf("txt_open_for_append(new_file_map_disorder)\n");
+			exit(1);
+		}
 		char buffer[LEN_KEYVALUE];
 		memset(buffer, 0, LEN_KEYVALUE);
 
 		int count;
-		sem_wait(sem_read);
 		pthread_mutex_lock(&mx_mr);
 		log_trace(logger, "Empezando a leer stdout y guardar en archivo %s", new_file_map_disorder);
 		pthread_mutex_unlock(&mx_mr);
+
 
 		while ((count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer,LEN_KEYVALUE)) > 0) {
 			fwrite(buffer, count, 1, file_disorder);
@@ -856,7 +861,9 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			memset(buffer, 0, LEN_KEYVALUE);
 		}
 
+		printf("antes close(file_disorder)\n");
 		fclose(file_disorder);
+		printf("despues close(file_disorder)\n");
 
 		pthread_mutex_lock(&mx_mr);
 		log_trace(logger, "Fin lectura stdout, guardado en archivo %s",	new_file_map_disorder);
@@ -888,14 +895,15 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 	pthread_mutex_destroy(&mx_mr);
 
 	/* shared memory detach */
-	shmctl(shmid, IPC_RMID, 0);
+	//shmctl(shmid, IPC_RMID, 0);
 	/* cleanup semaphores */
-	sem_destroy (sem);
+	//sem_destroy (sem);
 
 	/* shared memory detach */
-	shmctl(shmid_read, IPC_RMID, 0);
+	//shmctl(shmid_read, IPC_RMID, 0);
 	/* cleanup semaphores */
-	sem_destroy (sem_read);
+	//sem_destroy (sem_read);
+	sem_destroy(&sem_read);
 
 	return rs;
 }
@@ -912,10 +920,18 @@ int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {
 
 	//printf("%s\n", commando_ordenar);
 
-	//pthread_mutex_lock(&mutex);
-	//log_trace(logger, "Empezando a ordenar archivo: %s", commando_ordenar);
+	pthread_mutex_lock(&mutex);
+	log_trace(logger, "Empezando a ordenar archivo: %s", commando_ordenar);
+	pthread_mutex_unlock(&mutex);
+
+	pthread_mutex_lock(&mutex);
 	system(commando_ordenar);
-	//log_trace(logger, "Fin Comando ordenar");
+	pthread_mutex_unlock(&mutex);
+
+
+	pthread_mutex_lock(&mutex);
+	log_trace(logger, "Fin Comando ordenar");
+	pthread_mutex_unlock(&mutex);
 	FREE_NULL(commando_ordenar);
 
 	//borro el file
@@ -1069,15 +1085,15 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		remove(filename_script);
 		free(filename_script);
 
+
+
+		reduce_free(reduce);
+
 		msg = argv_message(REDUCER_TERMINO, 0);
 		enviar_mensaje(fd, msg);
-		pthread_mutex_lock(&mx_log);
-		log_trace(logger, "Enviado REDUCER_TERMINO al job");
-		pthread_mutex_unlock(&mx_log);
 		destroy_message(msg);
 
-		//close(fd);
-
+		printf("_DDDDDDDDDD_Enviado REDUCER_TERMINO al job");
 		break;
 	case JOB_MAPPER:
 
@@ -1109,41 +1125,33 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		remove(filename_script);
 		free(filename_script);
 
-		pthread_mutex_lock(&mx_log);
+
 		msg = argv_message(MAPPER_TERMINO, 0);
 
 		char buffer[32];
 		if (recv(fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0) {
-			printf("El  JOBBBBB el sock %d conexionNNNNNNNNNNNNNNNNNNNNN \n",
-					fd);
+			printf("El  JOBBBBB map %d el sock %d conexion cerrada??????????????????? \n", map->info->id,	fd);
 			// if recv returns zero, that means the connection has been closed:
 
-			close(fd);
+			//close(fd);
 			break;
 			// do something else, e.g. go on vacation
 		}else
-			printf("sock %d activoOOO\n", fd);
+			printf("map %d, sock %d activoOOO\n",map->info->id, fd);
 
 
 		rs = enviar_mensaje(fd, msg);
 		printf("Termino map %d sock %d\n", map->info->id, fd);
+		pthread_mutex_lock(&mx_log);
 		log_trace(logger, "Enviado MAPPER_TERMINO id %d al job sock %d", map->info->id, fd);
 		pthread_mutex_unlock(&mx_log);
 		destroy_message(msg);
 
 		//recibir_mensaje_nodo_ok(fd);
-		printf("fin mapppppppppppppppp socket %d\n", fd);
+		printf("fin mapppppppppppppppp %d socket %d\n", map->info->id, fd);
 
-		/////////////////////////////////////////////////////////////////////////////
-/*
-		destroy_message(msg);
-		pthread_mutex_lock(&mx_log);
-		log_trace(logger,"******************************************************");
-		log_trace(logger, "Recibido nuevo mapper");
-		pthread_mutex_unlock(&mx_log);
-		//aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
-		thread_aplicar_map(fd);
-*/
+		map_free_all(map);
+
 
 		break;
 	case FS_AGREGO_NODO:
@@ -1193,10 +1201,13 @@ int procesar_mensaje(int fd, t_msg* msg) {
 
 		break;
 	case FS_GRABAR_BLOQUE:
+
 		bloque = malloc(TAMANIO_BLOQUE_B);
 		memcpy(bloque, msg->stream, msg->argv[1]);	//1 es el tamaño real
+		pthread_mutex_lock(&mutex);
 		memset(bloque + msg->argv[1], '\0', TAMANIO_BLOQUE_B - msg->argv[1]);
 		setBloque(msg->argv[0], bloque);
+		pthread_mutex_unlock(&mutex);
 		FREE_NULL(bloque);
 
 		destroy_message(msg);
@@ -1300,7 +1311,6 @@ bool requiere_hilo(t_msg* msg){
 
 void incicar_server_sin_select() {
 
-
 	log_trace(logger, "Iniciado server. Puerto: %d\n",NODO_PORT() );
 	pthread_t thread;
 	int listener = server_socket(NODO_PORT());
@@ -1317,7 +1327,7 @@ void incicar_server_sin_select() {
 		log_trace(logger, "******************NuevaConexion sock %d\n", nuevaConexion);
 
 		t_socket_msg* smsg = malloc(sizeof(t_socket_msg));
-		smsg->socket = nuevaConexion;
+		(*smsg).socket = nuevaConexion;
 
 		//recibo el mensaje para saber si es algo para lanzar hilo
 		smsg->msg = recibir_mensaje(smsg->socket);
@@ -1326,17 +1336,28 @@ void incicar_server_sin_select() {
 			printf("reccc msj %d\n", smsg->socket);
 			//return NULL;
 		}
+		/*
+		 * PARA SALIR DEL NODO
+		if(smsg->msg->header.id==123){
+			close(nuevaConexion);
+			destroy_message(smsg->msg);
+			FREE_NULL(smsg);
+			return;
+		}*/
 
 		if(requiere_hilo(smsg->msg)){
+			printf("sock %d nuevo hilo\n", smsg->socket);
 			if(	(pthread_create(&thread, NULL, (void*)atenderProceso, smsg)) <0){
 				perror("pthread_create");
-			}
+			}else
+				printf("genero nuevo thread el sock%d\n", smsg->socket);
 			pthread_detach(thread);
 		}else{
 			//si no requiere hilo
 			procesar_mensaje(smsg->socket, smsg->msg);
+			close(smsg->socket);
+			FREE_NULL(smsg);
 		}
-
 
 
 
@@ -1346,6 +1367,7 @@ void incicar_server_sin_select() {
 }
 
 void* atenderProceso(t_socket_msg* smsg){
+
 
 	int fd = smsg->socket;
 
@@ -1359,7 +1381,7 @@ void* atenderProceso(t_socket_msg* smsg){
 	//pthread_mutex_unlock(&mx_log);
 	printf("FinThread sock %d\n", fd);
 	close(fd);
-	free(smsg);
+	FREE_NULL(smsg);
 
 
 	return NULL;
@@ -1420,9 +1442,11 @@ void probar_conexion_fs() {
 	}
 }
 void finalizar() {
-	data_destroy();
-	config_destroy(config);
 	log_destroy(logger);
+	config_destroy(config);
+	data_destroy();
+
+
 
 	printf("fin ok\n");
 	//while (true);
@@ -1496,6 +1520,11 @@ char* getBloque(int32_t numero) {
 	char* bloque = NULL;
 	bloque = malloc(TAMANIO_BLOQUE_B);
 
+	if(bloque==NULL){
+		printf("ERRORR bloque %d\n", numero);
+		perror("malloc");
+		exit(1);
+	}
 	pthread_mutex_lock(&mx_data);
 	//pthread_mutex_lock(&mx_log);
 	memcpy(bloque, &(_data[numero * TAMANIO_BLOQUE_B]), TAMANIO_BLOQUE_B);

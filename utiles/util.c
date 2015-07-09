@@ -79,6 +79,7 @@ void map_free(t_map* map){
 
 }
 
+
 t_mapreduce* mapreduce_create(int id, int job_id, char* resultado){
 	t_mapreduce* new = malloc(sizeof*new);
 	new->id = id;
@@ -253,10 +254,14 @@ int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*)) {
 					//char * ip;
 					//newfd = accept_connection_and_get_ip(fdNuevoNodo, &ip);
 					newfd = accept_connection(fdNuevoNodo);
-					//printf("nueva conexion desde IP: %s\n", ip);
-					FD_SET(newfd, &master); // añadir al conjunto maestro
-					if (newfd > fdmax) { // actualizar el máximo
-						fdmax = newfd;
+					if (newfd < 0) {
+						printf("no acepta mas conexiones\n");
+					} else {
+						//printf("nueva conexion desde IP: %s\n", ip);
+						FD_SET(newfd, &master); // añadir al conjunto maestro
+						if (newfd > fdmax) { // actualizar el máximo
+							fdmax = newfd;
+						}
 					}
 
 				} else { // gestionar datos de un cliente ya conectado
@@ -310,7 +315,7 @@ int server_socket(uint16_t port) {
 
 	/* Listen to incoming connections. */
 	//if (listen(sock_fd, BACK_LOG) < 0) {
-	if (listen(sock_fd, 1) < 0) {
+	if (listen(sock_fd, 127) < 0) {
 		perror("listen");
 		return -4;
 	}
@@ -354,6 +359,7 @@ int accept_connection(int sock_fd) {
 
 	int new_fd = accept(sock_fd, (struct sockaddr *) &clientname,(socklen_t *) &size);
 	if (new_fd < 0) {
+
 		perror("accept");
 		return -1;
 	}
@@ -389,6 +395,9 @@ t_msg *id_message(t_msg_id id) {
 
 	return new;
 }
+
+
+
 
 t_msg *argv_message(t_msg_id id, uint16_t count, ...) {
 	va_list arguments;

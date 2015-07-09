@@ -356,6 +356,8 @@ void procesar (int fd, t_msg*msg){
 			break;
 
 		case MARTA_SALIR:
+			destroy_message(msg);
+
 			FIN = true;
 			break;
 		default:

@@ -394,7 +394,7 @@ int procesar_reduces(){
 	t_msg* msg = NULL;
 	pthread_t th_nuevo_reduce;
 	//me conecto a marta para que cuando haya un nuevo reduce me avise por este socket
-	t_reduce *reduce;
+	//t_reduce *reduce;
 	void _procesar_reduces() {
 		for (;;) {
 			sem_wait(&sem);
@@ -427,8 +427,8 @@ int procesar_reduces(){
 		msg = argv_message(MARTA_SALIR, 0);
 		enviar_mensaje(socket_marta, msg);
 		destroy_message(msg);
-
 		close(socket_marta);
+
 
 	}
 
@@ -477,7 +477,10 @@ int nuevo_hilo_reducer(){
 
 	avisar_marta_termino(socket_marta, REDUCE, reduce->info->id, res);
 
-	if(reduce->final){
+	bool reducefinal = reduce->final;
+	reduce_free(reduce);
+	if(reducefinal){
+
 		printf("Termino el reducefinalllllllllllllllllllllllllllllllllllllllll\n");
 		pthread_mutex_lock(&mutex_log);
 		REDUCE_FINAL = true;
@@ -549,8 +552,7 @@ int nuevo_hilo_mapper(int* map_id_p){
 
 	avisar_marta_termino(socket_marta, MAP, map_id, res_map);
 
-
-
+	map_free_all(map);
 
 	FREE_NULL(map_id_p);
 	return 0;

@@ -252,7 +252,7 @@ int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* fi
 			bytes_escritos = 0;
 			do {
 				//aux = write(pipes[PARENT_WRITE_PIPE][WRITE_FD],	stdinn + bytes_leidos, len_buff_write - aux);
-				aux = write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , keys[index_menor], strlen(keys[index_menor]) - aux);
+				aux = write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , keys[index_menor] + bytes_escritos, strlen(keys[index_menor]) - bytes_escritos);
 				//fprintf(stdout, "bytesEscritos: %d\n", aux);
 				bytes_escritos = bytes_escritos + aux;
 			} while (aux != strlen(keys[index_menor]));
@@ -815,12 +815,13 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			aux = 0;
 			bytes_escritos = 0;
 			do{
-				aux= write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , stdinn + bytes_leidos+aux, len_buff_write - aux);
+				aux= write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , stdinn + bytes_leidos+bytes_escritos, len_buff_write - bytes_escritos);
 				//fprintf(stdout, "bytesEscritos: %d\n", aux);
+
 				bytes_escritos= bytes_escritos + aux;
 			}while(aux!=len_buff_write);
+			fsync(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
 			//fprintf(stdout, "*************total: %d\n", bytes_escritos);
-
 			//pthread_mutex_unlock(&mx_mr);
 /*
 			if (bytes_escritos == -1) {
@@ -850,9 +851,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 
 		fprintf(stdout, "antes del close\n");
-		pthread_mutex_lock(&mx_mr);
 		close(pipes[PARENT_WRITE_PIPE][WRITE_FD] );
-		pthread_mutex_unlock(&mx_mr);
 
 		fprintf(stdout, "despues del close\n");
 

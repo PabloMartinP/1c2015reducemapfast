@@ -719,7 +719,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			//fflush(stdout);
 			if (dup2(pipes[PARENT_READ_PIPE][WRITE_FD], STDOUT_FILENO) < 0) {
 				perror("dup2 STDIN_FILENO");
-				exit(0);
+				exit(-1);
 			}
 
 			close(pipes[PARENT_WRITE_PIPE][READ_FD]);
@@ -863,6 +863,9 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 		}
 		printf("despues del close\n");
 
+		puts("_________antes waittttttttttttttttt");
+		sem_wait(&sem_read);
+		puts("_______despues waittttttttttttttttt");
 
 		return res;
 	}
@@ -911,6 +914,9 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			//fprintf(stdout, "bytes leidos>>>> %d buffer: %s\n", count, buffer);
 			//memset(buffer, 0, LEN_KEYVALUE);
 		}
+		puts("antes __________readddddddddd");
+		sem_post(&sem_read);
+		puts("despues_______readddddddddd");
 
 		if (count == -1) {
 			perror("map readddd");
@@ -974,14 +980,12 @@ int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {
 	char* commando_ordenar = string_new();
 	string_append(&commando_ordenar, "cat ");
 	string_append(&commando_ordenar, file_desordenado);
-	string_append(&commando_ordenar, " | sort > ");
+	string_append(&commando_ordenar, " | /usr/bin/sort > ");
 	string_append(&commando_ordenar, NODO_DIRTEMP());
 	string_append(&commando_ordenar, "/");
 	string_append(&commando_ordenar, destino);
-	pthread_mutex_unlock(&mutex);
-	//printf("%s\n", commando_ordenar);
 
-	pthread_mutex_lock(&mutex);
+	//printf("%s\n", commando_ordenar);
 	log_trace(logger, "Empezando a ordenar archivo: %s", commando_ordenar);
 
 	int rs;

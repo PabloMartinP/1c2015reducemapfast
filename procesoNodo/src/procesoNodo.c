@@ -902,7 +902,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 		//int rs ;
 		while ((count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer,1)) > 0) {
 
-			rs = fwrite(buffer, count, 1, file_disorder);
+			rs = fwrite(buffer, 1, 1, file_disorder);
 			if(rs<=0){
 				perror("_________fwrite");
 				exit(-1);
@@ -984,9 +984,11 @@ int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {
 	pthread_mutex_lock(&mutex);
 	log_trace(logger, "Empezando a ordenar archivo: %s", commando_ordenar);
 
-	if(system(commando_ordenar)<0){
-		perror("______________system");
-	}
+	int rs;
+	rs = system(commando_ordenar);
+	perror("_________--system");
+	printf("resultado:::::::::::::::::::::::::%d\n", rs);
+
 
 	log_trace(logger, "Fin Comando ordenar");
 	pthread_mutex_unlock(&mutex);

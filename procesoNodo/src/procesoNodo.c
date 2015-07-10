@@ -739,7 +739,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 			perror("Errro execv");
 			printf("argv[0]:%s\n", argv[0]);
-			exit(0);
+			exit(-1);
 
 			return 0;
 		} else {
@@ -811,18 +811,22 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 		do {
 			len_buff_write = len_hasta_enter(stdinn + bytes_leidos);
 
-			//pthread_mutex_lock(&mx_mr);
+			pthread_mutex_lock(&mx_mr);
 			aux = 0;
 			bytes_escritos = 0;
 			do{
 				aux= write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , stdinn + bytes_leidos+bytes_escritos, len_buff_write - bytes_escritos);
 				//fprintf(stdout, "bytesEscritos: %d\n", aux);
-
+				if(write<0){
+					printf("_____________write Error\n");
+					perror("write:::::::::::::::::::::::");
+					exit(-1);
+				}
 				bytes_escritos= bytes_escritos + aux;
 			}while(aux!=len_buff_write);
 			fsync(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
 			//fprintf(stdout, "*************total: %d\n", bytes_escritos);
-			//pthread_mutex_unlock(&mx_mr);
+			pthread_mutex_unlock(&mx_mr);
 /*
 			if (bytes_escritos == -1) {
 				perror("writeeeeee");
@@ -851,9 +855,13 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 
 		fprintf(stdout, "antes del close\n");
-		close(pipes[PARENT_WRITE_PIPE][WRITE_FD] );
-
-		fprintf(stdout, "despues del close\n");
+		int rs;
+		rs = close(pipes[PARENT_WRITE_PIPE][WRITE_FD] );
+		if(rs<0){
+			perror("________________________---close");
+			exit(-1);
+		}
+		printf("despues del close\n");
 
 
 		return res;
@@ -861,15 +869,21 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 	pthread_t pth_read;
 	int _read() {
+		int rs;
 		printf("antes sem_wait(sem_read)\n");
-		sem_wait(&sem_read);
+		rs = sem_wait(&sem_read);
+		if(rs<0){
+			perror("sem_waittttttttttt");
+			exit(-1);
+		}
 		printf("Despues (sem_read)\n");
 		char* new_file_map_disorder = convertir_a_temp_path_filename(filename_result);
 		string_append(&new_file_map_disorder, "-disorder.tmp");
 		FILE* file_disorder = txt_open_for_append(new_file_map_disorder);
 		if(file_disorder == NULL){
 			printf("txt_open_for_append(new_file_map_disorder)\n");
-			exit(1);
+			perror("_____________opennn");
+			exit(-1);
 		}
 		char buffer[LEN_KEYVALUE];
 		memset(buffer, 0, LEN_KEYVALUE);
@@ -880,7 +894,12 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 		pthread_mutex_unlock(&mx_mr);
 
 
-		while ((count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer,LEN_KEYVALUE)) > 0) {
+		/*while ((count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer,LEN_KEYVALUE)) > 0) {
+			fwrite(buffer, count, 1, file_disorder);
+			//fprintf(stdout, "bytes leidos>>>> %d buffer: %s\n", count, buffer);
+			memset(buffer, 0, LEN_KEYVALUE);
+		}*/
+		while ((count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer,1)) > 0) {
 			fwrite(buffer, count, 1, file_disorder);
 			//fprintf(stdout, "bytes leidos>>>> %d buffer: %s\n", count, buffer);
 			memset(buffer, 0, LEN_KEYVALUE);

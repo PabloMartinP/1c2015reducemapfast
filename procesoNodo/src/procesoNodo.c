@@ -817,13 +817,13 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			do{
 				aux= write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , stdinn + bytes_leidos+bytes_escritos, len_buff_write - bytes_escritos);
 				//fprintf(stdout, "bytesEscritos: %d\n", aux);
-				if(write<0){
+				if(aux<0){
 					printf("_____________write Error\n");
 					perror("write:::::::::::::::::::::::");
 					exit(-1);
 				}
 				bytes_escritos= bytes_escritos + aux;
-			}while(aux!=len_buff_write);
+			}while(bytes_escritos<len_buff_write);
 			fsync(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
 			//fprintf(stdout, "*************total: %d\n", bytes_escritos);
 			pthread_mutex_unlock(&mx_mr);
@@ -899,14 +899,29 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			//fprintf(stdout, "bytes leidos>>>> %d buffer: %s\n", count, buffer);
 			memset(buffer, 0, LEN_KEYVALUE);
 		}*/
+		//int rs ;
 		while ((count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer,1)) > 0) {
-			fwrite(buffer, count, 1, file_disorder);
+
+			rs = fwrite(buffer, count, 1, file_disorder);
+			if(rs<=0){
+				perror("_________fwrite");
+				exit(-1);
+			}
+
 			//fprintf(stdout, "bytes leidos>>>> %d buffer: %s\n", count, buffer);
-			memset(buffer, 0, LEN_KEYVALUE);
+			//memset(buffer, 0, LEN_KEYVALUE);
 		}
 
+		if (count == -1) {
+			perror("map readddd");
+		}
 		printf("antes close(file_disorder)\n");
-		fclose(file_disorder);
+		rs = fclose(file_disorder);
+		if(rs<0){
+			perror("_______fclose");
+			exit(-1);
+		}
+
 		printf("despues close(file_disorder)\n");
 
 		pthread_mutex_lock(&mx_mr);
@@ -914,9 +929,6 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 		log_trace(logger, "Ordenando archivo %s", new_file_map_disorder);
 		pthread_mutex_unlock(&mx_mr);
 
-		if (count == -1) {
-			perror("map readddd");
-		}
 		ordenar_y_guardar_en_temp(new_file_map_disorder, filename_result);//guardo el file definitivo en el tmp
 		FREE_NULL(new_file_map_disorder);
 		pthread_mutex_lock(&mx_mr);
@@ -939,7 +951,10 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 	pthread_join(pth_read, NULL);
 
 
-	close(pipes[PARENT_READ_PIPE][READ_FD]);
+	rs = close(pipes[PARENT_READ_PIPE][READ_FD]);
+	if(rs<0){
+		perror("____________________closepipe_readread");
+	}
 
 	pthread_mutex_destroy(&mx_mr);
 
@@ -955,6 +970,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 
 int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {
 
+	pthread_mutex_lock(&mutex);
 	char* commando_ordenar = string_new();
 	string_append(&commando_ordenar, "cat ");
 	string_append(&commando_ordenar, file_desordenado);
@@ -962,19 +978,16 @@ int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {
 	string_append(&commando_ordenar, NODO_DIRTEMP());
 	string_append(&commando_ordenar, "/");
 	string_append(&commando_ordenar, destino);
-
+	pthread_mutex_unlock(&mutex);
 	//printf("%s\n", commando_ordenar);
 
 	pthread_mutex_lock(&mutex);
 	log_trace(logger, "Empezando a ordenar archivo: %s", commando_ordenar);
-	pthread_mutex_unlock(&mutex);
 
-	pthread_mutex_lock(&mutex);
-	system(commando_ordenar);
-	pthread_mutex_unlock(&mutex);
+	if(system(commando_ordenar)<0){
+		perror("______________system");
+	}
 
-
-	pthread_mutex_lock(&mutex);
 	log_trace(logger, "Fin Comando ordenar");
 	pthread_mutex_unlock(&mutex);
 	FREE_NULL(commando_ordenar);

@@ -41,14 +41,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define NUM_PIPES          2
-
-#define PARENT_WRITE_PIPE  0
-#define PARENT_READ_PIPE   1
-
-#define READ_FD  0
-#define WRITE_FD 1
-
 //char FILE_CONFIG[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/config.txt";
 //char FILE_LOG[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoNodo/log.txt";
 char FILE_CONFIG[1024] = "config.txt";
@@ -68,7 +60,7 @@ typedef struct {
 bool FIN = false;
 char* _data = NULL;
 t_log* logger = NULL;
-pthread_mutex_t mx_log, mutex, mx_data;
+pthread_mutex_t mutex, mx_data;
 /*
  * declaraciones
  */
@@ -95,6 +87,7 @@ void agregar_cwd(char* file);
 void* atenderProceso_fork(int socket, t_msg* msg);
 sem_t* sem_crear(int* shmid, key_t* shmkey);
 int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino);
+int ordenar_map(char* origen, char* destino, pthread_mutex_t* mutex);;
 int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,
 		char* filename_result);
 
@@ -103,6 +96,7 @@ int aplicar_reduce_local(t_list* files, char*script_reduce,
 char* convertir_a_temp_path_filename(char* filename);
 int thread_aplicar_map(int fd);
 int aplicar_map_final(int n_bloque, char* script_map, char* filename_result);
+int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthread_mutex_t* mutex);
 void incicar_server_sin_select();
 bool requiere_hilo(t_msg* msg);
 void iniciar_server_fork();

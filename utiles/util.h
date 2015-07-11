@@ -34,8 +34,10 @@
 
 #include "commons/collections/list.h"
 #include "commons/string.h"
-
+#include <pthread.h>
 #include <stdbool.h>
+
+#include <wait.h>
 
 #define handle_error(msj) \
 	do{perror(msj);exit(EXIT_FAILURE);} while(0)
@@ -52,6 +54,16 @@
 #define FREE_NULL(p) \
     {free(p); \
     p = NULL;}
+
+#define NUM_PIPES          2
+
+#define PARENT_WRITE_PIPE  0
+#define PARENT_READ_PIPE   1
+
+#define READ_FD  0
+#define WRITE_FD 1
+
+
 
 
 //#define free_null(p) ({free(p);(p)=(NULL);})
@@ -126,6 +138,19 @@ typedef enum {
 /****************** ESTRUCTURAS DE DATOS. ******************/
 
 
+
+
+typedef struct{
+	char *origen;
+	char *destino;
+	pthread_mutex_t* mutex;
+}t_ordenar;
+
+typedef struct {
+	int fd;
+	char* destino;
+}t_reader;
+
 typedef struct{
 	char ip[15];
 	int puerto;
@@ -191,6 +216,13 @@ typedef struct {
 	char *stream;
 	int32_t *argv;
 }__attribute__ ((__packed__)) t_msg;
+
+
+void reader_and_save_as(t_reader* reader);
+int escribir_todo(int writer, char* data, int len);
+
+int ordenar(t_ordenar* param_ordenar);
+int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(int fdreader, int fdwriter), pthread_mutex_t* mutex);
 
 bool file_exists(const char* filename);
 //void free_null(void** data);

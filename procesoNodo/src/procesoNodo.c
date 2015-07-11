@@ -8,7 +8,7 @@ typedef struct {
 	char resultado[255];
 } th_map;
 
-int contador_ftok=0;//para inicializar el semaforo
+int contador_ftok=0;//para inicializar el semaforo(?)
 
 int main(int argc, char *argv[]) {
 	//por param le tiene que llegar el tamaño del archivo data.bin
@@ -569,21 +569,21 @@ int _aplicar_map(void* param) {
 	char* filename_script = generar_nombre_map_tmp();
 	recibir_mensaje_script_y_guardar(fd, filename_script);
 	int rs;
-	pthread_mutex_lock(&mx_log);
+	pthread_mutex_lock(&mutex);
 	log_trace(logger, "Aplicando mapper %s sobre el bloque %d", filename_script, map->archivo_nodo_bloque->numero_bloque);
-	pthread_mutex_unlock(&mx_log);
+	pthread_mutex_unlock(&mutex);
 	///////////////////////////////////////////////////////////////////////
 
 
-	pthread_mutex_lock(&mx_log);
+	pthread_mutex_lock(&mutex);
 	log_trace(logger, "_______________________socket %d", fd);
-	pthread_mutex_unlock(&mx_log);
+	pthread_mutex_unlock(&mutex);
 	rs = aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script,map->info->resultado);
-	pthread_mutex_lock(&mx_log);
+	pthread_mutex_lock(&mutex);
 	log_trace(logger, "Info fin thread: res: %d", rs);
 	log_trace(logger,
 			"*****************************************************************");
-	pthread_mutex_unlock(&mx_log);
+	pthread_mutex_unlock(&mutex);
 
 	char buffer[32];
 	if (recv(fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0) {
@@ -604,10 +604,10 @@ int _aplicar_map(void* param) {
 	destroy_message(msg);
 
 
-	pthread_mutex_lock(&mx_log);
+	pthread_mutex_lock(&mutex);
 	log_trace(logger, "Enviado MAPPER_TERMINO al job");
 	log_trace(logger, "Fin mapper guardado en %s", map->info->resultado);
-	pthread_mutex_unlock(&mx_log);
+	pthread_mutex_unlock(&mutex);
 
 	//close(fd);
 	free(filename_script);
@@ -670,6 +670,139 @@ sem_t* sem_crear(int* shmid, key_t* shmkey){
 	return sem;
 }
 
+int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthread_mutex_t* mutex){
+	int rs;
+	int _reader_writer(int fdreader, int fdwriter) {
+		int _writer(int fd) {
+			int rs = 0;
+			// Write to child’s stdin
+			char* stdinn = getBloque(n_bloque);
+			size_t len = strlen(stdinn);
+			if (stdinn[len - 1] != '\n') {
+				len += 1;
+				stdinn = realloc(stdinn, len);
+				stdinn[len] = '\0';
+				stdinn[len - 1] = '\n';
+			}
+			pthread_mutex_lock(mutex);
+			log_trace(logger, "Escribiendo en stdin bloque %d", n_bloque);
+			pthread_mutex_unlock(mutex);
+
+			size_t bytes_escritos = 0, bytes_leidos = 0, i=0;
+			//inicializo en el primer enter
+			size_t len_buff_write = 0;
+			//size_t len_buff_read = LEN_KEYVALUE;
+
+			do {
+				len_buff_write = len_hasta_enter(stdinn + bytes_leidos);
+				bytes_escritos = escribir_todo(fd, stdinn + bytes_leidos, len_buff_write);
+				if(bytes_escritos<0){
+					rs = -1;
+					break;
+				}
+				/*pthread_mutex_lock(&mx_mr);
+				aux = 0;
+				bytes_escritos = 0;
+				do {
+					aux = write(pipes[PARENT_WRITE_PIPE][WRITE_FD],	stdinn + bytes_leidos + bytes_escritos,	len_buff_write - bytes_escritos);
+					bytes_escritos = bytes_escritos + aux;
+				} while (bytes_escritos < len_buff_write);
+				fsync(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
+				//fprintf(stdout, "*************total: %d\n", bytes_escritos);
+				pthread_mutex_unlock(&mx_mr);*/
+
+				len = len - bytes_escritos;
+				bytes_leidos = bytes_leidos + len_buff_write;
+				//fprintf(stdout, "bytes escritos: %d\n", bytes_escritos);
+				//printf("contador %d bloque %d\n", i, n_bloque);
+				i++;
+
+			} while (len > 0);
+
+			if (rs < 0) {
+				pthread_mutex_lock(mutex);
+				log_trace(logger, "Error al escribir en stdin");
+				pthread_mutex_unlock(mutex);
+				exit(-1);
+				//return -1;
+			}
+
+			pthread_mutex_lock(mutex);
+			log_trace(logger, "Fin escritura stdin bloque %d", n_bloque);
+			pthread_mutex_unlock(mutex);
+			FREE_NULL(stdinn);
+
+
+			printf("antes del close\n");
+			//rs = close(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
+			rs = close(fd);
+			if (rs < 0) {
+				perror("________________________---close");
+				exit(-1);
+				//return -1;
+			}
+			printf("despues del close\n");
+
+			/*FILE* file = fopen(param_ordenar->origen, "r");
+			char* linea = NULL;
+			linea = malloc(LEN_KEYVALUE);
+			size_t len_linea = LEN_KEYVALUE;
+			int rs;
+			while ((rs = getline(&linea, &len_linea, file)) > 0) {
+				escribir_todo(fd, linea, strlen(linea));
+			}
+			free(linea);
+			fclose(file);
+			close(fd);*/
+			return 0;
+		}
+
+		//lanzo hilo writer stdin;
+		pthread_t th_writer, th_reader;
+		pthread_create(&th_writer, NULL, (void*) _writer, (void*) fdwriter);
+
+		t_reader treader;
+		treader.fd = fdreader;
+		char* new_file_map_disorder = convertir_a_temp_path_filename(filename_result);
+		string_append(&new_file_map_disorder, "-disorder.tmp");
+		treader.destino = new_file_map_disorder ;
+
+		pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*) &treader);
+
+		//lockeo hasta que termine de escribir y leer el stdin y stdout
+		pthread_join(th_writer, NULL);
+		pthread_join(th_reader, NULL);
+
+		//hasta aca ya tengo el map del archivo
+		//me falta ordenarlo
+
+
+		pthread_mutex_lock(mutex);
+		log_trace(logger, "Fin lectura stdout, guardado en archivo %s",	new_file_map_disorder);
+		log_trace(logger, "Ordenando archivo %s", new_file_map_disorder);
+		pthread_mutex_unlock(mutex);
+
+		char* result_order = string_from_format("%s/%s", NODO_DIRTEMP(), filename_result);
+		ordenar_map(new_file_map_disorder, result_order, mutex);
+		FREE_NULL(result_order);
+
+		pthread_mutex_lock(mutex);
+		log_trace(logger, "Fin orden, generado archivo final > %s",	filename_result);
+		pthread_mutex_unlock(mutex);
+
+		puts("map Fin hilo lectura stdout\n");
+
+		FREE_NULL(new_file_map_disorder);
+
+		return 0;
+	}
+	char* nombre_proc = string_from_format("map-on-block:%d", n_bloque);
+	rs = ejecutar_script(script_map, nombre_proc, _reader_writer, mutex);
+	FREE_NULL(nombre_proc);
+	//rs = ejecutar_script("/home/utnso/Escritorio/tests/mapper.sh", "mapperR", _reader_writer);
+
+	return rs;
+}
 
 int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 	key_t shmkey; /*      shared memory key       */
@@ -726,11 +859,6 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 			close(pipes[PARENT_READ_PIPE][WRITE_FD]);
 			close(pipes[PARENT_READ_PIPE][READ_FD]);
 			close(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
-			//close(CHILD_READ_FD);
-			//close(CHILD_WRITE_FD);
-			//close(PARENT_READ_FD);
-			//close(PARENT_WRITE_FD);
-
 
 			/*pthread_mutex_unlock(&mutex);
 			pthread_mutex_destroy(&mutex);*/
@@ -974,13 +1102,33 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 	return rs;
 }
 
+int ordenar_map(char* origen, char* destino, pthread_mutex_t* mutex){
+	t_ordenar* p_ordenar;
+	p_ordenar = malloc(sizeof(t_ordenar));
+	p_ordenar->origen = origen;
+	p_ordenar->destino =destino;
+	p_ordenar->mutex = mutex;
+	pthread_t th_ordenar;
+	pthread_create(&th_ordenar, NULL, (void*)ordenar, (void*)p_ordenar);
+	pthread_join(th_ordenar, NULL);
+
+	pthread_mutex_lock(mutex);
+	log_trace(logger, "Fin ordenar %s, res: %s", origen, destino);
+	pthread_mutex_unlock(mutex);
+
+	return 0;
+}
+
 int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {
 
 	pthread_mutex_lock(&mutex);
 	char* commando_ordenar = string_new();
-	string_append(&commando_ordenar, "cat ");
+	/*string_append(&commando_ordenar, "cat ");
 	string_append(&commando_ordenar, file_desordenado);
-	string_append(&commando_ordenar, " | /usr/bin/sort > ");
+	string_append(&commando_ordenar, " | /usr/bin/sort > ");*/
+	string_append(&commando_ordenar, "/usr/bin/sort ");
+	string_append(&commando_ordenar, file_desordenado);
+	string_append(&commando_ordenar, " > ");
 	string_append(&commando_ordenar, NODO_DIRTEMP());
 	string_append(&commando_ordenar, "/");
 	string_append(&commando_ordenar, destino);
@@ -1112,9 +1260,9 @@ int aplicar_reduce(t_reduce* reduce, char* script) {
 	aplicar_reduce_local_red(files_to_reduce, script, reduce->info->resultado);
 
 
-	pthread_mutex_lock(&mx_log);
+	pthread_mutex_lock(&mutex);
 	log_trace(logger, "Guardado en %s\n", reduce->info->resultado);
-	pthread_mutex_unlock(&mx_log);
+	pthread_mutex_unlock(&mutex);
 
 	list_destroy_and_destroy_elements(files_to_reduce, free);
 
@@ -1132,10 +1280,10 @@ int procesar_mensaje(int fd, t_msg* msg) {
 	switch (msg->header.id) {
 	case JOB_REDUCER:
 		destroy_message(msg);
-		pthread_mutex_lock(&mx_log);
+		pthread_mutex_lock(&mutex);
 		log_trace(logger, "******************************************************");
 		log_trace(logger, "Recibido nuevo reducer");
-		pthread_mutex_unlock(&mx_log);
+		pthread_mutex_unlock(&mutex);
 		//recibo el reduce que me envio
 		reduce = NULL;
 		reduce = recibir_mensaje_reduce(fd);
@@ -1143,15 +1291,15 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		recibir_mensaje_script_y_guardar(fd, filename_script);
 
 		///////////////////////////////////////////////
-		pthread_mutex_lock(&mx_log);
+		pthread_mutex_lock(&mutex);
 		log_trace(logger, "Aplicando reducer %s sobre %d archivos",	filename_script, list_size(reduce->nodos_archivo));
-		pthread_mutex_unlock(&mx_log);
+		pthread_mutex_unlock(&mutex);
 
 		aplicar_reduce(reduce, filename_script);
 
-		pthread_mutex_lock(&mx_log);
+		pthread_mutex_lock(&mutex);
 		log_trace(logger, "Fin reducer guardado en %s",	reduce->info->resultado);
-		pthread_mutex_unlock(&mx_log);
+		pthread_mutex_unlock(&mutex);
 		remove(filename_script);
 		free(filename_script);
 
@@ -1168,10 +1316,10 @@ int procesar_mensaje(int fd, t_msg* msg) {
 	case JOB_MAPPER:
 
 		destroy_message(msg);
-		pthread_mutex_lock(&mx_log);
+		pthread_mutex_lock(&mutex);
 		log_trace(logger, "******************************************************");
 
-		pthread_mutex_unlock(&mx_log);
+		pthread_mutex_unlock(&mutex);
 		//recibo el map que me envio
 		map = NULL;
 		map = recibir_mensaje_map(fd);
@@ -1179,19 +1327,21 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		filename_script = generar_nombre_map_tmp(map->info);
 		recibir_mensaje_script_y_guardar(fd, filename_script);
 		///////////////////////////////////////////////////////////////////////
-		pthread_mutex_lock(&mx_log);
+		pthread_mutex_lock(&mutex);
 		log_trace(logger, "Aplicando mapper %s sobre el bloque %d sock %d",	filename_script, map->archivo_nodo_bloque->numero_bloque, fd);
-		pthread_mutex_unlock(&mx_log);
+		pthread_mutex_unlock(&mutex);
 
 		//pthread_mutex_lock(&mx_mr);
-		rs = aplicar_map_final(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
+		//rs = aplicar_map_final(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
+		rs = aplicar_map_ok(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado, &mutex);
+
 		if(rs<0)
 			printf("errrrrrrrrrrrrrrror map %d\n", map->archivo_nodo_bloque->numero_bloque);
 		//pthread_mutex_unlock(&mx_mr);
 
-		pthread_mutex_lock(&mx_log);
+		pthread_mutex_lock(&mutex);
 		log_trace(logger, "Fin mapper %d sock %d guardado en %s", map->info->id, fd, map->info->resultado);
-		pthread_mutex_unlock(&mx_log);
+		pthread_mutex_unlock(&mutex);
 		remove(filename_script);
 		free(filename_script);
 
@@ -1212,9 +1362,9 @@ int procesar_mensaje(int fd, t_msg* msg) {
 
 		rs = enviar_mensaje(fd, msg);
 		printf("Termino map %d sock %d\n", map->info->id, fd);
-		pthread_mutex_lock(&mx_log);
+		pthread_mutex_lock(&mutex);
 		log_trace(logger, "Enviado MAPPER_TERMINO id %d al job sock %d", map->info->id, fd);
-		pthread_mutex_unlock(&mx_log);
+		pthread_mutex_unlock(&mutex);
 		destroy_message(msg);
 
 		//recibir_mensaje_nodo_ok(fd);
@@ -1359,12 +1509,12 @@ void* atenderProceso_fork(int fd, t_msg* msg){
 	}
 
 
-	//pthread_mutex_lock(&mx_log);
+	//pthread_mutex_lock(&mutex);
 	int rs = procesar_mensaje(fd, msg);
 	if(rs != 0){
 		printf("ERRRRRRORRRRRRRRRR\n");
 	}
-	//pthread_mutex_unlock(&mx_log);
+	//pthread_mutex_unlock(&mutex);
 	printf("Fin fork sock %d\n", fd);
 	close(fd);
 
@@ -1443,12 +1593,12 @@ void* atenderProceso(t_socket_msg* smsg){
 
 	printf("NuevoThread sock %d\n", fd);
 
-	//pthread_mutex_lock(&mx_log);
+	//pthread_mutex_lock(&mutex);
 	int rs = procesar_mensaje(fd, smsg->msg);
 	if(rs != 0){
 		printf("ERRRRRRORRRRRRRRRR\n");
 	}
-	//pthread_mutex_unlock(&mx_log);
+	//pthread_mutex_unlock(&mutex);
 	printf("FinThread sock %d\n", fd);
 	close(fd);
 	FREE_NULL(smsg);
@@ -1536,7 +1686,7 @@ void inicializar() {
 	 free(f);
 	 */
 
-	pthread_mutex_init(&mx_log, NULL);
+	pthread_mutex_init(&mutex, NULL);
 
 	pthread_mutex_init(&mutex, NULL);
 	pthread_mutex_init(&mx_data, NULL);
@@ -1584,9 +1734,9 @@ void setBloque(int32_t numero, char* bloquedatos) {
  * devuelve una copia del bloque, hacer free
  */
 char* getBloque(int32_t numero) {
-	pthread_mutex_lock(&mx_log);
+	pthread_mutex_lock(&mutex);
 	log_info(logger, "Ini getBloque(%d)", numero);
-	pthread_mutex_unlock(&mx_log);
+	pthread_mutex_unlock(&mutex);
 	char* bloque = NULL;
 	bloque = malloc(TAMANIO_BLOQUE_B);
 
@@ -1596,15 +1746,15 @@ char* getBloque(int32_t numero) {
 		exit(1);
 	}
 	pthread_mutex_lock(&mx_data);
-	//pthread_mutex_lock(&mx_log);
+	//pthread_mutex_lock(&mutex);
 	memcpy(bloque, &(_data[numero * TAMANIO_BLOQUE_B]), TAMANIO_BLOQUE_B);
 	//pthread_mutex_unlock(&mutex);
 	pthread_mutex_unlock(&mx_data);
 
 	//memcpy(bloque, _bloques[numero], TAMANIO_BLOQUE);
-	pthread_mutex_lock(&mx_log);
+	pthread_mutex_lock(&mutex);
 	log_info(logger, "Fin getBloque(%d)", numero);
-	pthread_mutex_unlock(&mx_log);
+	pthread_mutex_unlock(&mutex);
 	return bloque;
 }
 

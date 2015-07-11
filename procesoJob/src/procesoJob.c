@@ -34,12 +34,12 @@ int main(int argc, char *argv[]) {
 	/* cleanup semaphores */
 	sem_destroy (&sem);
 
-	//desconecto al nodo
+	/*//desconecto al nodo
 	int socket = client_socket("192.168.1.39", 6001);
 	t_msg* msg = argv_message(123, 0);
 	enviar_mensaje(socket, msg);
 	destroy_message(msg);
-	close(socket);
+	close(socket);*/
 
 	//finalizo el programa para que no intente conectar con el nodo
 	log_destroy(logger);

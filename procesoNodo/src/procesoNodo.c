@@ -45,15 +45,12 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			t_list* red_files;	// = list_create();
 
 			//creo ambas listas
-			local_files_reduce = list_filter(files_reduces,
-					(void*) file_reduce_es_local);
-			red_files = list_filter(files_reduces,
-					(void*) file_reduce_es_de_red);
+			local_files_reduce = list_filter(files_reduces,	(void*) file_reduce_es_local);
+			red_files = list_filter(files_reduces, (void*) file_reduce_es_de_red);
 
 			//cargo la lista local_files solo con los path absolutos
 			void _convertir_a_absoluto(t_files_reduce* fr) {
-				list_add(local_files,
-						convertir_a_temp_path_filename(fr->archivo));
+				list_add(local_files, convertir_a_temp_path_filename(fr->archivo));
 			}
 			list_iterate(local_files_reduce, (void*) _convertir_a_absoluto);
 
@@ -66,26 +63,58 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			FILE** fdlocal = malloc(cant_local_files * sizeof(FILE*));
 			//abro los archivos locales
 			int i = 0;
+			rs =0;
 			void _open_file(char* filename) {
 				fdlocal[i] = fopen(filename, "r");
 				if (fdlocal[i] == NULL) {
-					printf("ERRROR fopen r");
-					exit(1);
+					perror("ERRROR fopen r");
+					//exit(1);
+					rs = -1;
 				}
 				i++;
 			}
 			list_iterate(local_files, (void*) _open_file);
 
+			//limpio
+			list_destroy_and_destroy_elements(local_files, (void*) free);
+			list_destroy(local_files_reduce);
+
+			if(rs!=0){
+				printf("Error al abrir archivos a reducir\n");
+				//cierro stdin
+				close(fd);
+				return -1;
+			}
+			//////////////////////////////////////////////////////////////////
+			//////////////////////////////////////////////////////////////////
+
 			//hasta aca tengo los archivos locales abiertos, listos para empezar a leer
 			//ahora tengo que decirle a los nodos que stan en red que me devuelvan su archivo para empezara leer
 			int* fdred = malloc(cant_red_files * sizeof(int));
+			//inicializo tod0" en -1, para despues limpiar completo
+			for (i = 0; i < cant_red_files; i++)
+					fdred[i]  = -1;
+
+			t_msg* msg = NULL;
 			i = 0;
+			rs=0;
+			pthread_mutex_lock(mutex);
+			log_trace(logger, "trayendo archivos tmps a reducir");
+			pthread_mutex_unlock(mutex);
 			void _request_file_to_nodo(t_files_reduce* fr) {
 				fdred[i] = client_socket(fr->ip, fr->puerto);
-				t_msg* msg = string_message(NODO_GET_FILECONTENT_DATA,
-						fr->archivo, 0);
+				if(fdred[i]<0){
+					//marco como error
+					rs = -1;
+					return;
+				}
+				msg = string_message(NODO_GET_FILECONTENT_DATA, fr->archivo, 0);
 				//envio el mensaje al nodo pidiendole el archivo
-				enviar_mensaje(fdred[i], msg);
+				if( (enviar_mensaje(fdred[i], msg))<0 ){
+					rs = -1;
+					destroy_message(msg);
+					return;
+				}
 				destroy_message(msg);
 				i++;
 			}
@@ -96,11 +125,28 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 
 			//limpio las listas que ya no las voy a usar
 			//list_destroy(local_files);
-			list_destroy_and_destroy_elements(local_files, (void*) free);
 			list_destroy(red_files);
-			list_destroy(local_files_reduce);
 
-			int bytes_escritos; //para el do write
+			if (rs != 0) {
+				pthread_mutex_lock(mutex);
+				log_trace(logger, "Error al traer archivos de red");
+				pthread_mutex_unlock(mutex);
+				//cierro las conexiones con lso nodos
+				for (i = 0; i < cant_red_files; i++){
+					if(fdred[i]>0)
+						close(fdred[i]);
+				}
+				//borro fdred
+				FREE_NULL(fdred);
+
+				return -1;
+			}
+			pthread_mutex_lock(mutex);
+			log_trace(logger, "Todos los archivos se trajeron OK");
+			pthread_mutex_unlock(mutex);
+			////////////////////////////////////////////////////////////////////////////////////////
+			////////////////////////////////////////////////////////////////////////////////////////
+
 			int index_menor; //para guardar el menor item
 			//creo una lista de key para guardar las key de cada file
 			size_t len_key = LEN_KEYVALUE;
@@ -138,20 +184,6 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				//fprintf(stdout, "%s\n", keys[index_menor]);
 
 				rs = escribir_todo(fd, keys[index_menor], strlen(keys[index_menor]));
-				/*pthread_mutex_lock(&mx_mr);
-				aux = 0;
-				bytes_escritos = 0;
-				do {
-					//aux = write(pipes[PARENT_WRITE_PIPE][WRITE_FD],	stdinn + bytes_leidos, len_buff_write - aux);
-					aux = write(pipes[PARENT_WRITE_PIPE][WRITE_FD],
-							keys[index_menor] + bytes_escritos,
-							strlen(keys[index_menor]) - bytes_escritos);
-					//fprintf(stdout, "bytesEscritos: %d\n", aux);
-					bytes_escritos = bytes_escritos + aux;
-				} while (aux != strlen(keys[index_menor]));
-				//fprintf(stdout, "*************total: %d\n", bytes_escritos);
-				rs = bytes_escritos;
-				pthread_mutex_unlock(&mx_mr);*/
 
 				//fprintf(stdout, "res write. %d\n", rs);
 				//fprintf(stdout, "strlen: %d\n", strlen(keys[index_menor]));
@@ -208,7 +240,6 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 
 			FREE_NULL(keys);
 
-
 			return 0;
 
 		}//fin writer
@@ -225,9 +256,18 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 
 		pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*) &treader);
 
+		int rsw=1, rsr=1;
 		//lockeo hasta que termine de escribir y leer el stdin y stdout
-		pthread_join(th_writer, NULL);
-		pthread_join(th_reader, NULL);
+		pthread_join(th_writer, (void*)&rsw);
+		pthread_join(th_reader, (void*)&rsr);
+
+		if(rsw!=0 || rsr!=0){
+			pthread_mutex_lock(mutex);
+			log_trace(logger, "Error al hacer reduce");
+			pthread_mutex_unlock(mutex);
+			FREE_NULL(result_reduce);
+			return -1;
+		}
 
 		//hasta aca ya tengo el map del archivo
 		//me falta ordenarlo
@@ -242,7 +282,6 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 		return 0;
 	}
 	rs = ejecutar_script(script_reduce, "reduce_", _reader_writer, mutex);
-
 	return rs;
 }
 
@@ -936,8 +975,10 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 				pthread_mutex_lock(mutex);
 				log_trace(logger, "Error al escribir en stdin");
 				pthread_mutex_unlock(mutex);
-				exit(-1);
-				//return -1;
+				//exit(-1);
+
+				close(fd);
+				return -1;
 			}
 
 			pthread_mutex_lock(mutex);
@@ -945,28 +986,8 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 			pthread_mutex_unlock(mutex);
 			FREE_NULL(stdinn);
 
+			close(fd);
 
-			printf("antes del close\n");
-			//rs = close(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
-			rs = close(fd);
-			if (rs < 0) {
-				perror("________________________---close");
-				exit(-1);
-				//return -1;
-			}
-			printf("despues del close\n");
-
-			/*FILE* file = fopen(param_ordenar->origen, "r");
-			char* linea = NULL;
-			linea = malloc(LEN_KEYVALUE);
-			size_t len_linea = LEN_KEYVALUE;
-			int rs;
-			while ((rs = getline(&linea, &len_linea, file)) > 0) {
-				escribir_todo(fd, linea, strlen(linea));
-			}
-			free(linea);
-			fclose(file);
-			close(fd);*/
 			return 0;
 		}
 
@@ -983,8 +1004,13 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 		pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*) &treader);
 
 		//lockeo hasta que termine de escribir y leer el stdin y stdout
-		pthread_join(th_writer, NULL);
-		pthread_join(th_reader, NULL);
+		int rswriter=1, rsreader=1;
+		pthread_join(th_writer, (void*)&rswriter);
+		pthread_join(th_reader, (void*)&rsreader);
+
+		if(rswriter!=0 && rsreader!=0){
+			return -1;
+		}
 
 		//hasta aca ya tengo el map del archivo
 		//me falta ordenarlo
@@ -996,7 +1022,7 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 		pthread_mutex_unlock(mutex);
 
 		char* result_order = string_from_format("%s/%s", NODO_DIRTEMP(), filename_result);
-		ordenar_map(new_file_map_disorder, result_order, mutex);
+		rs = ordenar_map(new_file_map_disorder, result_order, mutex);
 		FREE_NULL(result_order);
 
 		pthread_mutex_lock(mutex);
@@ -1317,6 +1343,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 }
 
 int ordenar_map(char* origen, char* destino, pthread_mutex_t* mutex){
+	int rs=1;
 	t_ordenar* p_ordenar;
 	p_ordenar = malloc(sizeof(t_ordenar));
 	p_ordenar->origen = origen;
@@ -1324,13 +1351,13 @@ int ordenar_map(char* origen, char* destino, pthread_mutex_t* mutex){
 	p_ordenar->mutex = mutex;
 	pthread_t th_ordenar;
 	pthread_create(&th_ordenar, NULL, (void*)ordenar, (void*)p_ordenar);
-	pthread_join(th_ordenar, NULL);
+	pthread_join(th_ordenar, (void*)&rs);
 
 	pthread_mutex_lock(mutex);
 	log_trace(logger, "Fin ordenar %s, res: %s", origen, destino);
 	pthread_mutex_unlock(mutex);
 
-	return 0;
+	return rs;
 }
 
 int ordenar_y_guardar_en_temp(char* file_desordenado, char* destino) {

@@ -43,7 +43,7 @@
 	do{perror(msj);exit(EXIT_FAILURE);} while(0)
 
 #define MB_EN_B  1024*1024//1mb
-#define LEN_KEYVALUE 4096 //longitud de la key de map o reduce
+#define LEN_KEYVALUE MB_EN_B //longitud de la key de map o reduce
 
 #define PATH_MAX_LEN 1024 //size maximo de un path
 
@@ -218,7 +218,7 @@ typedef struct {
 }__attribute__ ((__packed__)) t_msg;
 
 
-void reader_and_save_as(t_reader* reader);
+int reader_and_save_as(t_reader* reader);
 int escribir_todo(int writer, char* data, int len);
 
 int ordenar(t_ordenar* param_ordenar);

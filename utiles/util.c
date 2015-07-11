@@ -24,13 +24,16 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 	pid_t  pid;
 	pid = fork();
 	pthread_mutex_unlock(mutex);
-	if (pid  < 0)
-		handle_error("fork pipe stdin stdout");
+	if (pid  < 0){
+		//handle_error("fork pipe stdin stdout");
+		perror("fork!!!!!!!!!!!");
+		return -1;
+	}
 
 	if (pid == 0) {
 		if (dup2(pipes[PARENT_WRITE_PIPE][READ_FD], STDIN_FILENO) < 0) {
 			perror("dup2 STDIN_FILENO");
-			exit(0);
+			exit(-1);
 		}
 		if (dup2(pipes[PARENT_READ_PIPE][WRITE_FD], STDOUT_FILENO) < 0) {
 			perror("dup2 STDIN_FILENO");
@@ -53,8 +56,8 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 
 		int rs;
 		rs = reader_writer(pipes[PARENT_READ_PIPE][READ_FD], pipes[PARENT_WRITE_PIPE][WRITE_FD]);
-		 int status;
-		 waitpid(pid, &status, 0);
+		int status;
+		waitpid(pid, &status, 0);
 
 		puts("listo");
 		return rs;
@@ -67,24 +70,30 @@ int ordenar(t_ordenar* param_ordenar){
 
 	int _reader_writer(int fdreader, int fdwriter){
 
-		void _writer(int fd) {
+		int _writer(int fd) {
 
 			FILE* file = fopen(param_ordenar->origen , "r");
 			if(file==NULL){
-				handle_error("fopen");
+				perror("fopen");
+				close(fd);
+				return -1;
 			}
 			char* linea = NULL;
 			linea = malloc(LEN_KEYVALUE);
 			size_t len_linea = LEN_KEYVALUE;
 			int rs;
 			while ((rs = getline(&linea, &len_linea, file)) > 0) {
-				escribir_todo(fd, linea, strlen(linea));
+				rs = escribir_todo(fd, linea, strlen(linea));
+				if(rs<0){
+					break;
+				}
 				//write(pipes[PARENT_WRITE_PIPE][WRITE_FD], linea, strlen(linea));
 				//(pipes[PARENT_WRITE_PIPE][WRITE_FD], linea, strlen(linea));
 			}
 			free(linea);
 			fclose(file);
 			close(fd);
+			return rs;
 		}
 
 		pthread_t th_writer, th_reader;
@@ -96,8 +105,10 @@ int ordenar(t_ordenar* param_ordenar){
 
 		pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*)&treader);
 
-		pthread_join(th_writer, NULL);
-		pthread_join(th_reader, NULL);
+		int rswriter=1, rsreader=1;
+		pthread_join(th_writer, (void*)&rswriter);
+
+		pthread_join(th_reader, (void*)&rsreader);
 
 		//pthread_mutex_lock(param_ordenar->mutex);
 		printf("Fin orden resultado: %s\n", treader.destino);
@@ -105,6 +116,10 @@ int ordenar(t_ordenar* param_ordenar){
 		//free(param_ordenar->destino);
 		//free(param_ordenar->origen);
 		//free(param_ordenar);
+		if(rswriter<0)
+			return -1;//fallo writer
+		if(rsreader<0)
+			return -2;//fallo reader;
 		return 0;
 	}
 
@@ -116,26 +131,32 @@ int ordenar(t_ordenar* param_ordenar){
 
 
 
-void reader_and_save_as(t_reader* reader) {
-			int count, rs;
-			FILE* file = fopen(reader->destino, "w");
-			if(file==NULL){
-				handle_error("fopen");
-			}
-			char buffer[LEN_KEYVALUE];
-			while ((count = read(reader->fd, buffer, LEN_KEYVALUE)) > 0) {
-				rs = fwrite(buffer, 1, count, file);
-				if (rs <= 0) {
-					perror("_________fwrite");
-					exit(-1);
-				}
-			}
-			if(count<0){
-				handle_error("read");
-			}
-			fclose(file);
-			close(reader->fd);
+int reader_and_save_as(t_reader* reader) {
+	int count, rs;
+	FILE* file = fopen(reader->destino, "w");
+	if (file == NULL) {
+		perror("fopen reader_and_save_as");
+		close(reader->fd);
+		return -1;
+	}
+	char buffer[LEN_KEYVALUE];
+	while ((count = read(reader->fd, buffer, LEN_KEYVALUE)) > 0) {
+		rs = fwrite(buffer, 1, count, file);
+		if (rs <= 0) {
+			perror("_________fwrite reader_and_save_as");
+			//exit(-1);
+			return -1;
 		}
+	}
+	if (count < 0) {
+		perror("read reader_and_save_as");
+		close(reader->fd);
+		return -1;
+	}
+	fclose(file);
+	close(reader->fd);
+	return 0;
+}
 
 int escribir_todo(int writer, char* data, int len){
 	int aux = 0;

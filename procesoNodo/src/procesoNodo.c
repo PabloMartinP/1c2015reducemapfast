@@ -33,6 +33,219 @@ int main(int argc, char *argv[]) {
 	return EXIT_SUCCESS;
 }
 
+int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_result, pthread_mutex_t* mutex) {
+
+	int rs;
+	int _reader_writer(int fdreader, int fdwriter) {
+		int _writer(int fd) {
+			int rs;
+			int cant_red_files, cant_total_files, cant_local_files;
+			t_list* local_files = list_create();//tmp para guardar los fr locales
+			t_list* local_files_reduce;	// = list_create();	//lista que solo tiene los nombres de los archivos temp
+			t_list* red_files;	// = list_create();
+
+			//creo ambas listas
+			local_files_reduce = list_filter(files_reduces,
+					(void*) file_reduce_es_local);
+			red_files = list_filter(files_reduces,
+					(void*) file_reduce_es_de_red);
+
+			//cargo la lista local_files solo con los path absolutos
+			void _convertir_a_absoluto(t_files_reduce* fr) {
+				list_add(local_files,
+						convertir_a_temp_path_filename(fr->archivo));
+			}
+			list_iterate(local_files_reduce, (void*) _convertir_a_absoluto);
+
+			cant_total_files = list_size(files_reduces);
+			//leo la cantidad de cada lista
+			cant_red_files = list_size(red_files);
+			cant_local_files = list_size(local_files);
+
+			//creo un descriptor de archivo por cada file local
+			FILE** fdlocal = malloc(cant_local_files * sizeof(FILE*));
+			//abro los archivos locales
+			int i = 0;
+			void _open_file(char* filename) {
+				fdlocal[i] = fopen(filename, "r");
+				if (fdlocal[i] == NULL) {
+					printf("ERRROR fopen r");
+					exit(1);
+				}
+				i++;
+			}
+			list_iterate(local_files, (void*) _open_file);
+
+			//hasta aca tengo los archivos locales abiertos, listos para empezar a leer
+			//ahora tengo que decirle a los nodos que stan en red que me devuelvan su archivo para empezara leer
+			int* fdred = malloc(cant_red_files * sizeof(int));
+			i = 0;
+			void _request_file_to_nodo(t_files_reduce* fr) {
+				fdred[i] = client_socket(fr->ip, fr->puerto);
+				t_msg* msg = string_message(NODO_GET_FILECONTENT_DATA,
+						fr->archivo, 0);
+				//envio el mensaje al nodo pidiendole el archivo
+				enviar_mensaje(fdred[i], msg);
+				destroy_message(msg);
+				i++;
+			}
+			list_iterate(red_files, (void*) _request_file_to_nodo);
+
+			//hasta aca ya le pedi a todos los nodos que me devuelvan el archivo, estan esperando que los lea
+			//ahora me queda leer tanto los fdlocal como los fdred
+
+			//limpio las listas que ya no las voy a usar
+			//list_destroy(local_files);
+			list_destroy_and_destroy_elements(local_files, (void*) free);
+			list_destroy(red_files);
+			list_destroy(local_files_reduce);
+
+			int bytes_escritos; //para el do write
+			int index_menor; //para guardar el menor item
+			//creo una lista de key para guardar las key de cada file
+			size_t len_key = LEN_KEYVALUE;
+			char* key = NULL;
+			char** keys = malloc(sizeof(char*) * (cant_total_files));
+
+			i = 0;
+			//cargo las keys de los archivos locales, con su primer valor
+			for (i = 0; i < cant_local_files; i++) {
+				//rs = getline(&(keys[i]), &len_key, fd[i]);
+				key = malloc(LEN_KEYVALUE);
+				len_key = LEN_KEYVALUE;
+				rs = getline(&key, &len_key, fdlocal[i]);
+				if (rs != -1) {
+					//key[rs] = '\0';
+					keys[i] = key;
+				}
+			}
+			//ahora me queda cargar las key que falta, que son las que estan en fdred
+			//el i empieza donde quedo el anterior
+			int j = 0;
+			for (j = 0; i < cant_total_files; j++, i++) {
+				keys[i] = recibir_linea(fdred[j]);
+				//rs = getline(&(keys[i]), &len_key, fdlocal[i]);
+			}
+			//aca ya tengo todas las keys
+
+			//empiezo a insertar en stdin
+			i = 0;
+			int c = 0;
+			while (alguna_key_distinta_null(keys, cant_total_files)) {
+				//obtengo cual es el menor
+				index_menor = get_index_menor(keys, cant_total_files);
+				//el menor lo mando a stdinn (keys[i])
+				//fprintf(stdout, "%s\n", keys[index_menor]);
+
+				rs = escribir_todo(fd, keys[index_menor], strlen(keys[index_menor]));
+				/*pthread_mutex_lock(&mx_mr);
+				aux = 0;
+				bytes_escritos = 0;
+				do {
+					//aux = write(pipes[PARENT_WRITE_PIPE][WRITE_FD],	stdinn + bytes_leidos, len_buff_write - aux);
+					aux = write(pipes[PARENT_WRITE_PIPE][WRITE_FD],
+							keys[index_menor] + bytes_escritos,
+							strlen(keys[index_menor]) - bytes_escritos);
+					//fprintf(stdout, "bytesEscritos: %d\n", aux);
+					bytes_escritos = bytes_escritos + aux;
+				} while (aux != strlen(keys[index_menor]));
+				//fprintf(stdout, "*************total: %d\n", bytes_escritos);
+				rs = bytes_escritos;
+				pthread_mutex_unlock(&mx_mr);*/
+
+				//fprintf(stdout, "res write. %d\n", rs);
+				//fprintf(stdout, "strlen: %d\n", strlen(keys[index_menor]));
+
+				//leo el siguiente elmento del fdlocal[index_menor]
+				len_key = LEN_KEYVALUE;
+				if (index_menor < cant_local_files) {
+					rs = getline(&(keys[index_menor]), &len_key, fdlocal[index_menor]);
+					//si es igual a -1, termino el file, marco como null la key para que la ignore cuando obtiene el menor
+					if (rs == -1) {
+						FREE_NULL(keys[index_menor]);
+						keys[index_menor] = NULL;
+					}
+				} else {
+					FREE_NULL(keys[index_menor]);
+					keys[index_menor] = recibir_linea( fdred[cant_local_files - index_menor]);
+				}
+
+				//cuando termina devuelve NULL;
+				if (i > 1024) {
+					i = 0;
+					if (c % 100 == 0)
+						fprintf(stdout, "Contador %d\n", c);
+
+					c++;
+				}
+				i++;
+			}
+
+			pthread_mutex_lock(mutex);
+			log_trace(logger, "Termino de enviarle datos por stdin.------------------");
+			pthread_mutex_unlock(mutex);
+
+			//si llego hasta aca termino de enviarle cosas por stdin,
+			//cierro el stdin
+			puts("antes de cerrar");
+			close(fd);
+
+			//cierro los archivos locales
+			for (i = 0; i < cant_local_files; i++) {
+				fclose(fdlocal[i]);
+				//free(fdlocal[i]);
+			}
+			//borro fdlocal
+			//free(fdlocal);
+			FREE_NULL(fdlocal);
+
+			//cierro las conexiones con lso nodos
+			for (i = 0; i < cant_red_files; i++)
+				close(fdred[i]);
+			//borro fdred
+			//free(fdred);
+			FREE_NULL(fdred);
+
+			FREE_NULL(keys);
+
+
+			return 0;
+
+		}//fin writer
+
+		//lanzo hilo writer stdin;
+		pthread_t th_writer, th_reader;
+		pthread_create(&th_writer, NULL, (void*) _writer, (void*) fdwriter);
+
+		//creo y lanzo el hilo reader
+		t_reader treader;
+		treader.fd = fdreader;
+		char* result_reduce = convertir_a_temp_path_filename( filename_result);
+		treader.destino = result_reduce;
+
+		pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*) &treader);
+
+		//lockeo hasta que termine de escribir y leer el stdin y stdout
+		pthread_join(th_writer, NULL);
+		pthread_join(th_reader, NULL);
+
+		//hasta aca ya tengo el map del archivo
+		//me falta ordenarlo
+
+		pthread_mutex_lock(mutex);
+		log_trace(logger, "Fin lectura stdout resultado reduce, guardado en archivo %s", result_reduce);
+		pthread_mutex_unlock(mutex);
+
+		puts("reduce Fin hilo lectura stdout\n");
+
+		FREE_NULL(result_reduce);
+		return 0;
+	}
+	rs = ejecutar_script(script_reduce, "reduce_", _reader_writer, mutex);
+
+	return rs;
+}
+
 //files es una lista de t_files_reduce
 int aplicar_reduce_local_red(t_list* files_reduces, char*script_reduce,	char* filename_result) {
 
@@ -1257,7 +1470,8 @@ int aplicar_reduce(t_reduce* reduce, char* script) {
 
 
 
-	aplicar_reduce_local_red(files_to_reduce, script, reduce->info->resultado);
+	//aplicar_reduce_local_red(files_to_reduce, script, reduce->info->resultado);
+	aplicar_reduce_ok(files_to_reduce, script, reduce->info->resultado, &mutex);
 
 
 	pthread_mutex_lock(&mutex);
@@ -1295,6 +1509,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		log_trace(logger, "Aplicando reducer %s sobre %d archivos",	filename_script, list_size(reduce->nodos_archivo));
 		pthread_mutex_unlock(&mutex);
 
+		//aplicar_reduce(reduce, filename_script);
 		aplicar_reduce(reduce, filename_script);
 
 		pthread_mutex_lock(&mutex);

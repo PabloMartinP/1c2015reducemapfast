@@ -1005,6 +1005,7 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 
 		puts("map Fin hilo lectura stdout\n");
 
+		remove(new_file_map_disorder);
 		FREE_NULL(new_file_map_disorder);
 
 		return 0;

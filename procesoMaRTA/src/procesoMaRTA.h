@@ -781,10 +781,13 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job){
 			if (nodo_esta_vivo(anb->base->red.ip, anb->base->red.puerto)) {
 				copia_cant_veces_usada[n_copia] = marta_contar_nodo(anb->base->id, job);
 				log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", anb->base->id, anb->base->red.ip, anb->base->red.puerto, copia_cant_veces_usada[n_copia]);
+				return n_copia;//devuelvo directamente el resultado
+				/*
 				if(copia_cant_veces_usada[n_copia]==0){//si es igual a 0 no se esta usando, se termino la busqueda de un nodo no usado
 					log_trace(logger, "nodo_id %d correspondiente a la copia %d", anb->base->id, n_copia+1);
 					return n_copia;//-1 porque la lista empieza en -1
 				}
+				*/
 			} else{
 				log_trace(logger, "Nodo id:%d, %s:%d no disponible", anb->base->id, anb->base->red.ip, anb->base->red.puerto);
 				//en caso de que no este vivo le asigno un nro alto asi no lo tiene encuenta cuando saca el menor
@@ -835,7 +838,6 @@ int planificar_mappers(t_job* job, t_list* bloques_de_datos){
 	for (i = 0; i < list_size(bloques_de_datos); i++) {
 		bloque = list_get(bloques_de_datos, i);
 		log_trace(logger, "Inicio Planificacion parte %d", bloque->parte_numero);
-
 
 		numero_copia = obtener_numero_copia_disponible_para_map(bloque->nodosbloque, job);
 		anb =  list_get(bloque->nodosbloque, numero_copia);

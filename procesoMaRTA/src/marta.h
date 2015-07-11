@@ -163,8 +163,19 @@ bool terminaron_todos_los_reducers(t_list* reducers){
 }
 
 t_nodo_base* job_obtener_nodo_para_reduce_final_combiner(t_job* job){
-	t_reduce* reduce = NULL;
 	t_nodo_base* nb = NULL;
+
+	if(list_size(job->reducers)==0){
+		//si no hay reducers, significa que todos los mappers fueron al mismo job
+		//tomo uno cualquiera
+		t_map* map = NULL;
+		map = map_buscar(job, 1);
+		nb = map->archivo_nodo_bloque->base;
+		return nb;
+	}
+
+	t_reduce* reduce = NULL;
+
 
 
 	int cant_archivos1 = 0, cant_archivos2=0;

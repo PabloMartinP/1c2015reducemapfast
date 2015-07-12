@@ -406,8 +406,10 @@ int enviar_map(int socket, int job_id, int map_id){
 	map = marta_buscar_map(job_id, map_id);
 
 	if (!map->info->empezo && nodo_esta_activo(map->archivo_nodo_bloque->base) ) {
+
 		enviar_mensaje_map(socket, map);
 	} else {
+		log_trace(logger, "Replanificacion job: %d, map: %d", job_id, map_id);
 		//lo marco como terminado
 		map->info->termino = true;
 		map->info->error = true;
@@ -438,6 +440,10 @@ int enviar_map(int socket, int job_id, int map_id){
 		//lo agrego a la lista de marta
 		t_job* job = job_buscar(job_id);
 		list_add(job->mappers, (void*) map_replan);
+
+		log_trace(logger, "job %d, nuevo mapper %d en nodo %s", job_id, map_replan->info->id);
+
+		enviar_mensaje_map(socket, map_replan);
 
 	}
 

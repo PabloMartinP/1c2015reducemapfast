@@ -99,7 +99,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			i = 0;
 			rs=0;
 			pthread_mutex_lock(mutex);
-			log_trace(logger, "trayendo archivos tmps a reducir");
+			log_trace(logger, "trayendo archivos de red tmps a reducir");
 			pthread_mutex_unlock(mutex);
 			void _request_file_to_nodo(t_files_reduce* fr) {
 				fdred[i] = client_socket(fr->ip, fr->puerto);
@@ -143,7 +143,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				return -1;
 			}
 			pthread_mutex_lock(mutex);
-			log_trace(logger, "Todos los archivos se trajeron OK");
+			log_trace(logger, "Todos los archivos de red se trajeron OK");
 			pthread_mutex_unlock(mutex);
 			////////////////////////////////////////////////////////////////////////////////////////
 			////////////////////////////////////////////////////////////////////////////////////////
@@ -1498,9 +1498,9 @@ int aplicar_reduce(t_reduce* reduce, char* script) {
 	list_iterate(reduce->nodos_archivo, (void*) _crear_files_reduce);
 
 
-
+	int rs = 0;
 	//aplicar_reduce_local_red(files_to_reduce, script, reduce->info->resultado);
-	aplicar_reduce_ok(files_to_reduce, script, reduce->info->resultado, &mutex);
+	rs = aplicar_reduce_ok(files_to_reduce, script, reduce->info->resultado, &mutex);
 
 
 	pthread_mutex_lock(&mutex);
@@ -1509,7 +1509,7 @@ int aplicar_reduce(t_reduce* reduce, char* script) {
 
 	list_destroy_and_destroy_elements(files_to_reduce, free);
 
-	return 0;
+	return rs;
 }
 
 int procesar_mensaje(int fd, t_msg* msg) {
@@ -1523,39 +1523,49 @@ int procesar_mensaje(int fd, t_msg* msg) {
 	switch (msg->header.id) {
 	case JOB_REDUCER:
 		destroy_message(msg);
-		pthread_mutex_lock(&mutex);
-		log_trace(logger, "******************************************************");
-		log_trace(logger, "Recibido nuevo reducer");
-		pthread_mutex_unlock(&mutex);
 		//recibo el reduce que me envio
 		reduce = NULL;
 		reduce = recibir_mensaje_reduce(fd);
 		filename_script = generar_nombre_reduce_tmp(reduce->info);
 		recibir_mensaje_script_y_guardar(fd, filename_script);
-
-		///////////////////////////////////////////////
 		pthread_mutex_lock(&mutex);
-		log_trace(logger, "Aplicando reducer %s sobre %d archivos",	filename_script, list_size(reduce->nodos_archivo));
+		log_trace(logger, "******************************************************");
+		log_trace(logger,
+				"Recibido nuevo REDUCE job:%d, reduce: %d, cant_archivos: %d",
+				reduce->info->job_id, reduce->info->id,
+				list_size(reduce->nodos_archivo));
+
 		pthread_mutex_unlock(&mutex);
 
+		pthread_mutex_lock(&mutex);
+		log_trace(logger, "Aplicando REDUCE %d sobre % archivos",	reduce->info->id, list_size(reduce->nodos_archivo));
+		pthread_mutex_unlock(&mutex);
 		//aplicar_reduce(reduce, filename_script);
-		aplicar_reduce(reduce, filename_script);
+		rs = aplicar_reduce(reduce, filename_script);
 
 		pthread_mutex_lock(&mutex);
-		log_trace(logger, "Fin reducer guardado en %s",	reduce->info->resultado);
+		if(rs<0){
+			log_trace(logger, "Error job:%d, REDUCE: %d, cant_archivos: %d", reduce->info->job_id, reduce->info->id, list_size(reduce->nodos_archivo));
+		}else{
+			log_trace(logger, "Termino job:%d, REDUCE: %d, cant_archivos: %d, guardado en %s", reduce->info->job_id, reduce->info->id, list_size(reduce->nodos_archivo), reduce->info->resultado);
+		}
 		pthread_mutex_unlock(&mutex);
+
 		remove(filename_script);
 		free(filename_script);
 
-
-
 		reduce_free(reduce);
 
+
+		//aviso al job el resultado
 		msg = argv_message(REDUCER_TERMINO, 0);
-		enviar_mensaje(fd, msg);
+		rs = enviar_mensaje(fd, msg);
+		pthread_mutex_lock(&mutex);
+		log_trace(logger, "Enviado al job %d, REDUCE %d, REDUCER_TERMINO ", reduce->info->job_id, reduce->info->id);
+		pthread_mutex_unlock(&mutex);
 		destroy_message(msg);
 
-		printf("_DDDDDDDDDD_Enviado REDUCER_TERMINO al job");
+		//printf("_DDDDDDDDDD_Enviado REDUCER_TERMINO al job");
 		break;
 	case JOB_MAPPER:
 
@@ -1567,55 +1577,39 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		//recibo el map que me envio
 		map = NULL;
 		map = recibir_mensaje_map(fd);
-		log_trace(logger, "Recibido nuevo mapper %d socck %d", map->info->id, fd);
+		log_trace(logger, "Recibido nuevo mapper job:%d, map: %d ", map->info->job_id, map->info->id);
 		filename_script = generar_nombre_map_tmp(map->info);
 		recibir_mensaje_script_y_guardar(fd, filename_script);
 		///////////////////////////////////////////////////////////////////////
 		pthread_mutex_lock(&mutex);
-		log_trace(logger, "Aplicando mapper %s sobre el bloque %d sock %d",	filename_script, map->archivo_nodo_bloque->numero_bloque, fd);
+		log_trace(logger, "Aplicando mapper sobre el bloque %d",	map->archivo_nodo_bloque->numero_bloque);
 		pthread_mutex_unlock(&mutex);
 
 		//pthread_mutex_lock(&mx_mr);
 		//rs = aplicar_map_final(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
 		rs = aplicar_map_ok(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado, &mutex);
 
-		if(rs<0)
-			printf("errrrrrrrrrrrrrrror map %d\n", map->archivo_nodo_bloque->numero_bloque);
-		//pthread_mutex_unlock(&mx_mr);
-
 		pthread_mutex_lock(&mutex);
-		log_trace(logger, "Fin mapper %d sock %d guardado en %s", map->info->id, fd, map->info->resultado);
+		if(rs<0){
+			log_trace(logger, "Error job %d, MAP %d  sobre bloque %d\n",map->info->job_id, map->info->id, map->archivo_nodo_bloque->numero_bloque);
+		}else{
+			log_trace(logger, "Fin job %d, MAP %d guardado en %s", map->info->job_id, map->info->id, fd, map->info->resultado);
+		}
 		pthread_mutex_unlock(&mutex);
+
+		//borro archivosz
 		remove(filename_script);
 		free(filename_script);
 
-
+		//aviso al job el resultado
 		msg = argv_message(MAPPER_TERMINO, 0);
-
-		char buffer[32];
-		if (recv(fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0) {
-			printf("El  JOBBBBB map %d el sock %d conexion cerrada??????????????????? \n", map->info->id,	fd);
-			// if recv returns zero, that means the connection has been closed:
-
-			//close(fd);
-			break;
-			// do something else, e.g. go on vacation
-		}else
-			printf("map %d, sock %d activoOOO\n",map->info->id, fd);
-
-
 		rs = enviar_mensaje(fd, msg);
-		printf("Termino map %d sock %d\n", map->info->id, fd);
 		pthread_mutex_lock(&mutex);
-		log_trace(logger, "Enviado MAPPER_TERMINO id %d al job sock %d", map->info->id, fd);
+		log_trace(logger, "Enviado al job %d, MAP %d, MAPPER_TERMINO ", map->info->job_id, map->info->id);
 		pthread_mutex_unlock(&mutex);
 		destroy_message(msg);
 
-		//recibir_mensaje_nodo_ok(fd);
-		printf("fin mapppppppppppppppp %d socket %d\n", map->info->id, fd);
-
 		map_free_all(map);
-
 
 		break;
 	case FS_AGREGO_NODO:
@@ -1943,14 +1937,16 @@ void inicializar() {
  * devuelve un puntero con el archivo mapeado
  */
 char* getFileContent(char* filename) {
+	pthread_mutex_lock(&mutex);
 	log_info(logger, "Inicio getFileContent(%s)", filename);
+	pthread_mutex_unlock(&mutex);
 	char* content = NULL;
 
 	//creo el espacio para almacenar el archivo
 	char* path = file_combine(NODO_DIRTEMP(), filename);
 	size_t size = file_get_size(path) + 1;
 	content = malloc(size);
-	printf("size: %d\n", size);
+	log_trace(logger, "Tamaño: %d\n", size);
 	char* mapped = NULL;
 	mapped = file_get_mapped(path);
 	memcpy(content, mapped, size);	//
@@ -1958,7 +1954,9 @@ char* getFileContent(char* filename) {
 
 	FREE_NULL(path);
 
+	pthread_mutex_lock(&mutex);
 	log_info(logger, "Fin getFileContent(%s)", filename);
+	pthread_mutex_unlock(&mutex);
 	return content;
 
 }

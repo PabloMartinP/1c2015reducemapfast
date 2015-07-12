@@ -494,7 +494,9 @@ int nuevo_hilo_mapper(int* map_id_p){
 	int rs =0;
 	do{
 		rs = try_map(map_id);
-	}while(rs!=0);
+	}while(rs<0);
+
+
 
 	FREE_NULL(map_id_p);
 	return 0;

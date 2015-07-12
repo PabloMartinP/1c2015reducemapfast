@@ -43,7 +43,7 @@ t_job* crear_job(int fd);
 int marta_cant_mappers_no_empezados();
 void verificar_fs_operativo();
 //int planificar_mappers(int job_id, t_list* bloques_de_datos);
-int planificar_mappers(t_job* job, t_list* bloques_de_datos);
+int planificar_mappers(t_job* job, t_list* bloques_de_datos, int archivo_id);
 int obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job);
 //t_nodo_estado_map* marta_buscar_nodo(int id);
 int marta_contar_nodo(int id, t_job* job);
@@ -112,7 +112,7 @@ int job_crear_y_planificar_mappers(t_job* job){
 	void _planificar_mappers(t_archivo_job* archivo) {
 		log_trace(logger, "Empezando planificacion archivo %s",	archivo->nombre);
 		//aca agrega los mappers a la lista marta.nodos con prop empezado = false
-		planificar_mappers(job, archivo->bloque_de_datos);
+		planificar_mappers(job, archivo->bloque_de_datos, archivo->id);
 		log_trace(logger, "Terminado planificacion archivo %s",	archivo->nombre);
 	}
 	list_iterate(job->archivos, (void*) _planificar_mappers);
@@ -388,13 +388,61 @@ t_reduce* marta_job_buscar_reduce_no_empezado(int job_id){
 	return reduce;
 }
 
+t_archivo_job* job_archivo_job_buscar(int job_id, int archivo_job_id){
+	t_archivo_job* aj = NULL;
+
+	t_job* job = job_buscar(job_id);
+
+	bool _buscar(t_archivo_job* aj){
+		return archivo_job_id == aj->id;
+	}
+	aj = list_find(job->archivos, (void*)_buscar);
+
+	return aj;
+}
+
 int enviar_map(int socket, int job_id, int map_id){
 	t_map* map = NULL;
 	map = marta_buscar_map(job_id, map_id);
 
-	enviar_mensaje_map(socket, map);
+	if (!map->info->empezo && nodo_esta_activo(map->archivo_nodo_bloque->base) ) {
+		enviar_mensaje_map(socket, map);
+	} else {
+		//lo marco como terminado
+		map->info->termino = true;
+		map->info->error = true;
+		//si ya empezo y el mapper, significa que fallo, entonces hay que replanificar el mapper este porque el nodo esta desconectado
+		//no tengo que tenerlo en cuenta
+		//busco el archivo
+
+		t_archivo_job* aj = NULL;
+
+		aj = job_archivo_job_buscar(job_id, map->archivo_id);
+
+		//todo: aca solo selecciona una copia distinta a la anterior,
+		//si fallan un map replanificado es posible que vuelva a seleccionar el map original.
+		bool _replanificar(t_archivo_nodo_bloque* anb){
+			return !nodo_base_igual_a(*(anb->base), *(map->archivo_nodo_bloque->base)) && nodo_esta_activo(anb->base);
+		}
+		t_archivo_nodo_bloque* anb = NULL;
+		anb = list_find(aj->bloque_de_datos, (void*)_replanificar);
+
+
+		//creo el nuevo mapper replanificado
+		JOB_MAP_ID++;
+		char* nombre_temp_map = generar_nombre_map(job_id, JOB_MAP_ID);
+		t_map* map_replan = marta_create_map(JOB_MAP_ID, job_id, nombre_temp_map, anb);
+		map_replan->archivo_id = map->archivo_id;
+		FREE_NULL(nombre_temp_map);
+
+		//lo agrego a la lista de marta
+		t_job* job = job_buscar(job_id);
+		list_add(job->mappers, (void*) map_replan);
+
+	}
 
 	map->info->empezo = true;
+
 	log_trace(logger,
 			"Mapper %d enviado al job %d, Nodo_id: %d, %s:%d, bloque:%d",
 			map->info->id, job_id, map->archivo_nodo_bloque->base->id,
@@ -701,6 +749,7 @@ t_job* crear_job(int fd){
 		destroy_message(msg);
 		log_trace(logger, "Creando t_archivo: %s", archivo_nombre);
 		t_archivo_job* archivo = crear_archivo(archivo_nombre);
+		archivo->id = i;
 		log_trace(logger, "Terminado t_archivo: %s", archivo_nombre);
 		free(archivo_nombre);archivo_nombre = NULL;
 		//agrego el archivo a procesar
@@ -828,7 +877,7 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job){
 }
 
 
-int planificar_mappers(t_job* job, t_list* bloques_de_datos){
+int planificar_mappers(t_job* job, t_list* bloques_de_datos, int archivo_id){
 
 	//int nodo_id;
 	int numero_copia;
@@ -847,6 +896,8 @@ int planificar_mappers(t_job* job, t_list* bloques_de_datos){
 			//t_nodo_estado_map* ne = marta_create_nodo_estado(cnb);
 			char* nombre_temp_map = generar_nombre_map(job->id, JOB_MAP_ID);
 			t_map* map = marta_create_map(JOB_MAP_ID, job->id, nombre_temp_map, anb);
+			map->archivo_id = archivo_id;
+
 			FREE_NULL(nombre_temp_map);
 			//lo agrego a la lista de marta
 			list_add(job->mappers, (void*)map);

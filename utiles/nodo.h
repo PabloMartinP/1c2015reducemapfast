@@ -79,6 +79,7 @@ void nodo_marcar_como_libre_total(t_nodo* nodo);
 
 void nodo_destroy(t_nodo* nodo);
 void nodo_set_ip(t_nodo* nodo, char* ip);
+bool nodo_esta_activo(t_nodo_base* nb);
 t_bloque* nodo_buscar_bloque(t_nodo* nodo, int n_bloque);
 void nodo_marcar_bloque_como_usado(t_nodo* nodo, int n_bloque);
 char* nodo_isNew(t_nodo* nodo);

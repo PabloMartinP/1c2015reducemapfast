@@ -139,6 +139,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				//borro fdred
 				FREE_NULL(fdred);
 
+				close(fd);
 				return -1;
 			}
 			pthread_mutex_lock(mutex);

@@ -11,6 +11,7 @@
 #include <nodo.h>
 
 typedef struct{
+	int id;
 	char* nombre;
 	t_list* bloque_de_datos;//guardo t_archivo_nodo_bloque
 }t_archivo_job;

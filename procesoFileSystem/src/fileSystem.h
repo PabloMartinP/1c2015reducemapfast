@@ -741,10 +741,10 @@ t_list* fs_importar_archivo(char* archivo) {
 
 t_list* fs_importar_archivo(char* archivo) {
 	size_t size = file_get_size(archivo);
-	printf("Tamanio : %zd b, %.2f kb, %.2f mb\n", size,	bytes_to_kilobytes(size), bytes_to_megabytes(size));
+	log_trace(logger, "Tamanio : %zd b, %.2f kb, %.2f mb\n", size,	bytes_to_kilobytes(size), bytes_to_megabytes(size));
 
 	int cant_bloq_necesarios = cant_bloques_necesarios(archivo) * 3;
-	printf("Bloques necesarios para el archivo: %d\n", cant_bloq_necesarios);
+	log_trace(logger, "Bloques necesarios para el archivo: %d\n", cant_bloq_necesarios);
 	if (cant_bloq_necesarios > fs_cant_bloques_libres()) {
 		printf(	"La cantidad de bloques necesarios para el archivo es %d y solo hay %d bloques libres\n",cant_bloq_necesarios, fs_cant_bloques_libres());
 		return NULL;
@@ -831,7 +831,7 @@ t_archivo_bloque_con_copias* guardar_bloque(char* bloque_origen,size_t bytes_a_c
 		*/
 
 
-		printf("nodo %d bloque %d marcado como usado\n", nb[i]->base->id,nb[i]->numero_bloque);
+		log_trace(logger, "nodo %d bloque %d marcado como usado\n", nb[i]->base->id,nb[i]->numero_bloque);
 
 		//agrego el bloquenodo a la lista, al final del for quedaria con las tres copias y faltaria settear el nro_bloque
 		list_add(new->nodosbloque, (void*) nb[i]);
@@ -848,7 +848,7 @@ int fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque, size_t tamanio_re
 	//me tengo que conectar con el nodo y pasarle el bloque
 	//obtengo info del bloque
 	int rs ;
-	printf("iniciando transferencia a Ip:%s:%d bloque %d\n", nb->base->red.ip,nb->base->red.puerto, nb->numero_bloque);
+	log_trace(logger, "Iniciando transferencia a Ip:%s:%d bloque %d\n", nb->base->red.ip,nb->base->red.puerto, nb->numero_bloque);
 	int fd = client_socket(nb->base->red.ip, nb->base->red.puerto);
 
 	//le digo que grabe el blque en el nodo n
@@ -863,7 +863,7 @@ int fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque, size_t tamanio_re
 
 	//close(fd);
 
-	printf("transferencia realizada OK\n");
+	log_trace(logger, "transferencia realizada OK\n");
 	return rs;
 }
 

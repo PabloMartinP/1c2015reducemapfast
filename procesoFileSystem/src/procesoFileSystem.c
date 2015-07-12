@@ -350,7 +350,8 @@ void inicializar() {
 
 	//inicializo el log
 
-	logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_INFO);
+	//logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_INFO);
+	logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_TRACE);
 
 	//inicializo el config
 

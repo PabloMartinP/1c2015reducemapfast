@@ -204,7 +204,7 @@ int funcionMapping(t_map* map){
 		pthread_mutex_lock(&mutex_log);
 		log_trace(logger, "recv msg NULLLLLLLLLL sock %d, map: %d\n", fd, map->info->id);
 		pthread_mutex_unlock(&mutex_log);
-		destroy_message(msg);
+		//destroy_message(msg);
 		return -1;
 	}
 
@@ -477,12 +477,16 @@ int try_map(int map_id){
 			map->archivo_nodo_bloque->numero_bloque);
 	pthread_mutex_unlock(&mutex_log);
 
+	res_map = funcionMapping(map);
+	/*
 	intentos =0;
 	do {
 		res_map = funcionMapping(map);
 		intentos++;
 	} while (res_map < 0  && intentos<CANT_INTENTOS_MAPREDUCE);
+	*/
 
+	//el map_id que tiene aca puede ser distinto porque el
 	avisar_marta_termino(socket_marta, MAP, map_id, res_map);
 
 	map_free_all(map);

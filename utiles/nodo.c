@@ -40,6 +40,10 @@ bool nodo_esta_activo(t_nodo_base* nb){
 	//int fd = client_socket(nodo->ip, nodo->puerto);
 	int fd = client_socket(nb->red.ip, nb->red.puerto);
 
+	if(fd<0){
+		return false;
+	}
+
 	//le mando handshake a ver si me responde el HOLA
 	t_msg* msg = argv_message(NODO_HOLA, 0);
 	enviar_mensaje(fd, msg);

@@ -13,7 +13,7 @@
 typedef struct{
 	int id;
 	char* nombre;
-	t_list* bloque_de_datos;//guardo t_archivo_nodo_bloque
+	t_list* bloque_de_datos;//guardo t_archivo_bloque_con_copias
 }t_archivo_job;
 typedef struct {
 	int id;
@@ -49,7 +49,7 @@ int marta_marcar_map_como_fallido(int job_id, int map_id);
 
 t_map* map_buscar(t_job* job, int map_id);
 t_map* marta_buscar_map(int job_id, int map_id);
-bool job_obtener_nodo_con_todos_sus_mappers_terminados(t_list* mappers, t_nodo_base* nb);
+bool job_tiene_todos_sus_mappers_terminados(t_list* mappers, t_nodo_base* nb);
 bool map_termino(t_map* map);
 
 char* generar_nombre_reduce(int job_id, int reduce_id);
@@ -136,8 +136,8 @@ t_reduce* marta_buscar_reduce(int job_id, int map_id){
 
 int marta_marcar_map_como_fallido(int job_id, int map_id){
 	t_map* map = marta_buscar_map(job_id, map_id);
-
-	map->info->termino = false;
+	//map->info->error = true;
+	map->info->termino = true;
 	return 0;
 }
 
@@ -151,7 +151,7 @@ int marta_marcar_reduce_como_fallido(int job_id, int reduce_id){
 
 bool terminaron_todos_los_mappers(t_list* mappers){
 	bool _termino(t_map* map){
-		return map->info->termino;
+		return map->info->termino ;
 	}
 	return list_all_satisfy(mappers, (void*)_termino);
 }
@@ -211,7 +211,7 @@ bool map_termino(t_map* map){
 	return map->info->termino;
 }
 
-bool job_obtener_nodo_con_todos_sus_mappers_terminados(t_list* mappers, t_nodo_base* nb){
+bool job_tiene_todos_sus_mappers_terminados(t_list* mappers, t_nodo_base* nb){
 	bool rs = false;
 
 	//filtro los nodos iguales a mi
@@ -239,7 +239,7 @@ int marta_marcar_reduce_como_terminado(int job_id, int reduce_id){
 
 int marta_marcar_map_como_terminado(int job_id, int map_id){
 	t_map* map = marta_buscar_map(job_id, map_id);
-
+	//map->info->error = false;
 	map->info->termino = true;
 	return 0;
 }

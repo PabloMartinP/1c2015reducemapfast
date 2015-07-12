@@ -173,7 +173,7 @@ typedef struct{
 	//t_nodo_base* nodo_base;
 	char* resultado;//el nombre del archivo ya mapeado(solo el nombre porque siempre lo va buscar en el tmp del nodo)
 	bool empezo;
-	bool error;
+	//bool error;
 	bool termino;//para saber si termino
 }t_mapreduce;
 
@@ -197,6 +197,7 @@ typedef struct{
 	t_mapreduce* info;
 	t_archivo_nodo_bloque* archivo_nodo_bloque;
 	int archivo_id;
+	int parte_numero;
 	//int numero_bloque;//para saber a que bloque del archivo tengo que aplicarle el map
 }t_map;
 

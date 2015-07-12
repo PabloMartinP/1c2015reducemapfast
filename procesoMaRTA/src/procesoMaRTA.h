@@ -254,7 +254,7 @@ void procesar (int fd, t_msg*msg){
 				//en el caso de combiner, tengo que aplicar el reduce sobre todos los archivos locales al nodo
 				//tengo que verificar si ya terminaron todos los mappers locales al nodo del map que recien termino
 				t_map* map = map_buscar(job, map_id);
-				if(job_obtener_nodo_con_todos_sus_mappers_terminados(job->mappers, map->archivo_nodo_bloque->base)){
+				if(job_tiene_todos_sus_mappers_terminados(job->mappers, map->archivo_nodo_bloque->base)){
 					log_trace(logger, "Si puede, el nodo %s tiene que aplicar map sobre sus archivos temporales", nodo_base_to_string(map->archivo_nodo_bloque->base));
 					//ya termino todos sus mappers
 					//lanzo el reduce de los archivos locales al nodo
@@ -406,13 +406,14 @@ int enviar_map(int socket, int job_id, int map_id){
 	map = marta_buscar_map(job_id, map_id);
 
 	if (!map->info->empezo && nodo_esta_activo(map->archivo_nodo_bloque->base) ) {
-
 		enviar_mensaje_map(socket, map);
+
 	} else {
 		log_trace(logger, "Replanificacion job: %d, map: %d", job_id, map_id);
-		//lo marco como terminado
-		map->info->termino = true;
-		map->info->error = true;
+		//lo marco como terminado, empezado tambien asi no lo tiene en cuenta en nda!
+		//map->info->empezo= true;
+		//map->info->termino = true;
+		//map->info->error = true;
 		//si ya empezo y el mapper, significa que fallo, entonces hay que replanificar el mapper este porque el nodo esta desconectado
 		//no tengo que tenerlo en cuenta
 		//busco el archivo
@@ -423,13 +424,28 @@ int enviar_map(int socket, int job_id, int map_id){
 
 		//todo: aca solo selecciona una copia distinta a la anterior,
 		//si fallan un map replanificado es posible que vuelva a seleccionar el map original.
-		bool _replanificar(t_archivo_nodo_bloque* anb){
-			return !nodo_base_igual_a(*(anb->base), *(map->archivo_nodo_bloque->base)) && nodo_esta_activo(anb->base);
+
+
+		//busco la parte en cuestion
+		bool _buscar_parte(t_archivo_bloque_con_copias* abcc){
+			return map->parte_numero == abcc->parte_numero;
+			//return !nodo_base_igual_a(*(anb->base), *(map->archivo_nodo_bloque->base)) && nodo_esta_activo(anb->base);
 		}
 		t_archivo_nodo_bloque* anb = NULL;
-		anb = list_find(aj->bloque_de_datos, (void*)_replanificar);
+		t_archivo_bloque_con_copias* copias = NULL;
+		copias = list_find(aj->bloque_de_datos, (void*)_buscar_parte);
 
+		//ahora busco alguno activo
 
+		bool _buscar_nodo_bloque(t_archivo_nodo_bloque* anb){
+			return !nodo_base_igual_a( *(anb->base), *(map->archivo_nodo_bloque->base));
+		}
+		anb =list_find(copias->nodosbloque, (void*)_buscar_nodo_bloque);
+
+		map->archivo_nodo_bloque = anb;
+		map->info->termino  =false;
+		enviar_mensaje_map(socket, map);
+		/*
 		//creo el nuevo mapper replanificado
 		JOB_MAP_ID++;
 		char* nombre_temp_map = generar_nombre_map(job_id, JOB_MAP_ID);
@@ -441,14 +457,21 @@ int enviar_map(int socket, int job_id, int map_id){
 		t_job* job = job_buscar(job_id);
 		list_add(job->mappers, (void*) map_replan);
 
-		log_trace(logger, "job %d, nuevo mapper %d en nodo %s", job_id, map_replan->info->id);
+		log_trace(logger, "job %d, nuevo mapper %d en nodo %s", job_id, map_replan->info->id, nodo_base_to_string(map_replan->archivo_nodo_bloque->base));
 
 		enviar_mensaje_map(socket, map_replan);
 
+		map_replan->info->empezo = true;
+		log_trace(logger,
+				"Mapper %d enviado al job %d, Nodo_id: %d, %s:%d, bloque:%d",
+				map_replan->info->id, job_id, map->archivo_nodo_bloque->base->id,
+				map_replan->archivo_nodo_bloque->base->red.ip,
+				map_replan->archivo_nodo_bloque->base->red.puerto,
+				map_replan->archivo_nodo_bloque->numero_bloque);
+		*/
 	}
 
 	map->info->empezo = true;
-
 	log_trace(logger,
 			"Mapper %d enviado al job %d, Nodo_id: %d, %s:%d, bloque:%d",
 			map->info->id, job_id, map->archivo_nodo_bloque->base->id,
@@ -816,6 +839,13 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job){
 		for (n_copia = BLOQUE_CANT_COPIAS-1; n_copia >= 0; n_copia--) {//o tambien list_size(nodos_Bloque)
 			anb = list_get(nodos_bloque, n_copia);//tomo el 3, despues 2 y luego 1, por eso empieza en n_copia = BLOQUE_CANT_COPIAS
 			log_trace(logger, "Copia numero: %d, nodo_id: %d, %s:%d", n_copia+1, anb->base->id, anb->base->red.ip, anb->base->red.puerto);
+			copia_cant_veces_usada[n_copia] = marta_contar_nodo( anb->base->id, job);
+			log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", anb->base->id, anb->base->red.ip, anb->base->red.puerto, copia_cant_veces_usada[n_copia]);
+			if (copia_cant_veces_usada[n_copia] == 0) {	//si es igual a 0 no se esta usando, se termino la busqueda de un nodo no usado
+				log_trace(logger, "nodo_id %d correspondiente a la copia %d", anb->base->id, n_copia + 1);
+				return n_copia;	//-1 porque la lista empieza en -1
+			}
+			/*
 			if (nodo_esta_vivo(anb->base->red.ip, anb->base->red.puerto)) {
 				copia_cant_veces_usada[n_copia] = marta_contar_nodo(anb->base->id, job);
 				log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", anb->base->id, anb->base->red.ip, anb->base->red.puerto, copia_cant_veces_usada[n_copia]);
@@ -827,7 +857,7 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job){
 				log_trace(logger, "Nodo id:%d, %s:%d no disponible", anb->base->id, anb->base->red.ip, anb->base->red.puerto);
 				//en caso de que no este vivo le asigno un nro alto asi no lo tiene encuenta cuando saca el menor
 				copia_cant_veces_usada[n_copia] = MAX;
-			}
+			}*/
 		}
 	}else{
 		for (n_copia = 0; n_copia <3; n_copia++) {//o tambien list_size(nodos_Bloque)
@@ -837,12 +867,6 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job){
 				copia_cant_veces_usada[n_copia] = marta_contar_nodo(anb->base->id, job);
 				log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", anb->base->id, anb->base->red.ip, anb->base->red.puerto, copia_cant_veces_usada[n_copia]);
 				return n_copia;//devuelvo directamente el resultado
-				/*
-				if(copia_cant_veces_usada[n_copia]==0){//si es igual a 0 no se esta usando, se termino la busqueda de un nodo no usado
-					log_trace(logger, "nodo_id %d correspondiente a la copia %d", anb->base->id, n_copia+1);
-					return n_copia;//-1 porque la lista empieza en -1
-				}
-				*/
 			} else{
 				log_trace(logger, "Nodo id:%d, %s:%d no disponible", anb->base->id, anb->base->red.ip, anb->base->red.puerto);
 				//en caso de que no este vivo le asigno un nro alto asi no lo tiene encuenta cuando saca el menor
@@ -870,7 +894,7 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job){
 	}
 	log_trace(logger, "Comienzo a elegir a la copia con el nodo menos usado");
 	//me fijo si pudo seleccionar alguno
-	if (copia_menos_usada != MAX) {
+	if (copia_menos_usada != -1) {
 		//paso el nodo
 		anb = list_get(nodos_bloque, copia_menos_usada);//
 		log_trace(logger, "La copia menos usada es %d con nodo_id:%d", copia_menos_usada+1, anb->base->id);
@@ -895,6 +919,7 @@ int planificar_mappers(t_job* job, t_list* bloques_de_datos, int archivo_id){
 		log_trace(logger, "Inicio Planificacion parte %d", bloque->parte_numero);
 
 		numero_copia = obtener_numero_copia_disponible_para_map(bloque->nodosbloque, job);
+
 		anb =  list_get(bloque->nodosbloque, numero_copia);
 		if (anb!=NULL) {
 			log_trace(logger, "obtener_numero_copia_disponible_para_map: %d en %s:%d", anb->base->id, anb->base->red.ip, anb->base->red.puerto);
@@ -903,6 +928,7 @@ int planificar_mappers(t_job* job, t_list* bloques_de_datos, int archivo_id){
 			char* nombre_temp_map = generar_nombre_map(job->id, JOB_MAP_ID);
 			t_map* map = marta_create_map(JOB_MAP_ID, job->id, nombre_temp_map, anb);
 			map->archivo_id = archivo_id;
+			map->parte_numero = bloque->parte_numero;
 
 			FREE_NULL(nombre_temp_map);
 			//lo agrego a la lista de marta

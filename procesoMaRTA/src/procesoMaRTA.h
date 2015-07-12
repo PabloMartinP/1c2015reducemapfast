@@ -238,7 +238,7 @@ void procesar (int fd, t_msg*msg){
 			//marta_map_destroy(job_id, map_id);
 
 			//marcaria el map del job como termino=true o false
-			if(res)
+			if(res==0)
 				marta_marcar_map_como_terminado(job_id, map_id);
 			else
 				marta_marcar_map_como_fallido(job_id, map_id);
@@ -296,7 +296,7 @@ void procesar (int fd, t_msg*msg){
 			destroy_message(msg);
 
 			//marcaria el reduce del job como termino=true o false
-			if (res)
+			if (res==0)
 				marta_marcar_reduce_como_terminado(job_id, reduce_id);
 			else
 				marta_marcar_reduce_como_fallido(job_id, reduce_id);

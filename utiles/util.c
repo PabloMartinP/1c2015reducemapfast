@@ -66,7 +66,6 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 
 
 int ordenar(t_ordenar* param_ordenar){
-	int rs;
 
 	int _reader_writer(int fdreader, int fdwriter){
 
@@ -81,10 +80,11 @@ int ordenar(t_ordenar* param_ordenar){
 			char* linea = NULL;
 			linea = malloc(LEN_KEYVALUE);
 			size_t len_linea = LEN_KEYVALUE;
-			int rs;
-			while ((rs = getline(&linea, &len_linea, file)) > 0) {
-				rs = escribir_todo(fd, linea, strlen(linea));
-				if(rs<0){
+			int rs=0, cant_writes=0;
+			while ((getline(&linea, &len_linea, file)) > 0) {
+				cant_writes = escribir_todo(fd, linea, strlen(linea));
+				if(cant_writes<0){
+					rs=-1;
 					break;
 				}
 				//write(pipes[PARENT_WRITE_PIPE][WRITE_FD], linea, strlen(linea));
@@ -122,6 +122,7 @@ int ordenar(t_ordenar* param_ordenar){
 			return -2;//fallo reader;
 		return 0;
 	}
+	int rs=0;
 
 	rs = ejecutar_script("/usr/bin/sort", "sort", _reader_writer, param_ordenar->mutex);
 	//rs = ejecutar_script("/home/utnso/Escritorio/tests/mapper.sh", "mapperR", _reader_writer);
@@ -974,13 +975,13 @@ t_msg *recibir_mensaje(int sock_fd) {
 
 	if (status < 0) {
 		/* An error has ocurred or remote connection has been closed. */
-		printf("error al recibir header sock %d\n", sock_fd);
+		//printf("error al recibir header sock %d\n", sock_fd);
 		perror("rec header");
 		FREE_NULL(msg);
 		return NULL;
 	}
 	if(status == 0 ){
-		printf("sock cerrado!%d\n", sock_fd);
+		//printf("sock cerrado!%d\n", sock_fd);
 		FREE_NULL(msg);
 		return NULL;
 	}

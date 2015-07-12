@@ -1538,7 +1538,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		pthread_mutex_unlock(&mutex);
 
 		pthread_mutex_lock(&mutex);
-		log_trace(logger, "Aplicando REDUCE %d sobre % archivos",	reduce->info->id, list_size(reduce->nodos_archivo));
+		log_trace(logger, "job: %d, reduce: %d Aplicando REDUCE sobre %d archivos",	reduce->info->job_id, reduce->info->id, list_size(reduce->nodos_archivo));
 		pthread_mutex_unlock(&mutex);
 		//aplicar_reduce(reduce, filename_script);
 		rs = aplicar_reduce(reduce, filename_script);
@@ -1554,8 +1554,6 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		remove(filename_script);
 		free(filename_script);
 
-		reduce_free(reduce);
-
 
 		//aviso al job el resultado
 		msg = argv_message(REDUCER_TERMINO, 0);
@@ -1564,6 +1562,9 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		log_trace(logger, "Enviado al job %d, REDUCE %d, REDUCER_TERMINO ", reduce->info->job_id, reduce->info->id);
 		pthread_mutex_unlock(&mutex);
 		destroy_message(msg);
+
+		reduce_free(reduce);
+
 
 		//printf("_DDDDDDDDDD_Enviado REDUCER_TERMINO al job");
 		break;
@@ -1593,7 +1594,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		if(rs<0){
 			log_trace(logger, "Error job %d, MAP %d  sobre bloque %d\n",map->info->job_id, map->info->id, map->archivo_nodo_bloque->numero_bloque);
 		}else{
-			log_trace(logger, "Fin job %d, MAP %d guardado en %s", map->info->job_id, map->info->id, fd, map->info->resultado);
+			log_trace(logger, "Fin job %d, MAP %d guardado en %s", map->info->job_id, map->info->id, map->info->resultado);
 		}
 		pthread_mutex_unlock(&mutex);
 

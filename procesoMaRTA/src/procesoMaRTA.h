@@ -108,6 +108,10 @@ void verificar_fs_operativo(){
 }
 
 int job_crear_y_planificar_mappers(t_job* job){
+	//iniciializo los contadores map y reduce para el job
+	JOB_MAP_ID = 0;
+	JOB_REDUCE_ID = 0;
+
 	//empiezo a planificar mappers
 	void _planificar_mappers(t_archivo_job* archivo) {
 		log_trace(logger, "Empezando planificacion archivo %s",	archivo->nombre);
@@ -243,7 +247,6 @@ void procesar (int fd, t_msg*msg){
 			else{
 				marta_marcar_map_como_fallido(job_id, map_id);
 				avisar_ningun_mapreduce(fd);
-				break;
 			}
 
 

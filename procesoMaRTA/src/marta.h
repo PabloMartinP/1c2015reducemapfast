@@ -36,6 +36,7 @@ typedef struct {
 int JOB_ID = 0;
 int JOB_MAP_ID=0;
 int JOB_REDUCE_ID=0;
+
 t_MaRTA marta;
 
 t_job* marta_create_job(char* resultado, bool combiner);

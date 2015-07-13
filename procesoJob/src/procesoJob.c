@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
 	pthread_mutex_init(&mutex_log, NULL);
 
 
-
+	signal(SIGCHLD, SIG_IGN);
 	//sem_t sem;
 	sem_init(&sem, 0, 0);
 

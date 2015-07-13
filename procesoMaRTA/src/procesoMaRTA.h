@@ -240,8 +240,11 @@ void procesar (int fd, t_msg*msg){
 			//marcaria el map del job como termino=true o false
 			if(res==0)
 				marta_marcar_map_como_terminado(job_id, map_id);
-			else
+			else{
 				marta_marcar_map_como_fallido(job_id, map_id);
+				avisar_ningun_mapreduce(fd);
+				break;
+			}
 
 
 			//luego tengo que verificar si ya terminaron todos los map que tiene que hacer el job

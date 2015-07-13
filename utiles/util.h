@@ -132,7 +132,8 @@ typedef enum {
 	MARTA_REDUCE_RESULTADO,
 	NODO_BASE,
 	JOB_SCRIPT,
-	NODO_OK
+	NODO_OK,
+	MAPPER_NOTERMINO
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/

@@ -205,7 +205,9 @@ int funcionMapping(t_map* map){
 		log_trace(logger, "recv msg NULLLLLLLLLL sock %d, map: %d\n", fd, map->info->id);
 		pthread_mutex_unlock(&mutex_log);
 		//destroy_message(msg);
-		return -1;
+		//return -1;
+		//creo un msg con id distinto a MAPPER_TERMINO
+		msg = argv_message(MAPPER_NOTERMINO, 0);
 	}
 
 	pthread_mutex_lock(&mutex_log);

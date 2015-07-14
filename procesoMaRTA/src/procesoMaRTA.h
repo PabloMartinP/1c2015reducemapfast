@@ -110,7 +110,7 @@ void verificar_fs_operativo(){
 int job_crear_y_planificar_mappers(t_job* job){
 	//iniciializo los contadores map y reduce para el job
 	JOB_MAP_ID = 0;
-	JOB_REDUCE_ID = 0;
+	//JOB_REDUCE_ID = 0;
 
 	//empiezo a planificar mappers
 	void _planificar_mappers(t_archivo_job* archivo) {

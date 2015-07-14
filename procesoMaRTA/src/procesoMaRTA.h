@@ -352,9 +352,20 @@ void procesar (int fd, t_msg*msg){
 			//borro al job de la lista de jobs y el TP esta aprobado!
 			log_trace(logger, "FIN JOB_REDUCE_TERMINO *****************************************************************");
 			break;
+		case JOB_SUBIR_ARCHIVO_FINAL_A_FS:
+			log_trace(logger, "JOB_JOB_SUBIR_ARCHIVO_FINAL_A_FS");
+			job_id = msg->argv[0];
+			reduce_id = msg->argv[1];
+			//log_trace(logger, "Termino el job %d", job_id);
+			subir_archivo_final_a_fs(job_id, reduce_id);
+
+
+			break;
 		case JOB_TERMINO:
 			log_trace(logger, "JOB_TERMINO *****************************************************************");
-			log_trace(logger, "Termino el job %d", msg->argv[0]);
+			job_id = msg->argv[0];
+			log_trace(logger, "Termino el job %d", job_id);
+
 
 			marta_job_destroy(msg->argv[0]);
 
@@ -371,7 +382,45 @@ void procesar (int fd, t_msg*msg){
 	}
 }
 
+int subir_archivo_final_a_fs(int job_id, int reduce_id){
 
+	t_job* job = job_buscar(job_id);
+	t_reduce* reduce = reduce_buscar(job, reduce_id);
+
+	if(reduce->final){
+		int fd = client_socket(MaRTA_IP_FS(), MaRTA_PUERTO_FS());
+		t_msg* msg = string_message(FS_GRABAR_ARCHIVO, reduce->info->resultado, 0);
+		//envio el nombre del archivo a subir
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+		//envio en que nodo esta guardado
+		enviar_mensaje_nodo_base(fd, reduce->nodo_base_destino);
+		destroy_message(msg);
+
+		//envio el nombre ydonde se tiene que guardar en FS
+		msg = string_message(0, job->resultado, 0);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+
+		msg = recibir_mensaje(fd);
+		bool GRABO_OK = msg->header.id == FS_OK;
+		destroy_message(msg);
+		if(GRABO_OK){//si grabo OK aviso
+			msg = argv_message(MARTA_RESULTADO_REDUCE_GUARDADO_OK, 0);
+		}else{
+			//envio cualquier cosa distinto a MARTA_RESULTADO_REDUCE_GUARDADO
+			msg = argv_message(MARTA_RESULTADO_REDUCE_GUARDADO_ERROR, 0);
+		}
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+
+		close(fd);
+	}else{
+		return -1;
+	}
+
+	return 0;
+}
 
 int avisar_ningun_mapreduce(int fd){
 	t_msg* msg = argv_message(MAPREDUCE_NINGUNO, 0);

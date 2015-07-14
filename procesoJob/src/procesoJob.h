@@ -30,6 +30,7 @@
 #include <fcntl.h>          /* O_CREAT, O_EXEC          */
 
 int CANT_INTENTOS_MAPREDUCE = 2;
+t_reduce* reduce_final = NULL;
 /*
 typedef struct{
 	int id;
@@ -334,6 +335,40 @@ int conectar_con_marta(){
 
 	procesar_reduces();
 
+
+	int socket_marta = client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA());
+
+	enviar_mensaje(socket_marta, msg);
+	destroy_message(msg);
+
+	//si es distinto de null significa que termino el reduce final OK
+	if(reduce_final!=NULL){
+		msg = argv_message(JOB_SUBIR_ARCHIVO_FINAL_A_FS,2, JOB_ID, reduce_final->info->id );
+		//cuando le envio el mensaje JOB_TERMINO, marta tiene que subir el archivo final generado y decirme si se subio bien o no
+		//para saber si realmente termino bien el job, guardando el resultado final en el fs
+		msg = recibir_mensaje(fd);
+		if (msg->header.id == MARTA_RESULTADO_REDUCE_GUARDADO) {
+			pthread_mutex_lock(&mutex_log);
+			log_trace(logger, "Resultado final %s guardado en FS OK",
+					JOB_RESULTADO());
+			pthread_mutex_unlock(&mutex_log);
+		} else {
+			pthread_mutex_lock(&mutex_log);
+			log_trace(logger, "Resultado final %s No se pudo guardar en el FS",
+					JOB_RESULTADO());
+			pthread_mutex_unlock(&mutex_log);
+		}
+
+		reduce_free(reduce_final);
+	}
+
+
+	//cerrar marta
+	msg = argv_message(MARTA_SALIR, 0);
+	enviar_mensaje(socket_marta, msg);
+	destroy_message(msg);
+	close(socket_marta);
+
 	return 0;
 }
 
@@ -366,22 +401,15 @@ int procesar_reduces(){
 		log_trace(logger, "Fin proceso reduces");
 		pthread_mutex_unlock(&mutex_log);
 
-		int socket_marta = client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA());
-		msg = argv_message(JOB_TERMINO, 1, JOB_ID);
-		enviar_mensaje(socket_marta, msg);
-		destroy_message(msg);
 
-
-		msg = argv_message(MARTA_SALIR, 0);
-		enviar_mensaje(socket_marta, msg);
-		destroy_message(msg);
-		close(socket_marta);
 
 	}
 
 	pthread_t th_procesar_reduces;
 	pthread_create(&th_procesar_reduces, NULL, (void*)_procesar_reduces, NULL);
 	pthread_join(th_procesar_reduces, NULL);
+
+
 
 	return 0;
 }
@@ -416,8 +444,14 @@ int nuevo_hilo_reducer(){
 	avisar_marta_termino(socket_marta, REDUCE, reduce->info->id, res);
 
 	bool reducefinal = reduce->final;
-	reduce_free(reduce);
 
+
+	//si el reduce final se hizo bien no limpio el ultimo reduce para usarlo para enviarle a marta el archivo a subir al fs;
+
+	if(reducefinal && res==0){
+		reduce_final = reduce;
+	}else//sino lo limpio
+		reduce_free(reduce);
 
 	if(reducefinal || res<0){//res<0 porque si falla uno cancela tod0, marco como que es final asi sale del for(;;)
 		pthread_mutex_lock(&mutex_log);
@@ -559,26 +593,26 @@ int avisar_marta_termino(int socket_marta, int map_o_reduce, int map_reduce_id, 
 
 
 int lanzar_hilo_reduce(int fd, t_reduce* reduce){
+	pthread_mutex_lock(&mutex_log);
 	log_trace(logger, "Comienzo a crear hilo reduce");
-
+	pthread_mutex_unlock(&mutex_log);
 	pthread_t th;
 	pthread_create(&th, NULL, (void*)funcionReducing, (void*)reduce); //que párametro  ponemos??
 
 	int* res_reduce;
 	pthread_join (th, (void**)&res_reduce);
 
+	pthread_mutex_lock(&mutex_log);
 	log_trace(logger, "Le aviso a Marta que el reduce %d finalizo", reduce->info->id);
+	pthread_mutex_unlock(&mutex_log);
 	//le tengo que avisar a marta que termino el reduce ya sea bien o mal
 	//paso el job_id asignado y el resultado y el map_id
 	t_msg* msg = argv_message(JOB_REDUCE_TERMINO, 3, JOB_ID, res_reduce, reduce->info->id);
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
-	log_trace(logger, "Mensaje enviado a marta con resultado: %d del reduce %d", res_reduce, reduce->info->id);
-
-
-
-
-	log_trace(logger, "Fin de hilo reduce");
+	pthread_mutex_lock(&mutex_log);
+	log_trace(logger, "Mensaje enviado a marta con resultado: %d del reduce %d guardado en %s", res_reduce, reduce->info->id, reduce->info->resultado);
+	pthread_mutex_unlock(&mutex_log);
 	return 0;
 }
 

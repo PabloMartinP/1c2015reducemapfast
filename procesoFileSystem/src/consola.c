@@ -45,6 +45,9 @@ e_comando getComando(char* comando) {
 	if (string_equals_ignore_case(comando, "renamedir"))
 		return DIRECTORIO_RENOMBRAR;
 
+	if (string_equals_ignore_case(comando, "md5"))
+		return MD5;
+
 
 	return NADA;
 }

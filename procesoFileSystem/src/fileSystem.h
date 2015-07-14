@@ -84,7 +84,7 @@ t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre,	int dir_
 int fs_buscar_directorio_id_por_nombre(char* nombre, int padre);
 bool fs_existe_archivo(char* nombre, int dir_id);
 bool fs_dir_esta_vacio(int id);
-void fs_copiar_mdfs_a_local(char* nombre, int dir_id,char* destino);
+int fs_copiar_mdfs_a_local(char* nombre, int dir_id,char* destino);
 bool fs_existe_dir(char* nombre,int dir_id);
 int fs_dir_renombrar(int id, char* nuevo_nombre);
 int fs_dir_eliminar_por_id(int id);
@@ -158,6 +158,9 @@ int fs_archivo_ver_bloque(char* nombre, int dir_id, int numero_bloque) {
 
 }
 
+/*
+ * devuelve el bloque, hacer free
+ */
 char* fs_archivo_get_bloque(char* nombre, int dir_id, int numero_bloque) {
 	int i;
 	//busco el archivo
@@ -185,8 +188,8 @@ char* fs_archivo_get_bloque(char* nombre, int dir_id, int numero_bloque) {
 
 		if (nodo != NULL) {
 
-			if (nodo_esta_vivo(nb->base->red.ip, nb->base->red.puerto)) {
-
+			//if (nodo_esta_vivo(nb->base->red.ip, nb->base->red.puerto)) {
+			if (nodo_esta_activo(nb->base)) {
 				//si esta vivo inicio la transferencia del bloque
 				nb = NULL;
 				nb = list_get(bloque->nodosbloque, i);
@@ -266,7 +269,7 @@ bool fs_existe_dir_por_id(int dir_id) {
 	return dir_buscar_por_id(fs.directorios, dir_id) != NULL;
 }
 
-void fs_copiar_mdfs_a_local(char* nombre, int dir_id, char* destino) {
+int fs_copiar_mdfs_a_local(char* nombre, int dir_id, char* destino) {
 	int i;
 	t_archivo* archivo = NULL;
 	log_trace(logger, "Comienzo a copiar el archivo");
@@ -277,15 +280,23 @@ void fs_copiar_mdfs_a_local(char* nombre, int dir_id, char* destino) {
 
 	//obtengo el nombre del archivo destino
 	char* nombre_nuevo_archivo = NULL;
-	nombre_nuevo_archivo = file_combine(destino, archivo->info->nombre);
-	string_append(&nombre_nuevo_archivo, "_");
-	char* timenow = temporal_get_string_time();
-	string_append(&nombre_nuevo_archivo, timenow);
-	FREE_NULL(timenow);
+	if(string_starts_with(destino, "/tmp")){
+		nombre_nuevo_archivo = strdup(destino);
+	}else{
+		nombre_nuevo_archivo = file_combine(destino, archivo->info->nombre);
+		string_append(&nombre_nuevo_archivo, "_");
+		char* timenow = temporal_get_string_time();
+		string_append(&nombre_nuevo_archivo, timenow);
+		FREE_NULL(timenow);
+	}
+
+
+
 	//creo el file, si ya existe lo BORRO!!!
 	clean_file(nombre_nuevo_archivo);
 	FILE* file = txt_open_for_append(nombre_nuevo_archivo);
 
+	int rs=0;
 	char* datos_bloque;
 	for (i = 0; i < archivo->info->cant_bloques; i++) {/**/
 		//bloque_de_datos = NULL;
@@ -294,16 +305,31 @@ void fs_copiar_mdfs_a_local(char* nombre, int dir_id, char* destino) {
 
 		//le paso la lista de los tres lugares donde esta y me tiene que devolver los datos leidos de cualquiera de lso nodosBloque
 		datos_bloque = fs_archivo_get_bloque(nombre, dir_id, i);
+		if(datos_bloque!=NULL){
+			//una vez que traigo el bloque lo grabo en el archivo destino
+			txt_write_in_file(file, datos_bloque);
+			free(datos_bloque);datos_bloque = NULL;
+		}else{
+			//si no esta disponible ninguna copia salgo corriendo
+			rs = -1;
+			break;
+		}
 
-		//una vez que traigo el bloque lo grabo en el archivo destino
-		txt_write_in_file(file, datos_bloque);
-		free(datos_bloque);datos_bloque = NULL;
+
+
 	}
 
-	printf("Creado archivo nuevo: %s\n", nombre_nuevo_archivo);
+	if(rs==-1){
+
+	}else{
+		printf("Creado archivo nuevo: %s\n", nombre_nuevo_archivo);
+	}
+
 	txt_close_file(file);
 	//FREE_NULL(nombre_nuevo_archivo);
 	free(nombre_nuevo_archivo);nombre_nuevo_archivo = NULL;
+
+	return rs;
 }
 /*
  * me tengo que conectar con el nodo y traer la info, ya sea del 1 2 o 3

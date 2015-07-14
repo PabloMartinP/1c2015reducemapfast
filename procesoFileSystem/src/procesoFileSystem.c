@@ -107,6 +107,10 @@ void iniciar_consola() {
 				fs_print_archivos();
 				pthread_mutex_unlock(&mutex);
 				break;
+			case MD5:
+				archivo_nombre = input_user[1];
+				md5(archivo_nombre);
+				break;
 			case ARCHIVO_INFO:	//info
 				//ej:fileinfo
 				archivo_nombre = input_user[1];
@@ -285,13 +289,70 @@ void cambiar_directorio(char* path){
 	}
 }
 
-void archivo_copiar_mdfs_a_local(char* nombre, char* destino){
+int archivo_copiar_mdfs_a_local(char* nombre, char* destino){
 
 	//verifico que exista el archivo en el mdfs
 	if (fs_existe_archivo(nombre, DIR_ACTUAL)) {
-		fs_copiar_mdfs_a_local(nombre, DIR_ACTUAL, destino);
-	} else
+		return fs_copiar_mdfs_a_local(nombre, DIR_ACTUAL, destino);
+	} else{
 		printf("EL archivo no existe en el mdfs: %s\n",	nombre);
+		return -1;
+	}
+}
+
+int md5(char* nombre){
+
+	if (fs_existe_archivo(nombre, DIR_ACTUAL)){
+
+		//traigo el archivo a /tmp
+		char*nombre_tmp=NULL;
+		nombre_tmp = string_from_format("/tmp/md5_dir:%d_nombre:%s", DIR_ACTUAL, nombre);
+		fs_copiar_mdfs_a_local(nombre, DIR_ACTUAL, nombre_tmp);
+
+		char* res = malloc(16);
+		//char* data = "test123";
+		char* data = file_get_mapped(nombre_tmp);
+
+		res = str2md5(data, strlen(data));
+		printf("MD5: %s\n", res);
+
+		free(nombre_tmp);
+		file_mmap_free(data, nombre_tmp);
+	}
+	else{
+		printf("el archivo no existe: %s\n", nombre);
+	}
+
+
+	return 0;
+}
+
+
+char *str2md5(const char *str, int length) {
+    int n;
+    MD5_CTX c;
+    unsigned char digest[16];
+    char *out = (char*)malloc(33);
+
+    MD5_Init(&c);
+
+    while (length > 0) {
+        if (length > 512) {
+            MD5_Update(&c, str, 512);
+        } else {
+            MD5_Update(&c, str, length);
+        }
+        length -= 512;
+        str += 512;
+    }
+
+    MD5_Final(digest, &c);
+
+    for (n = 0; n < 16; ++n) {
+        snprintf(&(out[n*2]), 16*2, "%02x", (unsigned int)digest[n]);
+    }
+
+    return out;
 }
 
 void archivo_info(char* nombre){

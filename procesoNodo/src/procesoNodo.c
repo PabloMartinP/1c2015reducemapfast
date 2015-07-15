@@ -930,6 +930,15 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 			int rs = 0;
 			// Write to child’s stdin
 			char* stdinn = getBloque(n_bloque);
+			if(stdinn==NULL){
+				pthread_mutex_lock(mutex);
+				log_trace(logger, "Error al escribir getBloque(%d)", n_bloque);
+				pthread_mutex_unlock(mutex);
+				close(fd);
+				return -1;
+			}
+
+
 			size_t len = strlen(stdinn);
 			if (stdinn[len - 1] != '\n') {
 				len += 1;
@@ -1655,9 +1664,10 @@ int procesar_mensaje(int fd, t_msg* msg) {
 	case NODO_GET_BLOQUE:
 		n_bloque = msg->argv[0];
 		destroy_message(msg);
-		msg = string_message(NODO_GET_BLOQUE, getBloque(n_bloque), 0);//en la posicion 0 esta en nuemro de bloque
+		bloque  = getBloque(n_bloque);
+		msg = string_message(NODO_GET_BLOQUE, bloque, 0);//en la posicion 0 esta en nuemro de bloque
 		enviar_mensaje(fd, msg);
-
+		FREE_NULL(bloque);
 		destroy_message(msg);
 
 		break;
@@ -2002,7 +2012,8 @@ char* getBloque(int32_t numero) {
 	if(bloque==NULL){
 		printf("ERRORR bloque %d\n", numero);
 		perror("malloc");
-		exit(1);
+		return NULL;
+		//exit(-1);
 	}
 	pthread_mutex_lock(&mx_data);
 	//pthread_mutex_lock(&mutex);

@@ -349,8 +349,12 @@ bool fs_dir_esta_vacio(int id){
 }
 
 int fs_buscar_directorio_id_por_nombre(char* nombre, int padre){
+
 	t_directorio* dir =  dir_buscar_por_nombre(fs.directorios, nombre, padre);
-	return dir->index;
+	if(dir==NULL)
+		return -1;
+	else
+		return dir->index;
 }
 
 t_archivo* fs_buscar_archivo_por_nombre(t_list* archivos, char* nombre, int dir_id) {

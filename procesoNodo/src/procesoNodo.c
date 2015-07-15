@@ -1516,7 +1516,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 	char* bloque;
 	char* filename_script;
 	int n_bloque = 0, rs;
-	//char* buff;
+	char* buff;
 	char* file_data;
 	t_map* map = NULL;
 	t_reduce* reduce = NULL;
@@ -1618,6 +1618,21 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		destroy_message(msg);
 
 		//close(fd);
+		break;
+	case NODO_GET_FILECONTENT:
+		//lo convierto a path absoluto
+			printf("%s\n", msg->stream);
+			buff = convertir_a_temp_path_filename(msg->stream);
+			//obtengo el char
+			file_data = getFileContent(msg->stream);
+			//FREE_NULL(buff);
+
+			//envio el archivo
+			destroy_message(msg);
+			msg = string_message(NODO_GET_FILECONTENT, file_data, 0);
+			enviar_mensaje(fd, msg);
+			free(buff);
+
 		break;
 	case NODO_GET_FILECONTENT_DATA:
 		//lo convierto a path absoluto
@@ -1765,6 +1780,7 @@ bool requiere_hilo(t_msg* msg){
 			|| msg->header.id == NODO_GET_FILECONTENT_DATA
 			|| msg->header.id == NODO_GET_BLOQUE
 			|| msg->header.id == JOB_MAPPER
+			|| msg->header.id == NODO_GET_FILECONTENT
 			|| msg->header.id == JOB_REDUCER;
 }
 

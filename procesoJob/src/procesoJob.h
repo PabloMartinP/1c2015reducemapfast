@@ -338,16 +338,18 @@ int conectar_con_marta(){
 
 	int socket_marta = client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA());
 
-	enviar_mensaje(socket_marta, msg);
-	destroy_message(msg);
 
 	//si es distinto de null significa que termino el reduce final OK
 	if(reduce_final!=NULL){
+		log_trace(logger, "Enviando archivo final %s en nodo %s a grabar en fs", reduce_final->info->resultado, nodo_base_to_string(reduce_final->nodo_base_destino));
 		msg = argv_message(JOB_SUBIR_ARCHIVO_FINAL_A_FS,2, JOB_ID, reduce_final->info->id );
+		enviar_mensaje(socket_marta, msg);
+		destroy_message(msg);
 		//cuando le envio el mensaje JOB_TERMINO, marta tiene que subir el archivo final generado y decirme si se subio bien o no
 		//para saber si realmente termino bien el job, guardando el resultado final en el fs
 		msg = recibir_mensaje(fd);
-		if (msg->header.id == MARTA_RESULTADO_REDUCE_GUARDADO) {
+
+		if (msg->header.id == MARTA_RESULTADO_REDUCE_GUARDADO_OK) {
 			pthread_mutex_lock(&mutex_log);
 			log_trace(logger, "Resultado final %s guardado en FS OK",
 					JOB_RESULTADO());

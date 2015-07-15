@@ -29,6 +29,7 @@ t_reduce* crear_reduce_final(t_job* job, t_nodo_base* nb);
 int avisar_nuevo_reduce_final(t_job* job, int fd);
 int enviar_map(int socket, int job_id, int map_id);
 t_reduce* marta_job_buscar_reduce_no_empezado(int job_id);
+int subir_archivo_final_a_fs(int job_id, int reduce_id);
 int avisar_ningun_mapreduce(int fd);
 t_reduce* crear_reduce_local(t_job* job, t_nodo_base* nb);
 
@@ -357,7 +358,17 @@ void procesar (int fd, t_msg*msg){
 			job_id = msg->argv[0];
 			reduce_id = msg->argv[1];
 			//log_trace(logger, "Termino el job %d", job_id);
-			subir_archivo_final_a_fs(job_id, reduce_id);
+			res = subir_archivo_final_a_fs(job_id, reduce_id);
+
+			if (res==0) {			//si grabo OK aviso
+				msg = argv_message(MARTA_RESULTADO_REDUCE_GUARDADO_OK, 0);
+			} else {
+				//envio cualquier cosa distinto a MARTA_RESULTADO_REDUCE_GUARDADO
+				msg = argv_message(MARTA_RESULTADO_REDUCE_GUARDADO_ERROR, 0);
+			}
+			enviar_mensaje(fd, msg);
+			destroy_message(msg);
+
 
 
 			break;
@@ -388,33 +399,31 @@ int subir_archivo_final_a_fs(int job_id, int reduce_id){
 	t_reduce* reduce = reduce_buscar(job, reduce_id);
 
 	if(reduce->final){
-		int fd = client_socket(MaRTA_IP_FS(), MaRTA_PUERTO_FS());
+		int socket_fs = client_socket(MaRTA_IP_FS(), MaRTA_PUERTO_FS());
 		t_msg* msg = string_message(FS_GRABAR_ARCHIVO, reduce->info->resultado, 0);
 		//envio el nombre del archivo a subir
-		enviar_mensaje(fd, msg);
+		enviar_mensaje(socket_fs, msg);
 		destroy_message(msg);
 		//envio en que nodo esta guardado
-		enviar_mensaje_nodo_base(fd, reduce->nodo_base_destino);
-		destroy_message(msg);
+		enviar_mensaje_nodo_base(socket_fs, reduce->nodo_base_destino);
 
-		//envio el nombre ydonde se tiene que guardar en FS
+
+		//envio el nombre ydonde se tiene que guardar en FS, ej:/output/resultado.txt
 		msg = string_message(0, job->resultado, 0);
-		enviar_mensaje(fd, msg);
+		enviar_mensaje(socket_fs, msg);
 		destroy_message(msg);
 
-		msg = recibir_mensaje(fd);
+		msg = recibir_mensaje(socket_fs);
 		bool GRABO_OK = msg->header.id == FS_OK;
-		destroy_message(msg);
-		if(GRABO_OK){//si grabo OK aviso
-			msg = argv_message(MARTA_RESULTADO_REDUCE_GUARDADO_OK, 0);
-		}else{
-			//envio cualquier cosa distinto a MARTA_RESULTADO_REDUCE_GUARDADO
-			msg = argv_message(MARTA_RESULTADO_REDUCE_GUARDADO_ERROR, 0);
-		}
-		enviar_mensaje(fd, msg);
+
 		destroy_message(msg);
 
-		close(fd);
+		close(socket_fs);
+		if(GRABO_OK)
+			return 0;
+		else
+			return -1;
+
 	}else{
 		return -1;
 	}

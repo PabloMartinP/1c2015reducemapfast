@@ -432,12 +432,68 @@ void inicializar() {
 
 }
 
+int grabar_archivo(int fd, t_msg* msg){
+	char* origen = strdup(msg->stream);
+	destroy_message(msg);
+
+	t_nodo_base* nodo_base= recibir_mensaje_nodo_base(fd);
+
+	char* destino;
+	msg = recibir_mensaje(fd);
+	destino = strdup(msg->stream);
+	destroy_message(msg);
+
+	char* filename = strdup(basename(destino));
+	char* dir_nombre = dirname(destino);
+	int dir_id = fs_dir_get_index(dir_nombre, 0);
+
+	//ahora guardo el archivo en el fs
+	//me conecto al nodo y le pido el archivo
+	int socket_nodo = client_socket(nodo_base->red.ip, nodo_base->red.puerto);
+	if(socket_nodo>0){
+		msg = string_message(NODO_GET_FILECONTENT, origen, 0);
+		enviar_mensaje(socket_nodo, msg);
+		destroy_message(msg);
+
+		//recibo el stream del file
+		msg = recibir_mensaje(socket_nodo);
+
+		//guardo el file en tmp
+		char* nombre_tmp = string_from_format("/tmp/%s", filename);
+		FILE* file = fopen(nombre_tmp, "w");
+		fwrite(msg->stream, strlen(msg->stream), 1, file);
+		fclose(file);
+
+		fs_copiar_archivo_local_al_fs(nombre_tmp, dir_id);
+
+		destroy_message(msg);
+		remove(nombre_tmp);
+		FREE_NULL(filename);
+		FREE_NULL(nombre_tmp);
+
+		close(socket_nodo);
+
+		msg = argv_message(FS_OK, 0);
+		enviar_mensaje(fd, msg);
+		destroy_message(msg);
+		return 0;
+	}else{
+		//error al conectarse al nodo
+		log_trace(logger, "error al conectarse con el nodo");
+		return -1;
+	}
+}
 
 void procesar_mensaje_nodo(int fd, t_msg* msg) {
 	//leer el msg recibido
 	t_archivo* archivo ;
 	switch (msg->header.id) {
 
+	case FS_GRABAR_ARCHIVO:
+
+		grabar_archivo(fd, msg);
+
+		break;
 	case FS_ESTA_OPERATIVO:
 		destroy_message(msg);
 		msg = argv_message(FS_ESTA_OPERATIVO, 1, OPERATIVO);

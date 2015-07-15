@@ -61,6 +61,11 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 
 			//creo un descriptor de archivo por cada file local
 			FILE** fdlocal = malloc(cant_local_files * sizeof(FILE*));
+			if(fdlocal==NULL){
+				log_error(logger, "error malloc fdlocal");
+				close(fd);
+				return -1;
+			}
 			//abro los archivos locales
 			int i = 0;
 			rs =0;
@@ -91,6 +96,11 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			//hasta aca tengo los archivos locales abiertos, listos para empezar a leer
 			//ahora tengo que decirle a los nodos que stan en red que me devuelvan su archivo para empezara leer
 			int* fdred = malloc(cant_red_files * sizeof(int));
+			if(fdred==NULL){
+				perror("malloc cant_red_files");
+				close(fd);
+				return -1;
+			}
 			//inicializo tod0" en -1, para despues limpiar completo
 			for (i = 0; i < cant_red_files; i++)
 					fdred[i]  = -1;
@@ -153,12 +163,23 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			size_t len_key = LEN_KEYVALUE;
 			char* key = NULL;
 			char** keys = malloc(sizeof(char*) * (cant_total_files));
+			if(keys==NULL){
+				perror("mallloc keys");
+				close(fd);
+				return -1;
+			}
 
 			i = 0;
 			//cargo las keys de los archivos locales, con su primer valor
 			for (i = 0; i < cant_local_files; i++) {
 				//rs = getline(&(keys[i]), &len_key, fd[i]);
 				key = malloc(LEN_KEYVALUE);
+				if(key == NULL){
+					perror("malloc key");
+					return -1;
+				}
+				//key = NULL;
+				//len_key = 0;
 				len_key = LEN_KEYVALUE;
 				rs = getline(&key, &len_key, fdlocal[i]);
 				if (rs != -1) {
@@ -171,6 +192,11 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			int j = 0;
 			for (j = 0; i < cant_total_files; j++, i++) {
 				keys[i] = recibir_linea(fdred[j]);
+				if(keys[i]==NULL){
+					perror("recibir linea");
+					close(fd);
+					return -1;
+				}
 				//rs = getline(&(keys[i]), &len_key, fdlocal[i]);
 			}
 			//aca ya tengo todas las keys
@@ -185,6 +211,11 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				//fprintf(stdout, "%s\n", keys[index_menor]);
 
 				rs = escribir_todo(fd, keys[index_menor], strlen(keys[index_menor]));
+				if(rs<0){
+					perror("escribir todo");
+					close(fd);
+					return -1;
+				}
 
 				//fprintf(stdout, "res write. %d\n", rs);
 				//fprintf(stdout, "strlen: %d\n", strlen(keys[index_menor]));
@@ -206,8 +237,13 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				//cuando termina devuelve NULL;
 				if (i > 1024) {
 					i = 0;
-					if (c % 100 == 0)
-						fprintf(stdout, "Contador %d\n", c);
+					if (c % 100 == 0){
+						pthread_mutex_lock(mutex);
+						log_trace(logger, "Contador reduce %d ", c);
+						pthread_mutex_unlock(mutex);
+
+
+					}
 
 					c++;
 				}
@@ -220,7 +256,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 
 			//si llego hasta aca termino de enviarle cosas por stdin,
 			//cierro el stdin
-			puts("antes de cerrar");
+			//puts("antes de cerrar");
 			close(fd);
 
 			//cierro los archivos locales
@@ -247,20 +283,37 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 
 		//lanzo hilo writer stdin;
 		pthread_t th_writer, th_reader;
-		pthread_create(&th_writer, NULL, (void*) _writer, (void*) fdwriter);
+		if( (pthread_create(&th_writer, NULL, (void*) _writer, (void*) fdwriter))!=0 ){
+			perror("pthread_crete writer reduce");
+			return -1;
+		}
 
 		//creo y lanzo el hilo reader
 		t_reader treader;
 		treader.fd = fdreader;
 		char* result_reduce = convertir_a_temp_path_filename( filename_result);
+		if(result_reduce==NULL){
+			perror("result_reduce");
+			return -1;
+		}
 		treader.destino = result_reduce;
 
-		pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*) &treader);
+		if((pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*) &treader))!=0){
+			perror("pthread_crete reader reduce");
+			return -1;
+		}
+
 
 		int rsw=1, rsr=1;
 		//lockeo hasta que termine de escribir y leer el stdin y stdout
-		pthread_join(th_writer, (void*)&rsw);
-		pthread_join(th_reader, (void*)&rsr);
+		if((pthread_join(th_writer, (void*)&rsw))!=0){
+			perror("pthrad_join writer reduce");
+			return -1;
+		}
+		if((pthread_join(th_reader, (void*)&rsr))!=0){
+			perror("pthread_join reader reduce");
+			return -1;
+		}
 
 		if(rsw!=0 || rsr!=0){
 			pthread_mutex_lock(mutex);
@@ -277,7 +330,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 		log_trace(logger, "Fin lectura stdout resultado reduce, guardado en archivo %s", result_reduce);
 		pthread_mutex_unlock(mutex);
 
-		puts("reduce Fin hilo lectura stdout\n");
+		//puts("reduce Fin hilo lectura stdout\n");
 
 		FREE_NULL(result_reduce);
 		return 0;
@@ -645,7 +698,7 @@ pthread_create(&pth_read, NULL, (void*) _read, NULL);
 
 int get_index_menor(char** keys, int cant){
 	char key_men[LEN_KEYVALUE];
-	memset(key_men, 255, 255);
+	memset(key_men, 255, LEN_KEYVALUE);
 
 	int index = 0;
 	int i;
@@ -796,6 +849,11 @@ bool nodo_es_local(char* ip, int puerto) {
 char* convertir_a_temp_path_filename(char* filename) {
 	pthread_mutex_lock(&mutex);
 	char* new_path_file = string_new();
+	if(new_path_file == NULL){
+		perror("string_new convertir_a_temp_path_filename");
+		return NULL;
+	}
+
 	string_append(&new_path_file, NODO_DIRTEMP());
 	string_append(&new_path_file, "/");
 	string_append(&new_path_file, filename);
@@ -924,7 +982,7 @@ sem_t* sem_crear(int* shmid, key_t* shmkey){
 }
 
 int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthread_mutex_t* mutex){
-	int rs;
+
 	int _reader_writer(int fdreader, int fdwriter) {
 		int _writer(int fd) {
 			int rs = 0;
@@ -943,6 +1001,13 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 			if (stdinn[len - 1] != '\n') {
 				len += 1;
 				stdinn = realloc(stdinn, len);
+				if(stdinn==NULL){
+					pthread_mutex_lock(mutex);
+					log_trace(logger, "Error al realloc bloque(%d)", n_bloque);
+					pthread_mutex_unlock(mutex);
+					close(fd);
+					return -1;
+				}
 				stdinn[len] = '\0';
 				stdinn[len - 1] = '\n';
 			}
@@ -959,6 +1024,10 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 				len_buff_write = len_hasta_enter(stdinn + bytes_leidos);
 				bytes_escritos = escribir_todo(fd, stdinn + bytes_leidos, len_buff_write);
 				if(bytes_escritos<0){
+					pthread_mutex_lock(mutex);
+					log_error(logger, "escribirTodo Error al escribir en stdin bloque %d",n_bloque);
+					pthread_mutex_unlock(mutex);
+					close(fd);
 					rs = -1;
 					break;
 				}
@@ -1003,20 +1072,37 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 
 		//lanzo hilo writer stdin;
 		pthread_t th_writer, th_reader;
-		pthread_create(&th_writer, NULL, (void*) _writer, (void*) fdwriter);
+		if( (pthread_create(&th_writer, NULL, (void*) _writer, (void*) fdwriter))!=0 ){
+			perror("pthread_create writer map")	;
+			return -1;
+		}
+		usleep(100);
 
 		t_reader treader;
 		treader.fd = fdreader;
 		char* new_file_map_disorder = convertir_a_temp_path_filename(filename_result);
+		if(new_file_map_disorder==NULL){
+			return -1;
+		}
 		string_append(&new_file_map_disorder, "-disorder.tmp");
 		treader.destino = new_file_map_disorder ;
 
-		pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*) &treader);
+		if( (pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*) &treader))!=0 ){
+			perror("pthread_create reader map")	;
+			return -1;
+		}
+		usleep(100);
 
 		//lockeo hasta que termine de escribir y leer el stdin y stdout
 		int rswriter=1, rsreader=1;
-		pthread_join(th_writer, (void*)&rswriter);
-		pthread_join(th_reader, (void*)&rsreader);
+		if( (pthread_join(th_writer, (void*)&rswriter))!=0 ){
+			perror("pthread_join writer map");
+			return -1;
+		}
+		if( (pthread_join(th_reader, (void*)&rsreader))!=0 ){
+			perror("pthread_join reader map");
+			return -1;
+		}
 
 		if(rswriter!=0 && rsreader!=0){
 			return -1;
@@ -1024,7 +1110,7 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 
 		//hasta aca ya tengo el map del archivo
 		//me falta ordenarlo
-
+		int rs;
 
 		pthread_mutex_lock(mutex);
 		log_trace(logger, "Fin lectura stdout, guardado en archivo %s",	new_file_map_disorder);
@@ -1032,24 +1118,44 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 		pthread_mutex_unlock(mutex);
 
 		char* result_order = string_from_format("%s/%s", NODO_DIRTEMP(), filename_result);
+		if(result_order==NULL){
+			pthread_mutex_lock(mutex);
+			log_error(logger, "error al crear result_order");
+			pthread_mutex_unlock(mutex);
+			return -1;
+		}
 		rs = ordenar_map(new_file_map_disorder, result_order, mutex);
+		if(rs<0){
+			pthread_mutex_lock(mutex);
+			log_error(logger, "error al ordenar map");
+			pthread_mutex_unlock(mutex);
+			free(result_order);
+			return -1;
+		}
 		FREE_NULL(result_order);
 
 		pthread_mutex_lock(mutex);
 		log_trace(logger, "Fin orden, generado archivo final > %s",	filename_result);
 		pthread_mutex_unlock(mutex);
 
-		puts("map Fin hilo lectura stdout\n");
+		//puts("map Fin hilo lectura stdout\n");
 
 		remove(new_file_map_disorder);
 		FREE_NULL(new_file_map_disorder);
 
 		return 0;
 	}
+	int rs;
+	/*
 	char* nombre_proc = string_from_format("map-on-block:%d", n_bloque);
-	rs = ejecutar_script(script_map, nombre_proc, _reader_writer, mutex);
-	FREE_NULL(nombre_proc);
-	//rs = ejecutar_script("/home/utnso/Escritorio/tests/mapper.sh", "mapperR", _reader_writer);
+	if(nombre_proc==NULL){
+		pthread_mutex_lock(mutex);
+		log_error(logger, "Erro al crear nombre proc");
+		pthread_mutex_unlock(mutex);
+	}*/
+	//rs = ejecutar_script(script_map, nombre_proc, _reader_writer, mutex);
+	rs = ejecutar_script(script_map, "mapper", _reader_writer, mutex);
+	//FREE_NULL(nombre_proc);
 
 	return rs;
 }
@@ -1356,12 +1462,25 @@ int ordenar_map(char* origen, char* destino, pthread_mutex_t* mutex){
 	int rs=1;
 	t_ordenar* p_ordenar;
 	p_ordenar = malloc(sizeof(t_ordenar));
+	if(p_ordenar ==NULL){
+		perror("malloc ordenar_map");
+		return -1;
+	}
 	p_ordenar->origen = origen;
 	p_ordenar->destino =destino;
 	p_ordenar->mutex = mutex;
 	pthread_t th_ordenar;
-	pthread_create(&th_ordenar, NULL, (void*)ordenar, (void*)p_ordenar);
-	pthread_join(th_ordenar, (void*)&rs);
+
+	if( (pthread_create(&th_ordenar, NULL, (void*)ordenar, (void*)p_ordenar))!=0 ){
+		perror("pthread_create ordenar");
+		return -1;
+	}
+	usleep(100);
+
+	if( (pthread_join(th_ordenar, (void*)&rs))!=0 ){
+		perror("pthread_join ordenar");
+		return -1;
+	}
 
 	pthread_mutex_lock(mutex);
 	log_trace(logger, "Fin ordenar %s, res: %s", origen, destino);
@@ -1476,6 +1595,9 @@ char* generar_nombre_map_tmp(t_mapreduce* mapreduce) {
 
 char* generar_nombre_reduce_tmp(t_mapreduce* mapreduce) {
 	char* timenow = temporal_get_string_time();
+	if(timenow==NULL){
+		return NULL;
+	}
 
 	/*char* file_map1 = string_new();
 	string_append(&file_map1, "job_script_reduce_");
@@ -1499,6 +1621,7 @@ int aplicar_reduce(t_reduce* reduce, char* script) {
 		//creo un archivo para reducir
 		file_reduce1 = NULL;
 		file_reduce1 = malloc(sizeof *file_reduce1);
+
 		strcpy(file_reduce1->archivo, na->archivo);
 		strcpy(file_reduce1->ip, na->nodo_base->red.ip);
 		file_reduce1->puerto = na->nodo_base->red.puerto;
@@ -1953,9 +2076,6 @@ void inicializar() {
 
 	pthread_mutex_init(&mutex, NULL);
 
-	pthread_mutex_init(&mutex, NULL);
-	pthread_mutex_init(&mx_data, NULL);
-
 
 	_data = data_get(NODO_ARCHIVOBIN());
 }
@@ -1990,14 +2110,14 @@ char* getFileContent(char* filename) {
 
 void setBloque(int32_t numero, char* bloquedatos) {
 
-	pthread_mutex_lock(&mx_data);
+	pthread_mutex_lock(&mutex);
 	log_info(logger, "Inicio setBloque(%d)", numero);
 
 	memset(_data + (numero * TAMANIO_BLOQUE_B), 0, TAMANIO_BLOQUE_B);
 	memcpy(_data + (numero * TAMANIO_BLOQUE_B), bloquedatos, TAMANIO_BLOQUE_B);
 
 	log_info(logger, "Fin setBloque(%d)", numero);
-	pthread_mutex_unlock(&mx_data);
+	pthread_mutex_unlock(&mutex);
 }
 /*
  * devuelve una copia del bloque, hacer free
@@ -2015,11 +2135,11 @@ char* getBloque(int32_t numero) {
 		return NULL;
 		//exit(-1);
 	}
-	pthread_mutex_lock(&mx_data);
-	//pthread_mutex_lock(&mutex);
+	//pthread_mutex_lock(&mx_data);
+	pthread_mutex_lock(&mutex);
 	memcpy(bloque, &(_data[numero * TAMANIO_BLOQUE_B]), TAMANIO_BLOQUE_B);
-	//pthread_mutex_unlock(&mutex);
-	pthread_mutex_unlock(&mx_data);
+	pthread_mutex_unlock(&mutex);
+	//pthread_mutex_unlock(&mx_data);
 
 	//memcpy(bloque, _bloques[numero], TAMANIO_BLOQUE);
 	pthread_mutex_lock(&mutex);

@@ -80,8 +80,10 @@ int ordenar(t_ordenar* param_ordenar){
 			char* linea = NULL;
 			linea = malloc(LEN_KEYVALUE);
 			size_t len_linea = LEN_KEYVALUE;
+			//linea = NULL;
+			//size_t len_linea = 0;
 			int rs=0, cant_writes=0;
-			while ((getline(&linea, &len_linea, file)) > 0) {
+			while ((rs = getline(&linea, &len_linea, file)) > 0) {
 				cant_writes = escribir_todo(fd, linea, strlen(linea));
 				if(cant_writes<0){
 					rs=-1;
@@ -95,23 +97,40 @@ int ordenar(t_ordenar* param_ordenar){
 			close(fd);
 			return rs;
 		}
-
+		int rs;
 		pthread_t th_writer, th_reader;
-		pthread_create(&th_writer, NULL, (void*) _writer, (void*)fdwriter);
+
+		if((rs = pthread_create(&th_writer, NULL, (void*) _writer, (void*)fdwriter))!=0){
+			perror("pthread_create writerrrrrrrrrrrrrrrrrrrrrrr");
+			return -1;
+		}
+		usleep(100);
 
 		t_reader treader;
 		treader.fd = fdreader;
 		treader.destino = param_ordenar->destino;
 
-		pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*)&treader);
+		if( (rs = pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*)&treader))!=0 ){
+			perror("pthread_create readerrrr");
+			return -1;
+		}
+		usleep(100);
 
+		//joineo
 		int rswriter=1, rsreader=1;
-		pthread_join(th_writer, (void*)&rswriter);
 
-		pthread_join(th_reader, (void*)&rsreader);
+		if( (pthread_join(th_writer, (void*)&rswriter))!=0 ){
+			perror("pthread_join writerrrrrrrrrrrrrrrrrrrrrrr");
+			return -1;
+		}
+
+		if( (pthread_join(th_reader, (void*)&rsreader))!=0 ){
+			perror("pthread_join reader");
+			return -1;
+		}
 
 		//pthread_mutex_lock(param_ordenar->mutex);
-		printf("Fin orden resultado: %s\n", treader.destino);
+		//printf("Fin orden resultado: %s\n", treader.destino);
 		//pthread_mutex_unlock(param_ordenar->mutex);
 		//free(param_ordenar->destino);
 		//free(param_ordenar->origen);
@@ -130,7 +149,9 @@ int ordenar(t_ordenar* param_ordenar){
 	return rs;
 }
 
-
+int read_line(char* linea, int fd){
+	return -1;
+}
 
 int reader_and_save_as(t_reader* reader) {
 	int count, rs;
@@ -166,7 +187,7 @@ int escribir_todo(int writer, char* data, int len){
 		aux = write(writer, data + bytes_escritos, len - bytes_escritos);
 		//fprintf(stdout, "bytesEscritos: %d\n", aux);
 		if (aux < 0) {
-			printf("_____________write Error\n");
+			//printf("_____________write Error\n");
 			perror("write:::::::::::::::::::::::");
 			//exit(-1);
 			return -1;

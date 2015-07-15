@@ -60,7 +60,7 @@ typedef struct {
 bool FIN = false;
 char* _data = NULL;
 t_log* logger = NULL;
-pthread_mutex_t mutex, mx_data;
+pthread_mutex_t mutex;
 /*
  * declaraciones
  */

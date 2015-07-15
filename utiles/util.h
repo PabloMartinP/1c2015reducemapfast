@@ -246,6 +246,7 @@ int enviar_mensaje_reduce(int fd, t_reduce* reduce);
 t_nodo_archivo* nodo_archivo_create();
 
 t_reduce* recibir_mensaje_reduce(int fd);
+int read_line(char* linea, int fd);
 t_nodo_base* nodo_base_new(int id, char* ip, int puerto);
 float bytes_to_megabytes(size_t bytes);
 int enviar_nodo_base(int fd, t_nodo_base* nb);

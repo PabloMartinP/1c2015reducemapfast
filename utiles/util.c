@@ -346,6 +346,31 @@ int cant_registros(char** registros) {
  * devuelve el arhivo mappeado modo lectura y escritura
  */
 void* file_get_mapped(char* filename) {
+
+	char *addr;
+	int fd;
+	struct stat sb;
+	off_t offset, pa_offset;
+	size_t length;
+	ssize_t s;
+	int i = 0;
+
+
+	fd = open(filename, O_RDWR);
+	if (fd == -1)
+		handle_error("open");
+
+	if (fstat(fd, &sb) == -1) /* To obtain file size */
+		handle_error("fstat");
+
+
+
+	length = sb.st_size;
+	addr = mmap(NULL, length, PROT_READ | PROT_WRITE,MAP_SHARED | MAP_NORESERVE, fd, 0);
+	if (addr == MAP_FAILED)
+		handle_error("mmap");
+	return addr;
+	/*
 	//el archivo ya esta creado con el size maximo
 	void* mapped = NULL;
 	struct stat st;
@@ -359,7 +384,7 @@ void* file_get_mapped(char* filename) {
 	//printf("%ld\n", st.st_size);
 	size_t size = st.st_size;
 
-	mapped = mmap(NULL, size, PROT_WRITE, MAP_SHARED, fd, 0);
+	mapped = mmap(NULL, size, PROT_WRITE, MAP_SHARED | MAP_NORESERVE, fd, 0);
 	close(fd);
 
 	if (mapped == MAP_FAILED) {
@@ -369,6 +394,7 @@ void* file_get_mapped(char* filename) {
 	}
 
 	return mapped;
+	*/
 }
 
 /*

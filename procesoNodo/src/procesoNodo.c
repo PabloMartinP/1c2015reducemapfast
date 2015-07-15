@@ -2018,7 +2018,7 @@ char* getBloque(int32_t numero) {
 }
 
 //devuelvo el archivo data.bin mappeado
-void* data_get(char* filename) {
+char* data_get(char* filename) {
 
 	if (!file_exists(filename)) {
 		TAMANIO_DATA = 1024 * 1024 * NODO_TAMANIO_DATA_DEFAULT_MB(); //100MB

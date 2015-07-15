@@ -64,7 +64,7 @@ pthread_mutex_t mutex, mx_data;
 /*
  * declaraciones
  */
-void* data_get(char* filename);
+char* data_get(char* filename);
 void data_destroy();
 char* getBloque(int32_t numero);
 void setBloque(int32_t numero, char* bloque);

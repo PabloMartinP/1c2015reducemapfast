@@ -987,7 +987,10 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 		int _writer(int fd) {
 			int rs = 0;
 			// Write to child’s stdin
-			char* stdinn = getBloque(n_bloque);
+			char* stdinn = NULL;
+			pthread_mutex_lock(mutex);
+			stdinn = getBloque(n_bloque);
+			pthread_mutex_unlock(mutex);
 			if(stdinn==NULL){
 				pthread_mutex_lock(mutex);
 				log_trace(logger, "Error al escribir getBloque(%d)", n_bloque);
@@ -998,7 +1001,11 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 
 
 			size_t len = strlen(stdinn);
+
 			if (stdinn[len - 1] != '\n') {
+				printf("ERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR\n");
+				usleep(1000);
+				return -1;
 				len += 1;
 				stdinn = realloc(stdinn, len);
 				if(stdinn==NULL){
@@ -1011,6 +1018,7 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 				stdinn[len] = '\0';
 				stdinn[len - 1] = '\n';
 			}
+
 			pthread_mutex_lock(mutex);
 			log_trace(logger, "Escribiendo en stdin bloque %d", n_bloque);
 			pthread_mutex_unlock(mutex);
@@ -1063,7 +1071,7 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 			pthread_mutex_lock(mutex);
 			log_trace(logger, "Fin escritura stdin bloque %d", n_bloque);
 			pthread_mutex_unlock(mutex);
-			FREE_NULL(stdinn);
+			//FREE_NULL(stdinn);
 
 			close(fd);
 
@@ -1787,7 +1795,9 @@ int procesar_mensaje(int fd, t_msg* msg) {
 	case NODO_GET_BLOQUE:
 		n_bloque = msg->argv[0];
 		destroy_message(msg);
+		pthread_mutex_lock(&mutex);
 		bloque  = getBloque(n_bloque);
+		pthread_mutex_unlock(&mutex);
 		msg = string_message(NODO_GET_BLOQUE, bloque, 0);//en la posicion 0 esta en nuemro de bloque
 		enviar_mensaje(fd, msg);
 		FREE_NULL(bloque);
@@ -2110,22 +2120,19 @@ char* getFileContent(char* filename) {
 
 void setBloque(int32_t numero, char* bloquedatos) {
 
-	pthread_mutex_lock(&mutex);
 	log_info(logger, "Inicio setBloque(%d)", numero);
 
 	memset(_data + (numero * TAMANIO_BLOQUE_B), 0, TAMANIO_BLOQUE_B);
 	memcpy(_data + (numero * TAMANIO_BLOQUE_B), bloquedatos, TAMANIO_BLOQUE_B);
 
 	log_info(logger, "Fin setBloque(%d)", numero);
-	pthread_mutex_unlock(&mutex);
 }
 /*
  * devuelve una copia del bloque, hacer free
  */
 char* getBloque(int32_t numero) {
-	pthread_mutex_lock(&mutex);
-	log_info(logger, "Ini getBloque(%d)", numero);
-	pthread_mutex_unlock(&mutex);
+	return &(_data[numero * TAMANIO_BLOQUE_B]);
+	/*log_info(logger, "Ini getBloque(%d)", numero);
 	char* bloque = NULL;
 	bloque = malloc(TAMANIO_BLOQUE_B);
 
@@ -2136,16 +2143,14 @@ char* getBloque(int32_t numero) {
 		//exit(-1);
 	}
 	//pthread_mutex_lock(&mx_data);
-	pthread_mutex_lock(&mutex);
 	memcpy(bloque, &(_data[numero * TAMANIO_BLOQUE_B]), TAMANIO_BLOQUE_B);
-	pthread_mutex_unlock(&mutex);
+
 	//pthread_mutex_unlock(&mx_data);
 
 	//memcpy(bloque, _bloques[numero], TAMANIO_BLOQUE);
-	pthread_mutex_lock(&mutex);
 	log_info(logger, "Fin getBloque(%d)", numero);
-	pthread_mutex_unlock(&mutex);
-	return bloque;
+	return bloque;*/
+
 }
 
 //devuelvo el archivo data.bin mappeado

@@ -33,11 +33,11 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 	if (pid == 0) {
 		if (dup2(pipes[PARENT_WRITE_PIPE][READ_FD], STDIN_FILENO) < 0) {
 			perror("dup2 STDIN_FILENO");
-			exit(-1);
+			_exit(1);
 		}
 		if (dup2(pipes[PARENT_READ_PIPE][WRITE_FD], STDOUT_FILENO) < 0) {
 			perror("dup2 STDIN_FILENO");
-			exit(-1);
+			_exit(1);
 		}
 
 		close(pipes[PARENT_WRITE_PIPE][READ_FD]);
@@ -48,7 +48,7 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 		//execl("/usr/bin/sort", "sort", (char*) NULL);
 		execl(path_script, name_script, (char*) NULL);
 		perror("Errro execv");
-		exit(-1);
+		_exit(-1);
 
 	} else {
 		close(pipes[PARENT_WRITE_PIPE][READ_FD]);
@@ -192,7 +192,7 @@ int escribir_todo(int writer, char* data, int len){
 	int bytes_escritos = 0;
 	do {
 		aux = write(writer, data + bytes_escritos, len - bytes_escritos);
-		//fprintf(stdout, "bytesEscritos: %d\n", aux);
+
 		if (aux < 0) {
 			//printf("_____________write Error\n");
 			perror("write:::::::::::::::::::::::");

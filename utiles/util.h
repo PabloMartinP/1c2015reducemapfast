@@ -39,6 +39,14 @@
 
 #include <wait.h>
 
+
+#include <sys/types.h>      /* key_t, sem_t, pid_t      */
+#include <sys/shm.h>        /* shmat(), IPC_RMID        */
+#include <errno.h>          /* errno, ECHILD            */
+#include <semaphore.h>      /* sem_open(), sem_destroy(), sem_wait().. */
+#include <fcntl.h>          /* O_CREAT, O_EXEC          */
+
+
 #define handle_error(msj) \
 	do{perror(msj);exit(EXIT_FAILURE);} while(0)
 
@@ -248,6 +256,7 @@ t_nodo_archivo* nodo_archivo_create();
 t_reduce* recibir_mensaje_reduce(int fd);
 int read_line(char* linea, int fd);
 t_nodo_base* nodo_base_new(int id, char* ip, int puerto);
+sem_t* sem_crear(int* shmid, key_t* shmkey, int contador_ftok);
 float bytes_to_megabytes(size_t bytes);
 int enviar_nodo_base(int fd, t_nodo_base* nb);
 t_archivo_nodo_bloque* archivo_nodo_bloque_new(char* ip, int puerto, int numero_bloque, int id);

@@ -8,8 +8,60 @@
 #include "util.h"
 
 
+
+sem_t* sem_crear(int* shmid, key_t* shmkey, int contador_ftok){
+	sem_t* sem= NULL;
+	//pid_t pid; /*      fork pid                */
+	//unsigned int n; /*      fork count              */
+	unsigned int value; /*      semaphore value         */
+
+	/* initialize a shared variable in shared memory */
+
+	char* sem_name = string_from_format("pSem_%d", contador_ftok);
+
+	//shmkey = ftok("/dev/null", 5); /* valid directory name and a number */
+	*shmkey = ftok("/dev/null", contador_ftok); /* valid directory name and a number */
+
+	printf("shmkey for p = %d\n", *shmkey);
+	*shmid = shmget(*shmkey, sizeof(int), 0644 | IPC_CREAT);
+	if (*shmid < 0) { /* shared memory error check */
+		perror("shmget\n");
+		exit(1);
+	}
+
+	///////////////////////////////////////////
+	value = 0;
+	/* initialize semaphores for shared processes */
+	//sem = sem_open("pSem", O_CREAT | O_EXCL, 0644, value);
+
+
+	//sem = sem_open("pSem", O_CREAT , 0644, value);
+	sem = sem_open(sem_name, O_CREAT , 0644, value);
+	if(sem==SEM_FAILED){
+		perror("sem_open___");
+		printf("***************************************************sdfadfasd\n");
+		exit(1);
+	}
+
+	/* name of semaphore is "pSem", semaphore is reached using this name */
+	//sem_unlink("pSem");
+	sem_unlink(sem_name);
+	/* unlink prevents the semaphore existing forever */
+	/* if a crash occurs during the execution         */
+	printf ("semaphores initialized.\n\n");
+
+	FREE_NULL(sem_name);
+
+	return sem;
+}
 int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(int fdreader, int fdwriter), pthread_mutex_t* mutex){
 	pthread_mutex_lock(mutex);
+
+	key_t shmkey; /*      shared memory key       */
+	int shmid; /*      shared memory id        */
+	sem_t *sem; /*      synch semaphore         *//*shared */
+	sem = sem_crear(&shmid, &shmkey, 0);
+
 
 	int pipes[NUM_PIPES][2];
 	// pipes for parent to write and read
@@ -46,11 +98,15 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 		close(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
 
 		//execl("/usr/bin/sort", "sort", (char*) NULL);
+		sem_post(sem);
+
 		execl(path_script, name_script, (char*) NULL);
 		perror("Errro execv");
 		_exit(-1);
 
 	} else {
+		sem_wait(sem);
+
 		close(pipes[PARENT_WRITE_PIPE][READ_FD]);
 		close(pipes[PARENT_READ_PIPE][WRITE_FD]);
 
@@ -58,6 +114,12 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 		rs = reader_writer(pipes[PARENT_READ_PIPE][READ_FD], pipes[PARENT_WRITE_PIPE][WRITE_FD]);
 		int status;
 		waitpid(pid, &status, 0);
+
+
+		/* shared memory detach */
+		shmctl(shmid, IPC_RMID, 0);
+		/* cleanup semaphores */
+		sem_destroy (sem);
 
 		puts("listo");
 		return rs;

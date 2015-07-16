@@ -171,6 +171,10 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			}
 
 			i = 0;
+			pthread_mutex_lock(mutex);
+			log_trace(logger, "Empezando a reducir %d archivos", cant_total_files);
+			pthread_mutex_unlock(mutex);
+
 			//cargo las keys de los archivos locales, con su primer valor
 			for (i = 0; i < cant_local_files; i++) {
 				//rs = getline(&(keys[i]), &len_key, fd[i]);
@@ -212,14 +216,12 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				//fprintf(stdout, "%s\n", keys[index_menor]);
 
 				rs = escribir_todo(fd, keys[index_menor], strlen(keys[index_menor]));
-				if(rs<0){
-					perror("escribir todo");
+				//comentado solo para que ande mas rapido
+				/*if(rs<0){
+					perror("escribir tod0");
 					close(fd);
 					return -1;
-				}
-
-				//fprintf(stdout, "res write. %d\n", rs);
-				//fprintf(stdout, "strlen: %d\n", strlen(keys[index_menor]));
+				}*/
 
 				//leo el siguiente elmento del fdlocal[index_menor]
 				len_key = LEN_KEYVALUE;
@@ -236,23 +238,22 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				}
 
 				//cuando termina devuelve NULL;
+				/*
 				if (i > 1024) {
 					i = 0;
 					if (c % 100 == 0){
 						pthread_mutex_lock(mutex);
 						log_trace(logger, "Contador reduce %d ", c);
 						pthread_mutex_unlock(mutex);
-
-
 					}
-
 					c++;
-				}
+				}*/
+
 				i++;
 			}
 
 			pthread_mutex_lock(mutex);
-			log_trace(logger, "Termino de enviarle datos por stdin.------------------");
+			log_trace(logger, "Fin reducer sobre %d archivos", cant_total_files);
 			pthread_mutex_unlock(mutex);
 
 			//si llego hasta aca termino de enviarle cosas por stdin,

@@ -69,23 +69,30 @@ int ordenar(t_ordenar* param_ordenar){
 
 	int _reader_writer(int fdreader, int fdwriter){
 
-		int _writer(int fd) {
+		int _writer(int *fdwriter) {
+			int fd = *fdwriter;
 
 			FILE* file = fopen(param_ordenar->origen , "r");
 			if(file==NULL){
-				perror("fopen");
+				perror("fopen ordenar");
 				close(fd);
 				return -1;
 			}
 			char* linea = NULL;
 			linea = malloc(LEN_KEYVALUE);
+			if(linea == NULL){
+				perror("linea malloc order");
+				close(fd);
+				return -1;
+			}
 			size_t len_linea = LEN_KEYVALUE;
 			//linea = NULL;
 			//size_t len_linea = 0;
 			int rs=0, cant_writes=0;
-			while ((rs = getline(&linea, &len_linea, file)) > 0) {
+			while ((getline(&linea, &len_linea, file)) > 0) {
 				cant_writes = escribir_todo(fd, linea, strlen(linea));
 				if(cant_writes<0){
+
 					rs=-1;
 					break;
 				}
@@ -100,11 +107,11 @@ int ordenar(t_ordenar* param_ordenar){
 		int rs;
 		pthread_t th_writer, th_reader;
 
-		if((rs = pthread_create(&th_writer, NULL, (void*) _writer, (void*)fdwriter))!=0){
+		if((rs = pthread_create(&th_writer, NULL, (void*) _writer, (void*)&fdwriter))!=0){
 			perror("pthread_create writerrrrrrrrrrrrrrrrrrrrrrr");
 			return -1;
 		}
-		usleep(100);
+		//usleep(100);
 
 		t_reader treader;
 		treader.fd = fdreader;
@@ -114,10 +121,10 @@ int ordenar(t_ordenar* param_ordenar){
 			perror("pthread_create readerrrr");
 			return -1;
 		}
-		usleep(100);
+		//usleep(100);
 
 		//joineo
-		int rswriter=1, rsreader=1;
+		int rswriter=-1, rsreader=-1;
 
 		if( (pthread_join(th_writer, (void*)&rswriter))!=0 ){
 			perror("pthread_join writerrrrrrrrrrrrrrrrrrrrrrr");

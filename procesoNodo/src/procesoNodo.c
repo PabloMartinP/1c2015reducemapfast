@@ -37,7 +37,8 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 
 	int rs;
 	int _reader_writer(int fdreader, int fdwriter) {
-		int _writer(int fd) {
+		int _writer(int *fdwriter) {
+			int fd = *fdwriter;
 			int rs;
 			int cant_red_files, cant_total_files, cant_local_files;
 			t_list* local_files = list_create();//tmp para guardar los fr locales
@@ -283,7 +284,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 
 		//lanzo hilo writer stdin;
 		pthread_t th_writer, th_reader;
-		if( (pthread_create(&th_writer, NULL, (void*) _writer, (void*) fdwriter))!=0 ){
+		if( (pthread_create(&th_writer, NULL, (void*) _writer, (void*) &fdwriter))!=0 ){
 			perror("pthread_crete writer reduce");
 			return -1;
 		}
@@ -984,7 +985,8 @@ sem_t* sem_crear(int* shmid, key_t* shmkey){
 int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthread_mutex_t* mutex){
 
 	int _reader_writer(int fdreader, int fdwriter) {
-		int _writer(int fd) {
+		int _writer(int *fdwriter) {
+			int fd = *fdwriter;
 			int rs = 0;
 			// Write to child’s stdin
 			char* stdinn = NULL;
@@ -1080,11 +1082,11 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 
 		//lanzo hilo writer stdin;
 		pthread_t th_writer, th_reader;
-		if( (pthread_create(&th_writer, NULL, (void*) _writer, (void*) fdwriter))!=0 ){
+		if( (pthread_create(&th_writer, NULL, (void*) _writer, (void*) &fdwriter))!=0 ){
 			perror("pthread_create writer map")	;
 			return -1;
 		}
-		usleep(100);
+		//usleep(100);
 
 		t_reader treader;
 		treader.fd = fdreader;
@@ -1099,10 +1101,10 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 			perror("pthread_create reader map")	;
 			return -1;
 		}
-		usleep(100);
+		//usleep(100);
 
 		//lockeo hasta que termine de escribir y leer el stdin y stdout
-		int rswriter=1, rsreader=1;
+		int rswriter=-1, rsreader=-1;
 		if( (pthread_join(th_writer, (void*)&rswriter))!=0 ){
 			perror("pthread_join writer map");
 			return -1;
@@ -1467,7 +1469,7 @@ int aplicar_map_final(int n_bloque, char* script_map, char* filename_result){
 }
 
 int ordenar_map(char* origen, char* destino, pthread_mutex_t* mutex){
-	int rs=1;
+	int rs=-1;
 	t_ordenar* p_ordenar;
 	p_ordenar = malloc(sizeof(t_ordenar));
 	if(p_ordenar ==NULL){

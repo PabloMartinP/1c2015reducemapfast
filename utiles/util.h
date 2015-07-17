@@ -287,7 +287,7 @@ int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*));
  * Crea, vincula y escucha un socket desde un puerto determinado.
  */
 int server_socket(uint16_t port);
-char* recibir_linea(int sock_fd);
+char* recibir_linea(int sock_fd, char*linea);
 
 //char* ip_get();
 

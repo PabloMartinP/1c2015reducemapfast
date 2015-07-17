@@ -218,10 +218,6 @@ int ordenar(t_ordenar* param_ordenar){
 	return rs;
 }
 
-int read_line(char* linea, int fd){
-	return -1;
-}
-
 int reader_and_save_as(t_reader* reader) {
 	int count, rs;
 	FILE* file = fopen(reader->destino, "w");
@@ -1256,38 +1252,40 @@ t_msg *string_message(t_msg_id id, char *message, uint16_t count, ...) {
 	return new;
 }
 
-char* recibir_linea(int sock_fd){
-	char* linea = malloc(LEN_KEYVALUE);
+char* recibir_linea(int sock_fd, char*linea){
+	//char* linea = malloc(LEN_KEYVALUE);
 	char caracter=NULL;
 	int bytes_leidos = 0;
 	int status;
 	do{
 		status = recv(sock_fd, &caracter, 1, 0);
 		linea[bytes_leidos] = caracter;
-		if(caracter == '\n'){
-			status = -2;//fin de linea
-		}
-		if(caracter =='\0')
-			status = -3;
 		bytes_leidos++;
-	}while(status>0);
-
-	if(status==-2){//si es igual a menos dos
+	}while(status>0 && caracter!='\n' && caracter!='\0');
+	if (caracter == '\n') {
+		status = -2;		//fin de linea
+	}
+	if (caracter == '\0')
+		status = -3;
+	/////////////////////////////////////
+	if(status==-2){//
 		linea[bytes_leidos] = '\0';
+		//return linea;
 		return linea;
 	}
 	else
 	{
 		if(status==-3){//termino de leer el archivo
-			FREE_NULL(linea);
+			//FREE_NULL(linea);
+			//return NULL;
 			return NULL;
 		}
 		else{
-			FREE_NULL(linea);
+			//FREE_NULL(linea);
 			perror("El nodo perdio conexion\n");
 			return NULL;
-		}
 
+		}
 	}
 }
 

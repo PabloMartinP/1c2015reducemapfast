@@ -248,6 +248,7 @@ void procesar (int fd, t_msg*msg){
 			else{
 				marta_marcar_map_como_fallido(job_id, map_id);
 				avisar_ningun_mapreduce(fd);
+				break;
 			}
 
 

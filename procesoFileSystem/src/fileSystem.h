@@ -53,7 +53,7 @@ int fs_cant_bloques();
 size_t fs_tamanio_bytes();
 int fs_cant_bloques_libres();
 int fs_cant_bloques_usados();
-int cant_bloques_necesarios(char* archivo);
+int cant_partes_necesarias(char* archivo);
 char* file_obtener_bloque(char* mapped, int numero_bloque);
 int nodo_get_new_nodo_id();
 size_t fs_tamanio_usado_bytes();
@@ -62,7 +62,7 @@ size_t fs_tamanio_libre_bytes();
 int cant_registros(char** registros);
 t_list* fs_importar_archivo(char* archivo);
 t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_nodo(t_nodo_base* otro_nb, int pos_inicial);
-t_list* distribuir_copias();
+t_list* distribuir_copias(int partes);
 t_archivo_bloque_con_copias* guardar_bloque(char* bloque_origen,	size_t offset);
 int fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque,	size_t tamanio_real);
 t_archivo_nodo_bloque** fs_get_tres_nodo_bloque_libres();
@@ -73,6 +73,7 @@ t_list* cargar_copia_uno(int partes);
 t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_dos_nodos(t_nodo_base* un_nb, t_nodo_base* otro_nb, int pos_inicial);
 t_list* obtener_tres_nodos_disponibles();
 void bloque_marcar_como_usado(t_bloque* bloque);
+int guardar_parte(char* bloque_origen,size_t bytes_a_copiar, t_archivo_bloque_con_copias* abcc) ;
 void fs_eliminar_nodo(int id_nodo);
 t_nodo* fs_buscar_nodo_por_id(int id_nodo);
 bool fs_existe_en_archivo_nodos(t_nodo_base nodo);
@@ -913,11 +914,8 @@ t_list* distribuir_copias(int partes){
 	t_list* copia2 = list_create();//lista de t_archivo_nodo_bloque*
 	t_list* copia3 = list_create();//lista de t_archivo_nodo_bloque*
 
-	t_archivo_bloque_con_copias* abcc = NULL;
 
-	t_archivo_nodo_bloque* anb = NULL;
-	abcc = bloque_de_datos_crear();
-	t_nodo_base* nb = NULL;
+	//t_nodo_base* nb = NULL;
 	t_nodo* nodo = NULL;
 	t_bloque* bloque = NULL;
 
@@ -970,6 +968,8 @@ t_list* distribuir_copias(int partes){
 		list_add(copia3, anbc3);
 
 	}
+	//t_archivo_nodo_bloque* anb = NULL;
+	//abcc = bloque_de_datos_crear();
 
 	////////////////////////////////////////
 	void _print_nodo(t_archivo_nodo_bloque* anb){
@@ -989,15 +989,53 @@ t_list* distribuir_copias(int partes){
 
 	printf("***************************************************************\n");
 
+	//t_archivo_bloque_con_copias* copias = malloc(BLOQUE_CANT_COPIAS*(sizeof(t_archivo_bloque_con_copias*)));
+	t_list* copias = list_create();
 
-	return NULL;
+	t_archivo_bloque_con_copias* abcc;
+	t_archivo_nodo_bloque* anb;
+	t_nodo_base* nb ;
+	t_list* list_archivo_nodo_bloque = list_create();
+	for(i=0;i<partes;i++){
+		//creo la lista que va tener tres elementos
+		list_archivo_nodo_bloque = list_create();
+
+		//obengo uno y lo agrego
+		anb = NULL;
+		anb = list_get(copia1, i);
+		list_add(list_archivo_nodo_bloque, anb);
+
+		//obengo uno y lo agrego
+		anb = NULL;
+		anb = list_get(copia2, i);
+		list_add(list_archivo_nodo_bloque, anb);
+
+		//obengo uno y lo agrego
+		anb = NULL;
+		anb = list_get(copia3, i);
+		list_add(list_archivo_nodo_bloque, anb);
+
+		//creo la parte i con todas sus copias
+		abcc = NULL;
+		abcc = archivo_bloque_con_copias_crear();
+		abcc->nodosbloque = list_archivo_nodo_bloque;
+		abcc->parte_numero = i;
+
+		list_add(copias, abcc);
+	}
+
+	list_destroy(copia1);
+	list_destroy(copia2);
+	list_destroy(copia3);
+
+	return copias;
 }
 
 t_list* fs_importar_archivo(char* archivo) {
 	size_t size = file_get_size(archivo);
 	log_trace(logger, "Tamanio : %zd b, %.2f kb, %.2f mb\n", size,	bytes_to_kilobytes(size), bytes_to_megabytes(size));
-
-	int cant_bloq_necesarios = cant_bloques_necesarios(archivo) * 3;
+	int partes = cant_partes_necesarias(archivo);
+	int cant_bloq_necesarios = cant_partes_necesarias(archivo) * BLOQUE_CANT_COPIAS;
 	log_trace(logger, "Bloques necesarios para el archivo: %d\n", cant_bloq_necesarios);
 	if (cant_bloq_necesarios > fs_cant_bloques_libres()) {
 		printf(	"La cantidad de bloques necesarios para el archivo es %d y solo hay %d bloques libres\n",cant_bloq_necesarios, fs_cant_bloques_libres());
@@ -1005,16 +1043,20 @@ t_list* fs_importar_archivo(char* archivo) {
 	}
 
 
+	t_list* copias = distribuir_copias(partes);
+	if(copias == NULL){
+		log_trace(logger, "no se pudieron distribuir las copias");
+		return NULL;
+	}
 
-	t_list* new = list_create();
+	//t_list* new = list_create();
 
-	t_archivo_bloque_con_copias* bd = NULL;
+	t_archivo_bloque_con_copias* abcc = NULL;
 
 	char* mapped = file_get_mapped(archivo);
 
-	int nro_bloque = 0;
+	int parte_nro = 0;
 	size_t bytes_leidos = 0, offset = 0;
-
 	int len_aux;
 	for (bytes_leidos = 0, offset = 0; bytes_leidos+offset < size; ) {
 		len_aux = len_hasta_enter(mapped+bytes_leidos+offset);
@@ -1023,11 +1065,12 @@ t_list* fs_importar_archivo(char* archivo) {
 			//i++;
 		} else {
 			//si supera el tamaño de bloque grabo
-
-			bd = guardar_bloque(mapped + offset, bytes_leidos);
-			bd->parte_numero = nro_bloque;
-			nro_bloque++;
-			list_add(new, bd);
+			abcc = list_get(copias, parte_nro);
+			guardar_parte(mapped + offset, bytes_leidos, abcc);
+			//bd = guardar_bloque(mapped + offset, bytes_leidos);
+			//bd->parte_numero = parte_nro;
+			parte_nro++;
+			//list_add(new, bd);
 
 			offset += bytes_leidos;
 			bytes_leidos = 0;
@@ -1035,20 +1078,64 @@ t_list* fs_importar_archivo(char* archivo) {
 	}
 	//me fijo si quedo algo sin grabar en el bloque
 	if (bytes_leidos > 0) {
-		bd = guardar_bloque(mapped + offset, bytes_leidos);
+		//bd = guardar_parte(mapped + offset, bytes_leidos);
+		abcc = list_get(copias, parte_nro);
+		guardar_parte(mapped + offset, bytes_leidos, abcc);
 
 		//setteo el nro de bloque
-		bd->parte_numero = nro_bloque;
-		nro_bloque++;
+		//bd->parte_numero = parte_nro;
+		//parte_nro++;
 		//agrego el bloquededatos a la lista
-		list_add(new, bd);
+		//list_add(new, bd);
 	}
 
 	file_mmap_free(mapped, archivo);
 
-	return new;
+	return copias;
 }
 
+int guardar_parte(char* bloque_origen,size_t bytes_a_copiar, t_archivo_bloque_con_copias* abcc) {
+	int i;
+	char* bloque = malloc(bytes_a_copiar+1);
+	memcpy(bloque, bloque_origen, bytes_a_copiar);
+	bloque[bytes_a_copiar] = '\0';
+	t_archivo_nodo_bloque* anb = NULL;
+	//me traigo en un vector los tres t_nodo_bloque donde va a ir la copia del bloque
+	//nb = fs_get_tres_nodo_bloque_libres(fs);
+
+	for (i = 0; i < BLOQUE_CANT_COPIAS; i++) {
+		anb = NULL;
+		anb = list_get(abcc->nodosbloque, i);
+
+		fs_guardar_bloque(anb, bloque, bytes_a_copiar);
+
+		t_nodo* nodo = fs_buscar_nodo_por_id(anb->base->id);
+
+		nodo_marcar_bloque_como_usado(nodo, anb->numero_bloque);
+		/*
+		bool buscar_bloque(t_bloque* bloque) {
+			return bloque->posicion == nb[i]->numero_bloque;
+		}
+		//busco el nodo por id para obtener su lista de bloques
+		nodo = fs_buscar_nodo_por_id(nb[i]->nodo->id);
+
+		bloque_usado = list_find(nodo->bloques, (void*) buscar_bloque);
+		bloque_marcar_como_usado(bloque_usado);
+		*/
+
+		log_trace(logger, "nodo %d bloque %d marcado como usado\n", anb->base->id,anb->numero_bloque);
+
+		//agrego el bloquenodo a la lista, al final del for quedaria con las tres copias y faltaria settear el nro_bloque
+		//list_add(new->nodosbloque, (void*) nb[i]);
+	}
+	//free(nb);
+	//hacer free de lam matriz
+
+	FREE_NULL(bloque);
+
+	return 0;
+	//return new;
+}
 
 
 void bloque_marcar_como_usado(t_bloque* bloque) {
@@ -1057,7 +1144,7 @@ void bloque_marcar_como_usado(t_bloque* bloque) {
 }
 
 t_archivo_bloque_con_copias* guardar_bloque(char* bloque_origen,size_t bytes_a_copiar) {
-	t_archivo_bloque_con_copias* new = bloque_de_datos_create();
+	t_archivo_bloque_con_copias* new = archivo_bloque_con_copias_crear();
 
 	int i;
 	//t_bloque* bloque_usado;
@@ -1227,7 +1314,7 @@ char* file_obtener_bloque(char* mapped, int numero_bloque) {
 	return NULL;
 }
 
-int cant_bloques_necesarios(char* archivo) {
+int cant_partes_necesarias(char* archivo) {
 	int cant = 0;
 	size_t size = file_get_size(archivo);
 

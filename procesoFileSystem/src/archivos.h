@@ -31,7 +31,7 @@ typedef struct {
 
 int arch_get_new_id();
 void arch_agregar(t_archivo* archivo);
-t_archivo_bloque_con_copias* bloque_de_datos_create();
+t_archivo_bloque_con_copias* archivo_bloque_con_copias_crear();
 t_archivo_info* arch_get_info(char* nombre, int dir_padre) ;
 void arch_formatear();
 t_archivo* arch_crear();
@@ -130,7 +130,7 @@ t_archivo_info* arch_get_info(char* nombre, int dir_padre) {
 }
 
 
-t_archivo_bloque_con_copias* bloque_de_datos_create() {
+t_archivo_bloque_con_copias* archivo_bloque_con_copias_crear() {
 	t_archivo_bloque_con_copias* new = malloc(sizeof *new);
 	new->nodosbloque = list_create();
 

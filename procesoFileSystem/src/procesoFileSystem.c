@@ -88,10 +88,6 @@ void iniciar_consola() {
 		char** input_user = separar_por_espacios(comando);
 		e_comando cmd = getComando(input_user[0]);
 
-
-
-
-
 		if (cmd != NODO_AGREGAR && cmd!=SALIR && !OPERATIVO) {
 			if(!OPERATIVO){
 				fs_print_no_operativo();
@@ -99,11 +95,8 @@ void iniciar_consola() {
 			}
 		} else {
 
-
-
 			switch (cmd) {
 			case DISTRIBUIR_COPIAS:
-
 				distribuir_copias(atoi(input_user[1]));
 				break;
 			case ARCHIVO_VERBLOQUE:	//filevb nombre dir nro_bloque

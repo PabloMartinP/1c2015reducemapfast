@@ -247,11 +247,11 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 
 				} else {
 					//FREE_NULL(keys[index_menor]);
-					keys[index_menor] = recibir_linea( fdred[cant_local_files - index_menor], keys[index_menor]);
-					/*rs_recLinea = recibir_linea( fdred[cant_local_files - index_menor], keys[index_menor]);
+					//keys[index_menor] = recibir_linea( fdred[cant_local_files - index_menor], keys[index_menor]);
+					rs_recLinea = recibir_linea( fdred[cant_local_files - index_menor], keys[index_menor]);
 					if(rs_recLinea!=0){
 						keys[index_menor] = NULL;
-					}*/
+					}
 					//keys[index_menor] = recibir_linea( fdred[cant_local_files - index_menor]);
 				}
 
@@ -420,16 +420,16 @@ int get_index_menor(char** keys, int cant){
 
 
 bool alguna_key_distinta_null(char** keys, int cant){
-	bool rs = false;
+	//bool rs = false;
 	int i;
 	for(i=0;i<cant;i++){
 		if(keys[i] != NULL){
-			rs = true;
+			return true;
 			break;
 		}
 	}
 
-	return rs;
+	return false;
 }
 
 bool file_reduce_es_de_red(t_files_reduce* fr) {

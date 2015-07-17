@@ -1024,7 +1024,8 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		//recibo el reduce que me envio
 		reduce = NULL;
 		reduce = recibir_mensaje_reduce(fd);
-		filename_script = generar_nombre_reduce_tmp(reduce->info);
+		//filename_script = generar_nombre_reduce_tmp(reduce->info);
+		filename_script = string_from_format("%s/reducer_job_%d_reduce_%d",NODO_DIRTEMP(), reduce->info->job_id, reduce->info->id);
 		recibir_mensaje_script_y_guardar(fd, filename_script);
 		pthread_mutex_lock(&mutex);
 		log_trace(logger, "******************************************************");
@@ -1078,9 +1079,9 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		map = recibir_mensaje_map(fd);
 		log_trace(logger, "Recibido nuevo mapper job:%d, map: %d ", map->info->job_id, map->info->id);
 		//filename_script = generar_nombre_map_tmp(map->info);
-		char* timenow = temporal_get_string_time();
-		filename_script = string_from_format("%s/mapper_job_%d_map_%d_%s", NODO_DIRTEMP(), map->info->job_id, map->info->id, timenow);
-		FREE_NULL(timenow);
+
+		filename_script = string_from_format("%s/mapper_job_%d_map_%d", NODO_DIRTEMP(), map->info->job_id, map->info->id);
+
 		recibir_mensaje_script_y_guardar(fd, filename_script);
 		///////////////////////////////////////////////////////////////////////
 		pthread_mutex_lock(&mutex);

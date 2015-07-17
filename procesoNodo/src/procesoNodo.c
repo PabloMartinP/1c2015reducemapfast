@@ -1374,7 +1374,10 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		map = NULL;
 		map = recibir_mensaje_map(fd);
 		log_trace(logger, "Recibido nuevo mapper job:%d, map: %d ", map->info->job_id, map->info->id);
-		filename_script = generar_nombre_map_tmp(map->info);
+		//filename_script = generar_nombre_map_tmp(map->info);
+		char* timenow = temporal_get_string_time();
+		filename_script = string_from_format("%s/mapper_job_%d_map_%d_%s", NODO_DIRTEMP(), map->info->job_id, map->info->id, timenow);
+		FREE_NULL(timenow);
 		recibir_mensaje_script_y_guardar(fd, filename_script);
 		///////////////////////////////////////////////////////////////////////
 		pthread_mutex_lock(&mutex);

@@ -710,6 +710,19 @@ t_msg *argv_message(t_msg_id id, uint16_t count, ...) {
 	return new;
 }
 
+
+/*
+int send_file(int socket, char* filename){
+	size_t size = file_get_size(filename);
+
+	int fd = open(filename, O_RDONLY);
+	sendfile(socket, fd, NULL, size);
+	close(fd);
+	return 0;
+}*/
+
+
+
 int enviar_mensaje_sin_header(int sock_fd, int tamanio, void* buffer){
 	int total=0, pending =tamanio;
 	char *bufferAux = malloc(pending);
@@ -950,17 +963,235 @@ void print_map(t_map* map){
 			map->info->resultado);
 	printf("*************************************************************\n");
 }
+int mandarMensaje(int unSocket, int8_t tipo, int tamanio, void *buffer) {
 
-int enviar_mensaje_script(int fd, char* path_script){
+	t_header_base header;
+	int auxInt;
+	//Que el tamanio lo mande
+	void* bufferAux;
+	header.type = tipo;
+	header.payloadlength = tamanio;
+	bufferAux = malloc(sizeof(t_header_base) + tamanio);
+	memcpy(bufferAux, &header, sizeof(t_header_base));
+	memcpy((bufferAux + (sizeof(t_header_base))), buffer, tamanio);
+//			if ((auxInt=send(unSocket, &header, sizeof(Header), 0)) >= 0){
+	auxInt = send(unSocket, bufferAux, (sizeof(t_header_base) + tamanio), 0);
+	free(bufferAux);
+	return auxInt;
+			}
+
+int recibir_mensaje_script(int socket, char* save_as){
+	ssize_t len;
+	char buffer[BUFSIZ];
+	int file_size;
+	FILE *received_file;
+	int remain_data = 0;
+
+
+	/* Receiving file size */
+	recv(socket, buffer, BUFSIZ, 0);
+	file_size = atoi(buffer);
+	//fprintf(stdout, "\nFile size : %d\n", file_size);
+
+	received_file = fopen(save_as, "w");
+	if (received_file == NULL) {
+		fprintf(stderr, "Failed to open file foo --> %s\n", strerror(errno));
+
+		exit(EXIT_FAILURE);
+	}
+
+	remain_data = file_size;
+
+	while (((len = recv(socket, buffer, BUFSIZ, 0)) > 0)
+			&& (remain_data > 0)) {
+		fwrite(buffer, sizeof(char), len, received_file);
+		remain_data -= len;
+		fprintf(stdout, "Receive %d bytes and we hope :- %d bytes\n", len,
+				remain_data);
+	}
+	fclose(received_file);
+
+	return 0;
+}
+//Mande un mensaje a un socket determinado
+		//Recibe un mensaje del servidor - Version Lucas
+int recibirMensajeConHeader(int unSocket, t_header_base* header, void** buffer) {
+
+			int auxInt;
+			if((auxInt=recv(unSocket, header, sizeof(t_header_base), 0))>=0) {
+				*buffer = malloc (header->payloadlength);
+				if ((auxInt=recv(unSocket, *buffer, header->payloadlength, 0)) >= 0) {
+					return  auxInt;
+				}
+			}
+			return  auxInt;
+
+		}
+int recibirMensaje(int unSocket, void** buffer) {
+
+			t_header_base header;
+			int auxInt;
+			if((auxInt=recv(unSocket, &header, sizeof(t_header_base), 0))>=0) {
+				*buffer = malloc (header.payloadlength);
+				if ((auxInt=recv(unSocket, *buffer, header.payloadlength, 0)) >= 0) {
+					return  auxInt;
+				}
+			}
+			return  auxInt;
+
+		}
+		//Recibe un mensaje del servidor - Version Lucas
+		int recibirHeader(int unSocket, t_header_base* header) {
+			int auxInt;
+				if((auxInt=recv(unSocket, header, sizeof(t_header_base), 0))>=0) {
+					return auxInt;
+					}
+					return auxInt;
+				}
+
+		int recibirData(int unSocket, t_header_base header, void** buffer){
+			int auxInt;
+			*buffer = malloc (header.payloadlength);
+					if ((auxInt=recv(unSocket, buffer, header.payloadlength, 0)) >= 0) {
+						return auxInt;
+					}
+			return auxInt;
+		}
+
+int enviar_mensaje_script(int socket, char* path_script){
+	//char file_data[CHUNK_SIZE];
+	int rs =0;
+	int size = file_get_size(path_script);
+
+	/*
+	FILE* file = fopen(path_script, "r");
+	if(file==NULL){
+		return -1;
+	}
+	void* data_file = malloc(size);
+	rs = fwrite(data_file, size, 1, file);
+	if(rs!=size){
+		printf("RRRRRRRRRRRRRRRRRRRRRRRERR\n");
+		return -1;
+	}*/
+
+	char* data_file = file_get_mapped(path_script);
+	//enviar_mensaje_sin_header(socket, size, data_file);
+	rs = mandarMensaje(socket, 0, size, data_file);
+
+	if(rs<0){
+		printf("ERRRRRRRRRRRRR\n");
+		return -1;
+	}
+
+	//free(data_file);
+	file_mmap_free(data_file, path_script);
+	//fclose(file);
+	return 0;
+
+	/*
+	ssize_t len;
+	int fd;
+	int sent_bytes = 0;
+	char file_size[256];
+	struct stat file_stat;
+	int offset;
+	int remain_data;
+
+	fd = open(path_script, O_RDONLY);
+	if (fd == -1) {
+		fprintf(stderr, "Error opening file --> %s", strerror(errno));
+		return -1;
+	}
+
+	if (fstat(fd, &file_stat) < 0) {
+		fprintf(stderr, "Error fstat --> %s", strerror(errno));
+		return -1;
+	}
+
+	fprintf(stdout, "File Size: \n%d bytes\n", file_stat.st_size);
+	sprintf(file_size, "%d", file_stat.st_size);
+
+	len = send(socket, file_size, sizeof(file_size), 0);
+	if (len < 0) {
+		fprintf(stderr, "Error on sending greetings --> %s", strerror(errno));
+
+		exit(EXIT_FAILURE);
+	}
+
+	fprintf(stdout, "Server sent %d bytes for the size\n", len);
+*/
+/*
+	offset = 0;
+	remain_data = file_stat.st_size;
+	while (((sent_bytes = sendfile(socket, fd, &offset, BUFSIZ)) > 0)
+			&& (remain_data > 0)) {
+		fprintf(stdout,	"1. Server sent %d bytes from file's data, offset is now : %d and remaining data = %d\n",sent_bytes, offset, remain_data);
+		remain_data -= sent_bytes;
+		fprintf(stdout,	"2. Server sent %d bytes from file's data, offset is now : %d and remaining data = %d\n",sent_bytes, offset, remain_data);
+	}
+	perror("sendfile");
+	*/
+
+	return 0;
+
+	//mandarMensaje(fd, 0, size, &buffer);
+	/*
 	char* script = file_get_mapped(path_script);
 	t_msg* msg = string_message(JOB_SCRIPT, script, 0);
 	enviar_mensaje(fd, msg);
 	file_mmap_free(script, path_script);
 	destroy_message(msg);
+	*/
 	return 0;
 }
 
-int recibir_mensaje_script_y_guardar(int fd, char* path_destino_script){
+int recibir_mensaje_script_y_guardar(int socket, char* path_destino_script){
+	t_header_base header;
+	//recibirHeader(socket, &header);
+
+	void* file_data ;//= malloc(header.payloadlength);
+	recibirMensajeConHeader(socket, &header, &file_data);
+
+	//recibirData(socket, header, &file_data);
+
+	FILE* file = fopen(path_destino_script, "w");
+	fwrite(file_data, header.payloadlength, 1, file);
+	fclose(file);
+	free(file_data);
+	//settear permisos de ejecucion
+	chmod(path_destino_script, S_IRWXU);
+
+	/*ssize_t len;
+	char buffer[BUFSIZ];
+	int file_size;
+	FILE *received_file;
+	int remain_data = 0;
+
+
+	recv(socket, buffer, BUFSIZ, 0);
+	file_size = atoi(buffer);
+	//fprintf(stdout, "\nFile size : %d\n", file_size);
+
+	received_file = fopen(path_destino_script, "w");
+	if (received_file == NULL) {
+		fprintf(stderr, "Failed to open file foo --> %s\n", strerror(errno));
+
+		exit(EXIT_FAILURE);
+	}
+
+	remain_data = file_size;
+
+	while (((len = recv(socket, buffer, remain_data-1, 0)) > 0) && (remain_data > 0)) {
+		fwrite(buffer, sizeof(char), len, received_file);
+		remain_data -= len;
+		fprintf(stdout, "Receive %d bytes and we hope :- %d bytes\n", len, remain_data);
+	}
+
+	fclose(received_file);
+	chmod(path_destino_script, S_IRWXU);
+*/
+	/*
 	t_msg* msg = NULL;
 	//recibo el codigo del script
 	msg = recibir_mensaje(fd);
@@ -969,7 +1200,7 @@ int recibir_mensaje_script_y_guardar(int fd, char* path_destino_script){
 	destroy_message(msg);
 	//settear permisos de ejecucion
 	chmod(path_destino_script, S_IRWXU);
-	//chmod(path_destino_script, S_IRUSR | S_IWUSR |S_IXUSR);
+	*/
 
 	return 0;
 }

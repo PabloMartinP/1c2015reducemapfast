@@ -21,6 +21,8 @@
 #include <netdb.h>
 #include <unistd.h>
 
+#include <sys/sendfile.h>
+
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -252,6 +254,7 @@ t_msg* nodo_base_message(t_nodo_base* nb);
 t_nodo_base* recibir_mensaje_nodo_base(int fd);
 int enviar_mensaje_reduce(int fd, t_reduce* reduce);
 t_nodo_archivo* nodo_archivo_create();
+int recibir_mensaje_script(int socket, char* save_as);
 
 t_reduce* recibir_mensaje_reduce(int fd);
 int read_line(char* linea, int fd);

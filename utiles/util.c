@@ -1721,7 +1721,7 @@ char NODO_BASE_PRINT[30];
 char* nodo_base_to_string(t_nodo_base* nb){
 	memset(NODO_BASE_PRINT, 0, 30);
 	sprintf(NODO_BASE_PRINT, "id:%d, %s:%d", nb->id, nb->red.ip, nb->red.puerto);
-	printf("%s\n", NODO_BASE_PRINT );
+	//printf("%s\n", NODO_BASE_PRINT );
 	return NODO_BASE_PRINT;
 }
 

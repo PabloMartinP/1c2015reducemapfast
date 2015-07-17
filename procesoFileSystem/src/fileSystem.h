@@ -61,10 +61,16 @@ size_t fs_tamanio_libre_bytes();
 
 int cant_registros(char** registros);
 t_list* fs_importar_archivo(char* archivo);
+t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_nodo(t_nodo_base* otro_nb, int pos_inicial);
+t_list* distribuir_copias();
 t_archivo_bloque_con_copias* guardar_bloque(char* bloque_origen,	size_t offset);
 int fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque,	size_t tamanio_real);
 t_archivo_nodo_bloque** fs_get_tres_nodo_bloque_libres();
 bool ordenar_por_mayor_cant_bloques_libres(t_nodo* uno, t_nodo* dos);
+bool ordenar_por_menor_cant_bloques_libres(t_nodo* uno, t_nodo* dos) ;
+t_nodo_base* obtener_nodo_con_mayor_cant_bloques_libres();
+t_list* cargar_copia_uno(int partes);
+t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_dos_nodos(t_nodo_base* un_nb, t_nodo_base* otro_nb, int pos_inicial);
 t_list* obtener_tres_nodos_disponibles();
 void bloque_marcar_como_usado(t_bloque* bloque);
 void fs_eliminar_nodo(int id_nodo);
@@ -612,7 +618,7 @@ int fs_agregar_nodo(int id_nodo) {
 	//busco el nodo en la lista de no agregados para saber si existe
 	t_nodo* nodo;
 	if ((nodo = list_find(fs.nodos_no_agregados,(void*) _buscar_nodo_por_id)) == NULL) {
-		printf("El nodo ingresado no existe: %d\n", id_nodo);
+		log_trace(logger, "El nodo ingresado no existe: %d\n", id_nodo);
 		return -1;
 	}
 
@@ -626,7 +632,7 @@ int fs_agregar_nodo(int id_nodo) {
 	//le aviso al nodo que esta conectado
 	int fd = client_socket(nodo->base->red.ip, nodo->base->red.puerto);
 	if((fd<0)){
-		printf("No se pudo conectar con el nodo. %s:%d\n", nodo->base->red.ip, nodo->base->red.puerto);
+		log_trace(logger, "No se pudo conectar con el nodo. %s:%d\n", nodo->base->red.ip, nodo->base->red.puerto);
 		nodo->conectado = false;
 		return -1;
 	}
@@ -656,8 +662,8 @@ int fs_agregar_nodo(int id_nodo) {
 	enviar_mensaje_nodo_close(fd);
 	//close(fd);
 
-	printf("El nodo fue agregado al fs: \n");
-	nodo_print_info(nodo);
+	log_trace(logger, "El nodo fue agregado al fs: \n");
+	//nodo_print_info(nodo);
 
 	return 0;
 }
@@ -769,6 +775,224 @@ t_list* fs_importar_archivo(char* archivo) {
 }
 */
 
+t_nodo_base* obtener_nodo_con_mayor_cant_bloques_libres(){
+
+	list_sort(fs.nodos, (void*) ordenar_por_mayor_cant_bloques_libres);
+
+	t_nodo* nodo = NULL;
+	//obtengo el primero
+	nodo = list_get(fs.nodos, 0);
+
+	return nodo->base;
+}
+/*
+ * la copia uno se trata de cargar toda en un mismo nodo,
+ * si no se puede tomo el siguiente nodo con mayor cant bloques libres
+ */
+t_list* cargar_copia_uno(int partes){
+	int i;//contar partes
+	t_nodo* nodo = NULL;
+	t_archivo_nodo_bloque* anb = NULL;
+	t_bloque* bloque = NULL;
+
+	t_list* copia_uno = list_create();
+
+	list_sort(fs.nodos, (void*) ordenar_por_mayor_cant_bloques_libres);
+	int n_nodo = 0;
+	int cant_bloques_libres ;
+	i = 0;
+	int c_partes=0;
+	do{
+		nodo = NULL;
+		//obtengo el primero
+		nodo = list_get(fs.nodos, n_nodo);
+		cant_bloques_libres = nodo_cant_bloques_libres(nodo);
+		//cant_bloques_libres= 1;
+		for (i=0; c_partes < partes && i < cant_bloques_libres; i++, c_partes++) {
+			//pthread_mutex_lock(&mutex);
+			//log_trace(logger, "Nodo: %s b. libres: %d. b. usados: %d",nodo_base_to_string(nodo->base), nodo_cant_bloques_libres(nodo), nodo_cant_bloques_usados(nodo));
+			//pthread_mutex_unlock(&mutex);
+			//devuelvo un bloque y lo marco como requerido para copiar para que no me traiga
+			bloque = nodo_get_bloque_para_copiar(nodo);
+			anb = archivo_nodo_bloque_create(nodo->base, bloque->posicion);
+			list_add(copia_uno, anb);
+		}
+		n_nodo++;
+	}while(c_partes<partes);
+
+	return copia_uno;
+
+////////////////////////////////////////////////////////////////////
+
+/*
+	t_nodo_base* nb = NULL;
+	int i;
+	t_nodo* nodo = NULL;
+	t_archivo_nodo_bloque* anb = NULL;
+	t_bloque* bloque = NULL;
+
+	t_list* copia_uno = list_create();
+	///////////////////////////////////////////////////
+	//cargo la lista que tiene solo la copia 1
+	nb = obtener_nodo_con_mayor_cant_bloques_libres();
+	nodo = fs_buscar_nodo_por_id(nb->id);
+	int cant_bloques_libres = nodo_cant_bloques_libres(nodo);
+	for (i = 0; i < partes && i < cant_bloques_libres; i++) {
+		//pthread_mutex_lock(&mutex);
+		log_trace(logger, "Nodo: %s b. libres: %d. b. usados: %d",nodo_base_to_string(nb), nodo_cant_bloques_libres(nodo), nodo_cant_bloques_usados(nodo));
+		//pthread_mutex_unlock(&mutex);
+		//devuelvo un bloque y lo marco como requerido para copiar para que no me traiga
+		bloque = nodo_get_bloque_para_copiar(nodo);
+		anb = archivo_nodo_bloque_create(nb, bloque->posicion);
+
+		list_add(copia_uno, anb);
+	}
+	if (i > cant_bloques_libres) {
+		log_trace(logger, "Nodo: %s no llego toda la c1, le falta llenar %d", nodo_base_to_string(nb), i - cant_bloques_libres);
+	}
+	return copia_uno;
+	*/
+}
+
+
+t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_nodo(t_nodo_base* otro_nb, int pos_inicial){
+	t_nodo* nodo = NULL;
+
+	int pos = list_size(fs.nodos) -1;
+
+	int nodo_get;
+	//ordeno
+	//list_sort(fs.nodos, (void*)ordenar_por_mayor_cant_bloques_libres);
+	bool encontro_nodo = false;
+	do{
+		nodo_get = (pos_inicial) % list_size(fs.nodos);
+		nodo = list_get(fs.nodos, nodo_get);
+		pos--;
+		pos_inicial++;;
+		encontro_nodo = !nodo_base_igual_a(*(nodo->base), *(otro_nb)) ;
+	}while(!encontro_nodo && pos>=0);
+	if(!encontro_nodo){
+		//no se encontro una copia que no se repita
+		log_trace(logger, "No se encontro una copia distinta al nodo %s", nodo_base_to_string(otro_nb));
+		return NULL;
+	}
+
+	return nodo->base;
+}
+
+t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_dos_nodos(t_nodo_base* un_nb, t_nodo_base* otro_nb, int pos_inicial){
+	t_nodo* nodo = NULL;
+	int nodo_get;
+	int pos = list_size(fs.nodos)-1;
+	//ordeno
+	//list_sort(fs.nodos, (void*)ordenar_por_mayor_cant_bloques_libres);
+	bool encontro_nodo = false;
+	do {
+		nodo_get = (pos_inicial) % list_size(fs.nodos);
+		nodo = list_get(fs.nodos, nodo_get);
+		pos--;
+		pos_inicial++;
+		encontro_nodo = !nodo_base_igual_a(*(nodo->base), *otro_nb) && !nodo_base_igual_a(*(nodo->base), *un_nb);
+	} while (!encontro_nodo && pos>=0);
+	if(!encontro_nodo){
+		//no se encontro una copia que no se repita
+		log_trace(logger, "No se encontro una copia disinta al nodo %s y el nodo %d", nodo_base_to_string(un_nb), nodo_base_to_string(otro_nb));
+		return NULL;
+	}
+
+	return nodo->base;
+}
+
+t_list* distribuir_copias(int partes){
+
+	if(list_size(fs.nodos)==0)
+		return NULL;
+
+	int i, j, k, nro_bloque;
+	t_list* copia1 = list_create();//lista de t_archivo_nodo_bloque*
+	t_list* copia2 = list_create();//lista de t_archivo_nodo_bloque*
+	t_list* copia3 = list_create();//lista de t_archivo_nodo_bloque*
+
+	t_archivo_bloque_con_copias* abcc = NULL;
+
+	t_archivo_nodo_bloque* anb = NULL;
+	abcc = bloque_de_datos_crear();
+	t_nodo_base* nb = NULL;
+	t_nodo* nodo = NULL;
+	t_bloque* bloque = NULL;
+
+	copia1 = cargar_copia_uno(partes);
+
+	t_archivo_nodo_bloque* anbc1;
+	t_archivo_nodo_bloque* anbc2;
+	t_archivo_nodo_bloque* anbc3;
+	t_nodo_base* nbc2;
+	t_nodo_base* nbc3;
+	//ahora lleno la c2 y la c3
+	int pos = list_size(fs.nodos)-1;//para que empiece tomando los snodos mas cargados
+	//int pos = 0;//init 0 para que el mod sea el max
+	//ordeno
+	list_sort(fs.nodos, (void*)ordenar_por_menor_cant_bloques_libres);
+
+	for (i = 0; i < partes; i++, pos--) {
+		if(pos==-1)//si vuelve a cero lo reinicializo
+			pos = list_size(fs.nodos)-1;
+
+		anbc1 = list_get(copia1, i);
+
+		//list_sort(fs.nodos, (void*)ordenar_por_mayor_cant_bloques_libres);
+
+		nbc2 = obtener_nodo_mas_cargado_y_distinto_a_nodo(anbc1->base, pos);
+		if(nbc2 == NULL){
+			log_trace(logger, "no se pudo cargar la copia 2 de la parte %d del archivo", i);
+		return NULL;
+		}
+
+		nbc3 = obtener_nodo_mas_cargado_y_distinto_a_dos_nodos(anbc1->base, nbc2, pos);
+		if(nbc3 == NULL){
+			log_trace(logger, "no se pudo cargar la copia 3 de la parte %d del archivo", i);
+			return NULL;
+		}
+		//cargo c2
+		bloque = NULL;
+		nodo = NULL;
+		nodo = fs_buscar_nodo_por_id(nbc2->id);
+		bloque = nodo_get_bloque_para_copiar(nodo);
+		anbc2 = archivo_nodo_bloque_create(nbc2, bloque->posicion);
+		list_add(copia2, anbc2);
+
+		//cargo c3
+		bloque = NULL;
+		nodo = NULL;
+		nodo = fs_buscar_nodo_por_id(nbc3->id);
+		bloque = nodo_get_bloque_para_copiar(nodo);
+		anbc3 = archivo_nodo_bloque_create(nbc3, bloque->posicion);
+		list_add(copia3, anbc3);
+
+	}
+
+	////////////////////////////////////////
+	void _print_nodo(t_archivo_nodo_bloque* anb){
+		printf("nodo:%s, bloque:%d\n", nodo_base_to_string(anb->base), anb->numero_bloque);
+		nodo = fs_buscar_nodo_por_id(anb->base->id);
+		bloque = nodo_buscar_bloque(nodo, anb->numero_bloque);
+		//bloque->libre = false;
+		bloque_marcar_como_usado(bloque);
+
+	}
+	printf("********************copia 1\n");
+	list_iterate(copia1, _print_nodo);
+	printf("********************copia2\n");
+	list_iterate(copia2, _print_nodo);
+	printf("********************copia 3\n");
+	list_iterate(copia3, _print_nodo);
+
+	printf("***************************************************************\n");
+
+
+	return NULL;
+}
+
 t_list* fs_importar_archivo(char* archivo) {
 	size_t size = file_get_size(archivo);
 	log_trace(logger, "Tamanio : %zd b, %.2f kb, %.2f mb\n", size,	bytes_to_kilobytes(size), bytes_to_megabytes(size));
@@ -779,6 +1003,8 @@ t_list* fs_importar_archivo(char* archivo) {
 		printf(	"La cantidad de bloques necesarios para el archivo es %d y solo hay %d bloques libres\n",cant_bloq_necesarios, fs_cant_bloques_libres());
 		return NULL;
 	}
+
+
 
 	t_list* new = list_create();
 
@@ -917,9 +1143,14 @@ void fs_print_nodos_no_agregados() {
  printf("\n---------------------------------------------------");
  }*/
 
+bool ordenar_por_menor_cant_bloques_libres(t_nodo* uno, t_nodo* dos) {
+	return nodo_cant_bloques_libres(uno) < nodo_cant_bloques_libres(dos);
+}
+
 bool ordenar_por_mayor_cant_bloques_libres(t_nodo* uno, t_nodo* dos) {
 	return nodo_cant_bloques_libres(uno) > nodo_cant_bloques_libres(dos);
 }
+
 
 t_list* obtener_tres_nodos_disponibles() {
 	//ordeno por cantidad de libres
@@ -1012,20 +1243,17 @@ int cant_bloques_necesarios(char* archivo) {
 void fs_print_info() {
 	printf("INFORMACION ACTUAL DEL FS\n");
 
-	size_t tam = fs_tamanio_bytes(fs);
-	size_t tam_libre = fs_tamanio_libre_bytes(fs);
-	size_t tam_usado = fs_tamanio_usado_bytes(fs);
+	//size_t tam = fs_tamanio_bytes(fs);
+	//size_t tam_libre = fs_tamanio_libre_bytes(fs);
+	//size_t tam_usado = fs_tamanio_usado_bytes(fs);
 
-	printf("Tamanio : %zd b, %.2f kb, %.2f mb\n", tam, bytes_to_kilobytes(tam),
-			bytes_to_megabytes(tam));
+	//printf("Tamanio : %zd b, %.2f kb, %.2f mb\n", tam, bytes_to_kilobytes(tam), bytes_to_megabytes(tam));
 	//printf("Tamanio : %.2f kb", bytes_to_kilobytes(fs_tamanio_bytes(fs)));
 	//printf("Tamanio : %.2f mb\n", bytes_to_megabytes(fs_tamanio_bytes(fs)));
 	//printf("Tamanio : %.2f mb\n", bytes_to_megabytes(fs_tamanio_bytes(fs)));
 	//printf("Tamanio : %d MB\n", fs_tamanio_megabytes(fs));
-	printf("Tamanio libre: %zd b, %.2f kb, %.2f mb\n", tam_libre,
-			bytes_to_kilobytes(tam_libre), bytes_to_megabytes(tam_libre));
-	printf("Tamanio usado: %zd b, %.2f kb, %.2f mb\n", tam_usado,
-			bytes_to_kilobytes(tam_usado), bytes_to_megabytes(tam_usado));
+	//printf("Tamanio libre: %zd b, %.2f kb, %.2f mb\n", tam_libre,bytes_to_kilobytes(tam_libre), bytes_to_megabytes(tam_libre));
+	//printf("Tamanio usado: %zd b, %.2f kb, %.2f mb\n", tam_usado, bytes_to_kilobytes(tam_usado), bytes_to_megabytes(tam_usado));
 
 	//printf("Tamanio libre: %d MB\n", fs_tamanio_libre_megabytes(fs));
 	//printf("Tamanio usado: %d MB\n", fs_tamanio_usado_megabytes(fs));
@@ -1033,9 +1261,10 @@ void fs_print_info() {
 	printf("Cant Nodos conectados: %d\n", list_size(fs.nodos));
 	printf("Cant Nodos no agregados: %d\n", list_size(fs.nodos_no_agregados));
 
-	printf("Cant bloques: %d\n", fs_cant_bloques(fs));
+	printf("Tamaño bloque %d mb\n", TAMANIO_BLOQUE_MB);
+	printf("Cant bloques totales %d\n", fs_cant_bloques(fs));
 	printf("Cant bloques libres: %d\n", fs_cant_bloques_libres(fs));
-	printf("Cant bloques usados : %d\n", fs_cant_bloques_usados(fs));
+	printf("Cant bloques usados: %d\n", fs_cant_bloques_usados(fs));
 
 	printf("*********************************************\n");
 }

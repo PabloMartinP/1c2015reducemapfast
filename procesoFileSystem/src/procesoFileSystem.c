@@ -88,13 +88,24 @@ void iniciar_consola() {
 		char** input_user = separar_por_espacios(comando);
 		e_comando cmd = getComando(input_user[0]);
 
+
+
+
+
 		if (cmd != NODO_AGREGAR && cmd!=SALIR && !OPERATIVO) {
 			if(!OPERATIVO){
 				fs_print_no_operativo();
 				fs_print_nodos_no_agregados();
 			}
 		} else {
+
+
+
 			switch (cmd) {
+			case DISTRIBUIR_COPIAS:
+
+				distribuir_copias(atoi(input_user[1]));
+				break;
 			case ARCHIVO_VERBLOQUE:	//filevb nombre dir nro_bloque
 				archivo_nombre = input_user[1];
 				nro_bloque = atoi(input_user[3]);
@@ -257,6 +268,9 @@ void nodo_eliminar(int nodo_id){
 	printf(	"el nodo %d  se ha eliminado del fs. Paso a la lista de nodos no agregados\n",	nodo_id);
 	fs_print_nodos_no_agregados();
 }
+
+
+
 void archivo_copiar_local_a_mdfs(char*file_local){
 	pthread_mutex_lock(&mutex);
 	if (file_exists(file_local)) {

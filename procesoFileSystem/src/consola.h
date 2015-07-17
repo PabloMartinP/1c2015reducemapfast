@@ -38,7 +38,8 @@ typedef enum {
 	NODO_LISTAR_NO_AGREGADOS,
 	FS_INFO,
 	CAMBIAR_DIRECTORIO,  //cambiar directorio
-	MD5
+	MD5,
+	DISTRIBUIR_COPIAS
 } e_comando;
 
 #define COMMAND_MAX_SIZE  256

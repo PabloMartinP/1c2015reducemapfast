@@ -47,6 +47,8 @@ e_comando getComando(char* comando) {
 
 	if (string_equals_ignore_case(comando, "md5"))
 		return MD5;
+	if (string_equals_ignore_case(comando, "dc"))
+		return DISTRIBUIR_COPIAS;
 
 
 	return NADA;

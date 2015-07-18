@@ -11,7 +11,8 @@
 #include <commons/config.h>
 #include <stdlib.h>
 
-char FILE_CONFIG [1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/jobConfig.txt";
+//char FILE_CONFIG [1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/jobConfig.txt";
+char FILE_CONFIG [1024] = "config.txt";
 t_config* jobConfig = NULL;
 
 char* JOB_IP_MARTA();

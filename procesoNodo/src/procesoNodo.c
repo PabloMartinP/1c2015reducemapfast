@@ -1,13 +1,6 @@
 
 #include "procesoNodo.h"
 
-
-typedef struct {
-	int numero_bloque;
-	char script_map[255];
-	char resultado[255];
-} th_map;
-
 int contador_ftok=0;//para inicializar el semaforo(?)
 
 int main(int argc, char *argv[]) {

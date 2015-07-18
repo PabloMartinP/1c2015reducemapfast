@@ -249,7 +249,7 @@ void crearHiloMapper(t_map* map){
 int conectar_con_marta(){
 	int res, i;
 	//conecto con marta
-	log_trace(logger, "Conectando con marta");
+	log_trace(logger, "Conectando con marta %s:%d", JOB_IP_MARTA(), JOB_PUERTO_MARTA());
 	int fd ;
 	if((fd= client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA()))==-1){
 		log_trace(logger, "No se pudo conectar con marta. MaRTA: %s:%d\n", JOB_IP_MARTA(), JOB_PUERTO_MARTA());

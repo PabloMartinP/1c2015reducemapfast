@@ -14,7 +14,7 @@ int main(void) {
 	config = config_create(FILE_CONFIG);
 	marta_create();
 
-	logger = log_create(FILE_LOG, "MaRTA", true, LOG_LEVEL_INFO);
+	logger = log_create(FILE_LOG, "MaRTA", true, LOG_LEVEL_TRACE);
 
 
 	//iniciar_thread_server_MaRTA();

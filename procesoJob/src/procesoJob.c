@@ -15,7 +15,7 @@ char FILE_LOG[1024] = "log_job.txt";
 int contador_ftok = 0;
 int main(int argc, char *argv[]) {
 	jobConfig = config_create(FILE_CONFIG);
-	logger = log_create(FILE_LOG, "JOB", true, LOG_LEVEL_INFO);
+	logger = log_create(FILE_LOG, "JOB", true, LOG_LEVEL_TRACE);
 	pthread_mutex_init(&mutex_log, NULL);
 
 

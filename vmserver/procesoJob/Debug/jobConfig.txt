@@ -1,0 +1,7 @@
+IP_MARTA=127.0.0.1
+PUERTO_MARTA=5000
+MAPPER=/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/tests/mapper.sh
+REDUCE=/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/tests/reduce.pl
+COMBINER=1
+ARCHIVOS=[/300.txt]
+RESULTADO=/result.txt

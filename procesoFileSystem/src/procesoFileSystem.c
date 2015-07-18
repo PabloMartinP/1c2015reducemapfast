@@ -425,7 +425,7 @@ void inicializar() {
 		exit(1);
 	}
 	fclose(f);
-	logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_INFO);
+	logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_TRACE);
 
 	//inicializo el config
 
@@ -583,7 +583,7 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 			//printf("Se conecto el nodo %d,  %s:%d | %s\n", nodo->base->id,nodo->base->red.ip, nodo->base->red.puerto, nodo_isNew(nodo));
 			log_info(logger, "Se conecto el nodo %d,  %s:%d | %s", nodo->base->id,nodo->base->red.ip, nodo->base->red.puerto, nodo_isNew(nodo));
 		}else{
-			log_trace(logger,"el nodo %d se ha reconecto", msg->argv[3]);
+			log_info(logger,"el nodo %d se ha reconecto", msg->argv[3]);
 		}
 
 		destroy_message(msg);

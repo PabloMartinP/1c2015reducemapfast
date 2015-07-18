@@ -1345,8 +1345,9 @@ void incicar_server_sin_select() {
 			log_info(logger, "Se requiere un hilo ");
 			if(	(pthread_create(&thread, NULL, (void*)atenderProceso, smsg)) <0){
 				perror("pthread_create");
-			}else
-				printf("genero nuevo thread el sock%d\n", smsg->socket);
+			}else{
+				//printf("genero nuevo thread el sock%d\n", smsg->socket);
+			}
 			pthread_detach(thread);
 		}else{
 			log_info(logger, "No se requere hilo ");
@@ -1451,7 +1452,7 @@ void finalizar() {
 void inicializar() {
 
 	config = config_create(FILE_CONFIG);
-	logger = log_create(FILE_LOG, "Nodo", true, LOG_LEVEL_INFO);
+	logger = log_create(FILE_LOG, "Nodo", true, LOG_LEVEL_TRACE);
 	/*
 	 char*f;	f = convertir_path_absoluto(FILE_CONFIG);
 	 config = config_create(f);

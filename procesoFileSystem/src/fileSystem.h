@@ -806,8 +806,12 @@ t_list* cargar_copia_uno(int partes){
 	do{
 		nodo = NULL;
 		//obtengo el primero
-		nodo = list_get(fs.nodos, n_nodo);
-		cant_bloques_libres = nodo_cant_bloques_libres(nodo);
+		do {
+			nodo = list_get(fs.nodos, n_nodo);
+			cant_bloques_libres = nodo_cant_bloques_libres(nodo);
+			n_nodo++;
+		} while (!nodo_esta_activo(nodo->base));
+
 		//cant_bloques_libres= 1;
 		for (i=0; c_partes < partes && i < cant_bloques_libres; i++, c_partes++) {
 			//pthread_mutex_lock(&mutex);
@@ -818,7 +822,6 @@ t_list* cargar_copia_uno(int partes){
 			anb = archivo_nodo_bloque_create(nodo->base, bloque->posicion);
 			list_add(copia_uno, anb);
 		}
-		n_nodo++;
 	}while(c_partes<partes);
 
 	return copia_uno;
@@ -866,10 +869,13 @@ t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_nodo(t_nodo_base* otro_nb, in
 	//list_sort(fs.nodos, (void*)ordenar_por_mayor_cant_bloques_libres);
 	bool encontro_nodo = false;
 	do{
-		nodo_get = (pos_inicial) % list_size(fs.nodos);
-		nodo = list_get(fs.nodos, nodo_get);
+		do{
+			nodo_get = (pos_inicial) % list_size(fs.nodos);
+			nodo = list_get(fs.nodos, nodo_get);
+			pos_inicial++;;
+		} while (!nodo_esta_activo(nodo->base));
+
 		pos--;
-		pos_inicial++;;
 		encontro_nodo = !nodo_base_igual_a(*(nodo->base), *(otro_nb)) ;
 	}while(!encontro_nodo && pos>=0);
 	if(!encontro_nodo){
@@ -889,10 +895,13 @@ t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_dos_nodos(t_nodo_base* un_nb,
 	//list_sort(fs.nodos, (void*)ordenar_por_mayor_cant_bloques_libres);
 	bool encontro_nodo = false;
 	do {
-		nodo_get = (pos_inicial) % list_size(fs.nodos);
-		nodo = list_get(fs.nodos, nodo_get);
+		do{
+			nodo_get = (pos_inicial) % list_size(fs.nodos);
+			nodo = list_get(fs.nodos, nodo_get);
+			pos_inicial++;
+		}while(!nodo_esta_activo(nodo->base));
+
 		pos--;
-		pos_inicial++;
 		encontro_nodo = !nodo_base_igual_a(*(nodo->base), *otro_nb) && !nodo_base_igual_a(*(nodo->base), *un_nb);
 	} while (!encontro_nodo && pos>=0);
 	if(!encontro_nodo){
@@ -1055,7 +1064,7 @@ t_list* fs_importar_archivo(char* archivo) {
 
 	char* mapped = file_get_mapped(archivo);
 
-	int parte_nro = 0;
+	int parte_nro = 0, rs;
 	size_t bytes_leidos = 0, offset = 0;
 	int len_aux;
 	for (bytes_leidos = 0, offset = 0; bytes_leidos+offset < size; ) {
@@ -1066,7 +1075,10 @@ t_list* fs_importar_archivo(char* archivo) {
 		} else {
 			//si supera el tamaño de bloque grabo
 			abcc = list_get(copias, parte_nro);
-			guardar_parte(mapped + offset, bytes_leidos, abcc);
+			rs = guardar_parte(mapped + offset, bytes_leidos, abcc);
+			if(rs!=0){
+				return NULL;
+			}
 			//bd = guardar_bloque(mapped + offset, bytes_leidos);
 			//bd->parte_numero = parte_nro;
 			parte_nro++;
@@ -1080,7 +1092,10 @@ t_list* fs_importar_archivo(char* archivo) {
 	if (bytes_leidos > 0) {
 		//bd = guardar_parte(mapped + offset, bytes_leidos);
 		abcc = list_get(copias, parte_nro);
-		guardar_parte(mapped + offset, bytes_leidos, abcc);
+		rs = guardar_parte(mapped + offset, bytes_leidos, abcc);
+		if(rs!=0){
+			return NULL;
+		}
 
 		//setteo el nro de bloque
 		//bd->parte_numero = parte_nro;
@@ -1104,8 +1119,13 @@ int guardar_parte(char* bloque_origen,size_t bytes_a_copiar, t_archivo_bloque_co
 	//nb = fs_get_tres_nodo_bloque_libres(fs);
 
 	for (i = 0; i < BLOQUE_CANT_COPIAS; i++) {
+
 		anb = NULL;
 		anb = list_get(abcc->nodosbloque, i);
+		if(!nodo_esta_activo(anb->base)){
+			log_trace(logger, "Nodo %s activo", anb->base);
+			return -1;
+		}
 
 		fs_guardar_bloque(anb, bloque, bytes_a_copiar);
 

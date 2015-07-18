@@ -122,5 +122,6 @@ int aplicar_map(int n_bloque, char* script_map, char* filename_result);
 
 int TAMANIO_DATA=0;;
 int CANT_BLOQUES=0;
+//int CONTADOR_FTOK=0;
 
 #endif /* PROCESONODO_H_ */

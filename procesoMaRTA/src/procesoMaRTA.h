@@ -16,7 +16,7 @@
 bool FIN = false;
 
 //char FILE_CONFIG[1024]="/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/config.txt";
-char FILE_LOG[1024] ="/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoMaRTA/log.txt";
+char FILE_LOG[1024] ="log_marta.txt";
 
 void iniciar_thread_server_MaRTA();
 void iniciar_servidor();

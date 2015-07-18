@@ -22,7 +22,7 @@ sem_t* sem_crear(int* shmid, key_t* shmkey, int contador_ftok){
 	//shmkey = ftok("/dev/null", 5); /* valid directory name and a number */
 	*shmkey = ftok("/dev/null", contador_ftok); /* valid directory name and a number */
 
-	printf("shmkey for p = %d\n", *shmkey);
+	//printf("shmkey for p = %d\n", *shmkey);
 	*shmid = shmget(*shmkey, sizeof(int), 0644 | IPC_CREAT);
 	if (*shmid < 0) { /* shared memory error check */
 		perror("shmget\n");
@@ -40,7 +40,7 @@ sem_t* sem_crear(int* shmid, key_t* shmkey, int contador_ftok){
 	if(sem==SEM_FAILED){
 		perror("sem_open___");
 		printf("***************************************************sdfadfasd\n");
-		exit(1);
+		_exit(1);
 	}
 
 	/* name of semaphore is "pSem", semaphore is reached using this name */
@@ -48,19 +48,19 @@ sem_t* sem_crear(int* shmid, key_t* shmkey, int contador_ftok){
 	sem_unlink(sem_name);
 	/* unlink prevents the semaphore existing forever */
 	/* if a crash occurs during the execution         */
-	printf ("semaphores initialized.\n\n");
+	//printf ("semaphores initialized.\n\n");
 
 	FREE_NULL(sem_name);
 
 	return sem;
 }
-int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(int fdreader, int fdwriter), pthread_mutex_t* mutex){
+int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(int fdreader, int fdwriter), pthread_mutex_t* mutex, int c_ftok){
 	pthread_mutex_lock(mutex);
 
 	key_t shmkey; /*      shared memory key       */
 	int shmid; /*      shared memory id        */
 	sem_t *sem; /*      synch semaphore         *//*shared */
-	sem = sem_crear(&shmid, &shmkey, 0);
+	sem = sem_crear(&shmid, &shmkey, c_ftok);
 
 
 	int pipes[NUM_PIPES][2];
@@ -102,7 +102,7 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 
 		execl(path_script, name_script, (char*) NULL);
 		perror("Errro execv");
-		_exit(-1);
+		_exit(1);
 
 	} else {
 		sem_wait(sem);
@@ -121,7 +121,7 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 		/* cleanup semaphores */
 		sem_destroy (sem);
 
-		puts("listo");
+		//puts("listo");
 		return rs;
 	}
 }
@@ -212,7 +212,7 @@ int ordenar(t_ordenar* param_ordenar){
 	}
 	int rs=0;
 
-	rs = ejecutar_script("/usr/bin/sort", "sort", _reader_writer, param_ordenar->mutex);
+	rs = ejecutar_script("/usr/bin/sort", "sort", _reader_writer, param_ordenar->mutex, param_ordenar->contador_ftok);
 	//rs = ejecutar_script("/home/utnso/Escritorio/tests/mapper.sh", "mapperR", _reader_writer);
 
 	return rs;
@@ -436,11 +436,7 @@ void* file_get_mapped(char* filename) {
 	char *addr;
 	int fd;
 	struct stat sb;
-	off_t offset, pa_offset;
 	size_t length;
-	ssize_t s;
-	int i = 0;
-
 
 	fd = open(filename, O_RDWR);
 	if (fd == -1)
@@ -794,7 +790,7 @@ t_mapreduce* recibir_mensaje_mapreduce(int fd){
 	//envio resultado, id, job_id
 	msg = recibir_mensaje(fd);
 
-	mr = mapreduce_create(msg->argv[0], msg->argv[0], msg->stream);
+	mr = mapreduce_create(msg->argv[0], msg->argv[1], msg->stream);
 
 	destroy_message(msg);
 	return mr;
@@ -1252,7 +1248,7 @@ t_msg *string_message(t_msg_id id, char *message, uint16_t count, ...) {
 	return new;
 }
 
-char* recibir_linea(int sock_fd, char*linea){
+int recibir_linea(int sock_fd, char*linea){
 	//char* linea = malloc(LEN_KEYVALUE);
 	char caracter=NULL;
 	int bytes_leidos = 0;
@@ -1271,19 +1267,19 @@ char* recibir_linea(int sock_fd, char*linea){
 	if(status==-2){//
 		linea[bytes_leidos] = '\0';
 		//return linea;
-		return linea;
+		return 0;
 	}
 	else
 	{
 		if(status==-3){//termino de leer el archivo
 			//FREE_NULL(linea);
 			//return NULL;
-			return NULL;
+			return -1;
 		}
 		else{
 			//FREE_NULL(linea);
 			perror("El nodo perdio conexion\n");
-			return NULL;
+			return -1;
 
 		}
 	}

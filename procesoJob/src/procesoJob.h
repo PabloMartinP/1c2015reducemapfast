@@ -77,7 +77,7 @@ int funcionReducing(t_reduce* reduce){
 		pthread_mutex_unlock(&mutex_log);
 		perror("client_sock");
 		//exit(1);
-		return -1;
+		//return -1;
 	}
 	int rs;
 	t_msg* msg;
@@ -123,8 +123,9 @@ int funcionReducing(t_reduce* reduce){
 		pthread_mutex_lock(&mutex_log);
 		log_trace(logger, "msg return NULL, reducer %d en nodo %s",reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino));
 		pthread_mutex_unlock(&mutex_log);
-		destroy_message(msg);
-		return -1;
+		//destroy_message(msg);
+		//return -1;
+		msg = argv_message(REDUCER_NOTERMINO, 0);
 	}
 
 
@@ -255,6 +256,7 @@ int conectar_con_marta(){
 		handle_error("client_socket");
 	}
 	log_trace(logger, "Conectado con marta OK");
+	log_info(logger, "Conectado con marta");
 
 	t_msg* msg;
 	msg = argv_message(JOB_HOLA, 0);
@@ -329,6 +331,7 @@ int conectar_con_marta(){
 	int cant_mappers = msg->argv[0];
 	log_trace(logger, "Cant. Mappers: %d", cant_mappers);
 	destroy_message(msg);
+	log_info(logger, "Desconexion Marta");
 	close(fd);//cierro el fd de marta porque voy a lanzar un connect por cada hilo
 
 	procesar_mappers(cant_mappers);
@@ -338,10 +341,11 @@ int conectar_con_marta(){
 
 	int socket_marta = client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA());
 
+	log_info(logger, "Conecto con Marta");
 
 	//si es distinto de null significa que termino el reduce final OK
 	if(reduce_final!=NULL){
-		log_trace(logger, "Enviando archivo final %s en nodo %s a grabar en fs", reduce_final->info->resultado, nodo_base_to_string(reduce_final->nodo_base_destino));
+		log_info(logger, "Enviando archivo final %s en nodo %s a grabar en fs", reduce_final->info->resultado, nodo_base_to_string(reduce_final->nodo_base_destino));
 		msg = argv_message(JOB_SUBIR_ARCHIVO_FINAL_A_FS,2, JOB_ID, reduce_final->info->id );
 		enviar_mensaje(socket_marta, msg);
 		destroy_message(msg);
@@ -351,12 +355,12 @@ int conectar_con_marta(){
 
 		if (msg->header.id == MARTA_RESULTADO_REDUCE_GUARDADO_OK) {
 			pthread_mutex_lock(&mutex_log);
-			log_trace(logger, "Resultado final %s guardado en FS OK",
+			log_info(logger, "Resultado final %s guardado en FS OK",
 					JOB_RESULTADO());
 			pthread_mutex_unlock(&mutex_log);
 		} else {
 			pthread_mutex_lock(&mutex_log);
-			log_trace(logger, "Resultado final %s No se pudo guardar en el FS",
+			log_info(logger, "Resultado final %s No se pudo guardar en el FS",
 					JOB_RESULTADO());
 			pthread_mutex_unlock(&mutex_log);
 		}
@@ -371,11 +375,13 @@ int conectar_con_marta(){
 	destroy_message(msg);
 	close(socket_marta);
 
+	log_info(logger, "Desconecto de marta");
+
 	return 0;
 }
 
 int procesar_reduces(){
-	t_msg* msg = NULL;
+	//t_msg* msg = NULL;
 	pthread_t th_nuevo_reduce;
 	//me conecto a marta para que cuando haya un nuevo reduce me avise por este socket
 	//t_reduce *reduce;
@@ -421,6 +427,11 @@ int procesar_reduces(){
 int nuevo_hilo_reducer(){
 	//int reduce_id = *reduce_id_p;
 
+	pthread_mutex_lock(&mutex_log);
+	log_info(logger, "REDUCER Nuevo hilo reducer");
+	pthread_mutex_unlock(&mutex_log);
+
+
 	//connecto con marta
 	int socket_marta = client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA());
 	t_reduce* reduce = NULL;
@@ -431,13 +442,18 @@ int nuevo_hilo_reducer(){
 	enviar_mensaje(socket_marta, msg);
 	destroy_message(msg);
 
+	pthread_mutex_lock(&mutex_log);
+	log_info(logger, "REDUCER Conecto con marta para pedirle los datos para el nuevo reduce");
+	pthread_mutex_unlock(&mutex_log);
+
 	//recibo el reducer
 	reduce = recibir_mensaje_reduce(socket_marta);
 
+
 	pthread_mutex_lock(&mutex_log);
-	log_trace(logger,
-			"Reduce_id: %d - nodo destino: %s",
-			reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino) );
+	log_info(logger,
+			"REDUCER %d. Nodo Destino: %s, archivos a reducir: %d",
+			reduce->info->id, nodo_base_to_string(reduce->nodo_base_destino), list_size(reduce->nodos_archivo)) ;
 	pthread_mutex_unlock(&mutex_log);
 
 	int res = 0;
@@ -457,7 +473,7 @@ int nuevo_hilo_reducer(){
 
 	if(reducefinal || res<0){//res<0 porque si falla uno cancela tod0, marco como que es final asi sale del for(;;)
 		pthread_mutex_lock(&mutex_log);
-		log_trace(logger, "Termino el reduce FINAL con resultado: %d\n", res);
+		log_info(logger, "Termino el reduce FINAL con resultado: %d\n", res);
 		REDUCE_FINAL = true;
 		sem_post(&sem);
 		pthread_mutex_unlock(&mutex_log);
@@ -479,6 +495,7 @@ int procesar_mappers(int cant_mappers){
 
 		map_id = malloc(sizeof(*map_id));
 		*map_id = i;
+
 		pthread_create(&th_map, NULL, (void*)nuevo_hilo_mapper, (void*)map_id);
 		pthread_detach(th_map);
 	}
@@ -496,18 +513,29 @@ int try_map(int map_id){
 	msg = NULL;
 	//connecto con marta
 	socket_marta = client_socket(JOB_IP_MARTA(), JOB_PUERTO_MARTA());
+
+	pthread_mutex_lock(&mutex_log);
+	log_info(logger, "MAPPER %d. Conectado a marta", map_id);
+	pthread_mutex_unlock(&mutex_log);
+
 	//le pido a marta el mapper map_id
 	msg = argv_message(MAPPER_GET, 2, JOB_ID, map_id);
 	enviar_mensaje(socket_marta, msg);
 	destroy_message(msg);
+	pthread_mutex_lock(&mutex_log);
+	log_info(logger, "MAPPER %d. Enviado MAPPER_GET", map_id);
+	pthread_mutex_unlock(&mutex_log);
 
 	//recibo el mapper
 	map = recibir_mensaje_map(socket_marta);
+	pthread_mutex_lock(&mutex_log);
+	log_info(logger, "MAPPER %d. Recibido MAPPER_GET", map_id);
+	pthread_mutex_unlock(&mutex_log);
 
-	print_map(map);
+	//print_map(map);
 
 	pthread_mutex_lock(&mutex_log);
-	log_trace(logger,
+	log_info(logger,
 			"Map_id: %d - Ubicacion: id_nodo: %d, %s:%d numero_bloque: %d",
 			map->info->id, map->archivo_nodo_bloque->base->id,
 			map->archivo_nodo_bloque->base->red.ip,
@@ -532,14 +560,19 @@ int try_map(int map_id){
 }
 
 int nuevo_hilo_mapper(int* map_id_p){
+
 	int map_id = *map_id_p;
+	pthread_mutex_lock(&mutex_log);
+	log_info(logger, "MAPPER %d. Nuevo hilo", map_id);
+	pthread_mutex_unlock(&mutex_log);
 	int rs =0;
 	do{
 		rs = try_map(map_id);
 	}while(rs<0);
 
-
-
+	pthread_mutex_lock(&mutex_log);
+	log_info(logger, "MAPPER %d. Finalizacion hilo", map_id);
+	pthread_mutex_unlock(&mutex_log);
 	FREE_NULL(map_id_p);
 	return 0;
 }
@@ -547,9 +580,9 @@ int nuevo_hilo_mapper(int* map_id_p){
 int avisar_marta_termino(int socket_marta, int map_o_reduce, int map_reduce_id, int resultado){
 	pthread_mutex_lock(&mutex_log);
 	if(map_o_reduce == MAP)
-		log_trace(logger, "Le aviso a Marta que el MAP %d finalizo con resultado: %d", map_reduce_id, resultado);
+		log_info(logger, "MAPPER %d. Le aviso a Marta que finalizo con resultado: %d", map_reduce_id, resultado);
 	else
-		log_trace(logger, "Le aviso a Marta que el REDUCE %d finalizo con resultado: %d", map_reduce_id, resultado);
+		log_info(logger, "REDUCER %d. Le aviso a Marta que finalizo con resultado: %d", map_reduce_id, resultado);
 	pthread_mutex_unlock(&mutex_log);
 
 	//le tengo que avisar a marta que termino el map ya sea bien o mal
@@ -567,16 +600,18 @@ int avisar_marta_termino(int socket_marta, int map_o_reduce, int map_reduce_id, 
 
 	pthread_mutex_lock(&mutex_log);
 	if(map_o_reduce==MAP)
-		log_trace(logger, "Mensaje enviado a marta con resultado: %d del MAP %d", resultado, map_reduce_id);
+		log_info(logger, "MAPPER %d. Mensaje enviado a marta con resultado: %d", map_reduce_id, resultado);
 	else
-		log_trace(logger, "Mensaje enviado a marta con resultado: %d del REDUCE %d", resultado, map_reduce_id);
+		log_info(logger, "REDUCER %d. Mensaje enviado a marta con resultado: %d", map_reduce_id, resultado);
 	pthread_mutex_unlock(&mutex_log);
 
 	//si marta me contesta diciendome que hay un nuevo reduce, habilito el sem para que el hilo que lee reducers
 	//se desbloquee y lea el reduce
 	msg = recibir_mensaje(socket_marta);
 	if (msg->header.id == REDUCE_DISPONIBLE) {
-		printf("_________________ mapreduce %d genera NUEVOREDUCE\n", map_reduce_id);
+		pthread_mutex_lock(&mutex_log);
+		log_info(logger, "No genera ningun reduce nuevo.");
+		pthread_mutex_unlock(&mutex_log);
 		destroy_message(msg);
 		//cierro la conexion con marta
 		close(socket_marta);
@@ -587,8 +622,18 @@ int avisar_marta_termino(int socket_marta, int map_o_reduce, int map_reduce_id, 
 		destroy_message(msg);
 		//cierro la conexion con marta
 		close(socket_marta);
-		printf("_________________mapreduce %d no genera ningun MAPREDUCE\n", map_reduce_id);
+		pthread_mutex_lock(&mutex_log);
+		log_info(logger, "No genera ningun reduce nuevo");
+		pthread_mutex_unlock(&mutex_log);
 	}
+	log_info(logger, "Desconectado de Marta", resultado, map_reduce_id);
+	pthread_mutex_lock(&mutex_log);
+
+	if(map_o_reduce == MAP)
+		log_info(logger, "Mensaje enviado a Marta con resultado: %d del MAP %d", resultado, map_reduce_id);
+	else
+		log_info(logger, "Mensaje enviado a Marta con resultado: %d del REDUCE %d", resultado, map_reduce_id);
+	pthread_mutex_unlock(&mutex_log);
 
 	return 0;
 }
@@ -596,16 +641,16 @@ int avisar_marta_termino(int socket_marta, int map_o_reduce, int map_reduce_id, 
 
 int lanzar_hilo_reduce(int fd, t_reduce* reduce){
 	pthread_mutex_lock(&mutex_log);
-	log_trace(logger, "Comienzo a crear hilo reduce");
+	log_info(logger, "REDUCER %d. Comienzo a crear hilo reduce", reduce->info->id);
 	pthread_mutex_unlock(&mutex_log);
 	pthread_t th;
 	pthread_create(&th, NULL, (void*)funcionReducing, (void*)reduce); //que párametro  ponemos??
 
-	int* res_reduce;
+	int res_reduce;
 	pthread_join (th, (void**)&res_reduce);
 
 	pthread_mutex_lock(&mutex_log);
-	log_trace(logger, "Le aviso a Marta que el reduce %d finalizo", reduce->info->id);
+	log_info(logger, "REDUCER %d. Le aviso a Marta que finalizo con resultado %d", reduce->info->id, res_reduce);
 	pthread_mutex_unlock(&mutex_log);
 	//le tengo que avisar a marta que termino el reduce ya sea bien o mal
 	//paso el job_id asignado y el resultado y el map_id
@@ -613,7 +658,7 @@ int lanzar_hilo_reduce(int fd, t_reduce* reduce){
 	enviar_mensaje(fd, msg);
 	destroy_message(msg);
 	pthread_mutex_lock(&mutex_log);
-	log_trace(logger, "Mensaje enviado a marta con resultado: %d del reduce %d guardado en %s", res_reduce, reduce->info->id, reduce->info->resultado);
+	log_info(logger, "REDUCER %d. Mensaje enviado a marta con resultado: %d guardado en %s nodo:%d", reduce->info->id, res_reduce, reduce->info->resultado, reduce->nodo_base_destino->id);
 	pthread_mutex_unlock(&mutex_log);
 	return 0;
 }

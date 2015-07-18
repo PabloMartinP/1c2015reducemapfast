@@ -419,7 +419,13 @@ void inicializar() {
 	//inicializo el log
 
 	//logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_INFO);
-	logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_TRACE);
+	FILE* f= fopen(FILE_LOG, "w");
+	if(f==NULL){
+		printf("NO se pudo crear log en %s", FILE_LOG);
+		exit(1);
+	}
+	fclose(f);
+	logger = log_create(FILE_LOG, "FileSystem", true, LOG_LEVEL_INFO);
 
 	//inicializo el config
 
@@ -492,6 +498,7 @@ int grabar_archivo(int fd, t_msg* msg){
 }
 
 void procesar_mensaje_nodo(int fd, t_msg* msg) {
+
 	//leer el msg recibido
 	t_archivo* archivo ;
 	switch (msg->header.id) {

@@ -20,7 +20,8 @@
 //#include "archivos.h"
 //#include <util.h>
 
-char FILE_LOG[1024] ="/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/log.txt";
+//char FILE_LOG[1024] ="/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoFileSystem/log.txt";
+char FILE_LOG[1024] ="log_fs.txt";
 
 
 pthread_mutex_t mutex;

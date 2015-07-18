@@ -148,7 +148,8 @@ typedef enum {
 	MARTA_RESULTADO_REDUCE_GUARDADO_OK,
 	FS_GRABAR_ARCHIVO,
 	FS_OK,
-	MARTA_RESULTADO_REDUCE_GUARDADO_ERROR
+	MARTA_RESULTADO_REDUCE_GUARDADO_ERROR,
+	REDUCER_NOTERMINO
 } t_msg_id;
 
 /****************** ESTRUCTURAS DE DATOS. ******************/
@@ -160,6 +161,7 @@ typedef struct{
 	char *origen;
 	char *destino;
 	pthread_mutex_t* mutex;
+	int contador_ftok;
 }t_ordenar;
 
 typedef struct {
@@ -240,7 +242,7 @@ int reader_and_save_as(t_reader* reader);
 int escribir_todo(int writer, char* data, int len);
 
 int ordenar(t_ordenar* param_ordenar);
-int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(int fdreader, int fdwriter), pthread_mutex_t* mutex);
+int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(int fdreader, int fdwriter), pthread_mutex_t* mutex, int c_ftok);
 
 bool file_exists(const char* filename);
 //void free_null(void** data);
@@ -287,7 +289,7 @@ int server_socket_select(uint16_t port, void (*procesar_mensaje)(int, t_msg*));
  * Crea, vincula y escucha un socket desde un puerto determinado.
  */
 int server_socket(uint16_t port);
-char* recibir_linea(int sock_fd, char*linea);
+int recibir_linea(int sock_fd, char*linea);
 
 //char* ip_get();
 

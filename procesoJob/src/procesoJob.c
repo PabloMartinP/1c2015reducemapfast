@@ -10,12 +10,12 @@
 
 #include "procesoJob.h"
 
-char FILE_LOG[1024] = "/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoJob/log.txt";
+char FILE_LOG[1024] = "log_job.txt";
 
 int contador_ftok = 0;
 int main(int argc, char *argv[]) {
 	jobConfig = config_create(FILE_CONFIG);
-	logger = log_create(FILE_LOG, "JOB", true, LOG_LEVEL_TRACE);
+	logger = log_create(FILE_LOG, "JOB", true, LOG_LEVEL_INFO);
 	pthread_mutex_init(&mutex_log, NULL);
 
 

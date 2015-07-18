@@ -26,7 +26,7 @@ endif
 all: procesoMaRTA
 
 dependents:
-	-cd /home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/utiles/Debug && $(MAKE) all
+	-cd /home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/utiles/Debug && $(MAKE) clean all
 
 # Tool invocations
 procesoMaRTA: $(OBJS) $(USER_OBJS) /home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/utiles/Debug/libutiles.so

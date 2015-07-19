@@ -55,15 +55,15 @@ sem_t* sem_crear(int* shmid, key_t* shmkey, int contador_ftok){
 	return sem;
 }
 int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(int fdreader, int fdwriter), pthread_mutex_t* mutex, int c_ftok){
-	pthread_mutex_lock(mutex);
 
 	key_t shmkey; /*      shared memory key       */
 	int shmid; /*      shared memory id        */
 	sem_t *sem; /*      synch semaphore         *//*shared */
 	sem = sem_crear(&shmid, &shmkey, c_ftok);
 
-
 	int pipes[NUM_PIPES][2];
+	pthread_mutex_lock(mutex);
+
 	// pipes for parent to write and read
 
 	if (pipe(pipes[PARENT_READ_PIPE]) == -1)
@@ -105,7 +105,15 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 		_exit(1);
 
 	} else {
+		printf("AAAAAAAAAAntes sem_wait(sem);\n");
 		sem_wait(sem);
+		printf("DDDDDDDDDESPUES sem_wait(sem);\n");
+
+		/* shared memory detach */
+		shmctl(shmid, IPC_RMID, 0);
+		/* cleanup semaphores */
+		sem_destroy (sem);
+
 
 		close(pipes[PARENT_WRITE_PIPE][READ_FD]);
 		close(pipes[PARENT_READ_PIPE][WRITE_FD]);
@@ -115,11 +123,6 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 		int status;
 		waitpid(pid, &status, 0);
 
-
-		/* shared memory detach */
-		shmctl(shmid, IPC_RMID, 0);
-		/* cleanup semaphores */
-		sem_destroy (sem);
 
 		//puts("listo");
 		return rs;

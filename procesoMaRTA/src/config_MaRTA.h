@@ -11,7 +11,7 @@
 
 #include <commons/config.h>
 
-char FILE_CONFIG[1024]="/home/utnso/Escritorio/git/tp-2015-1c-dalemartadale/procesoMaRTA/config.txt";
+char FILE_CONFIG[1024]="config.txt";
 t_config* config;
 
 int MaRTA_PUERTO();

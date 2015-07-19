@@ -29,7 +29,7 @@ t_reduce* crear_reduce_final(t_job* job, t_nodo_base* nb);
 int avisar_nuevo_reduce_final(t_job* job, int fd);
 int enviar_map(int socket, int job_id, int map_id);
 t_reduce* marta_job_buscar_reduce_no_empezado(int job_id);
-int subir_archivo_final_a_fs(int job_id, int reduce_id);
+char* subir_archivo_final_a_fs(int job_id, int reduce_id);
 int avisar_ningun_mapreduce(int fd);
 t_reduce* crear_reduce_local(t_job* job, t_nodo_base* nb);
 
@@ -134,6 +134,7 @@ void procesar (int fd, t_msg*msg){
 	t_map* map;
 	t_reduce* reduce;
 	t_nodo_base* nb;
+	char* nombre;
 	//int i;
 
 
@@ -359,10 +360,12 @@ void procesar (int fd, t_msg*msg){
 			job_id = msg->argv[0];
 			reduce_id = msg->argv[1];
 			//log_trace(logger, "Termino el job %d", job_id);
-			res = subir_archivo_final_a_fs(job_id, reduce_id);
+			nombre = subir_archivo_final_a_fs(job_id, reduce_id);
 
-			if (res==0) {			//si grabo OK aviso
-				msg = argv_message(MARTA_RESULTADO_REDUCE_GUARDADO_OK, 0);
+			if (nombre !=NULL) {			//si grabo OK aviso
+				msg = string_message(MARTA_RESULTADO_REDUCE_GUARDADO_OK, nombre, 0);
+				log_trace(logger, "Guardado resultado job %d en FScon nombre %s", job_id, nombre);
+				FREE_NULL(nombre);
 			} else {
 				//envio cualquier cosa distinto a MARTA_RESULTADO_REDUCE_GUARDADO
 				msg = argv_message(MARTA_RESULTADO_REDUCE_GUARDADO_ERROR, 0);
@@ -394,7 +397,7 @@ void procesar (int fd, t_msg*msg){
 	}
 }
 
-int subir_archivo_final_a_fs(int job_id, int reduce_id){
+char* subir_archivo_final_a_fs(int job_id, int reduce_id){
 
 	t_job* job = job_buscar(job_id);
 	t_reduce* reduce = reduce_buscar(job, reduce_id);
@@ -417,19 +420,20 @@ int subir_archivo_final_a_fs(int job_id, int reduce_id){
 		msg = recibir_mensaje(socket_fs);
 		bool GRABO_OK = msg->header.id == FS_OK;
 
-		destroy_message(msg);
+		char* nombre_resultado = NULL;
 
-		close(socket_fs);
+		//si grabo OK guardo el nombre con el que grabo
 		if(GRABO_OK)
-			return 0;
-		else
-			return -1;
+			nombre_resultado = string_from_format("%s", msg->stream);
 
+		destroy_message(msg);
+		close(socket_fs);
+
+		return nombre_resultado	;
 	}else{
-		return -1;
+		return NULL;
 	}
 
-	return 0;
 }
 
 int avisar_ningun_mapreduce(int fd){

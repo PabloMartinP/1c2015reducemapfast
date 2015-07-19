@@ -97,14 +97,21 @@ void iniciar_consola() {
 
 			switch (cmd) {
 			case DISTRIBUIR_COPIAS:
-				distribuir_copias(atoi(input_user[1]));
+				if(input_user[1]!=NULL){
+					distribuir_copias(atoi(input_user[1]));
+				}
 				break;
 			case ARCHIVO_VERBLOQUE:	//filevb nombre dir nro_bloque
-				archivo_nombre = input_user[1];
-				nro_bloque = atoi(input_user[3]);
-				pthread_mutex_lock(&mutex);
-				archivo_ver_bloque(archivo_nombre, nro_bloque);
-				pthread_mutex_unlock(&mutex);
+				if (input_user[1] != NULL && input_user[2] != NULL) {
+					archivo_nombre = input_user[1];
+					nro_bloque = atoi(input_user[2]);
+
+					pthread_mutex_lock(&mutex);
+					archivo_ver_bloque(archivo_nombre, nro_bloque);
+					pthread_mutex_unlock(&mutex);
+				}else{
+					printf("Error. Ej: filebv hola.txt 0\n")	;
+				}
 				break;
 			case ARCHIVO_LISTAR:	//lsfile
 				pthread_mutex_lock(&mutex);
@@ -112,37 +119,57 @@ void iniciar_consola() {
 				pthread_mutex_unlock(&mutex);
 				break;
 			case MD5:
-				archivo_nombre = input_user[1];
-				md5(archivo_nombre);
+				if(input_user[1]!=NULL){
+					archivo_nombre = input_user[1];
+					md5(archivo_nombre);
+				}else{
+					printf("Error. Ej:md5 hola.txt\n");
+				}
+
 				break;
 			case ARCHIVO_INFO:	//info
-				//ej:fileinfo
-				archivo_nombre = input_user[1];
-				pthread_mutex_lock(&mutex);
-				archivo_info(archivo_nombre);
-				pthread_mutex_unlock(&mutex);
+				if (input_user[1] != NULL) {
+					//ej:fileinfo
+					archivo_nombre = input_user[1];
+					pthread_mutex_lock(&mutex);
+					archivo_info(archivo_nombre);
+					pthread_mutex_unlock(&mutex);
+				}else{
+					printf("Error. Ej: fileinfo hola.txt\n");
+				}
 				break;
 			case NODO_AGREGAR:			//addnodo 1
 				//printf("comando ingresado: agregar nodo\n");
-				nodo_id = atoi(input_user[1]);
-				pthread_mutex_lock(&mutex);
-				nodo_agregar(nodo_id);
-				pthread_mutex_unlock(&mutex);
+				if (input_user[1] != NULL) {
+					nodo_id = atoi(input_user[1]);
+					pthread_mutex_lock(&mutex);
+					nodo_agregar(nodo_id);
+					pthread_mutex_unlock(&mutex);
+				}else{
+					printf("Error. ej. addnodo 1\n");
+				}
 				break;
 			case ARCHIVO_COPIAR_MDFS_A_LOCAL:
 				//ej: copytolocal 3registros.txt /home/utnso/Escritorio/
-				archivo_nombre = input_user[1];//toma como dir el dir actual
-				dir_nombre = input_user[2];//con barra al final
-				pthread_mutex_lock(&mutex);
-				archivo_copiar_mdfs_a_local(archivo_nombre, dir_nombre);
-				pthread_mutex_unlock(&mutex);
+				if (input_user[1] != NULL && input_user[2] != NULL) {
+					archivo_nombre = input_user[1];	//toma como dir el dir actual
+					dir_nombre = input_user[2];				//con barra al final
+					pthread_mutex_lock(&mutex);
+					archivo_copiar_mdfs_a_local(archivo_nombre, dir_nombre);
+					pthread_mutex_unlock(&mutex);
+				}else{
+					printf("Error. Ej: copytolocal hola.txt /home/utnso/Escritorio/\n");
+				}
 				break;
 			case ARCHIVO_COPIAR_LOCAL_A_MDFS:
 				//ejemplo: copy /home/utnso/Escritorio/uno.txt 1
 				//donde 1 es un directorio existente en el fs, 0 es el raiz
-				archivo_nombre = input_user[1];
-
-				archivo_copiar_local_a_mdfs(archivo_nombre);
+				if (input_user[1] != NULL) {
+					archivo_nombre = input_user[1];
+					archivo_copiar_local_a_mdfs(archivo_nombre);
+				}else{
+					printf("Error. Ej: copy /home/utnso/hola.txt\n");
+				}
 
 				break;
 			case NODO_LISTAR_NO_AGREGADOS:			//lsnodop
@@ -152,33 +179,54 @@ void iniciar_consola() {
 				pthread_mutex_unlock(&mutex);
 				break;
 			case NODO_ELIMINAR:
-				//printf("comando ingresado: elimnar nodo\n");
-				nodo_id = atoi(input_user[1]);
-				pthread_mutex_lock(&mutex);
-				nodo_eliminar(nodo_id);
-				pthread_mutex_unlock(&mutex);
+				if(input_user[1]!=NULL){
+					//printf("comando ingresado: elimnar nodo\n");
+					nodo_id = atoi(input_user[1]);
+					pthread_mutex_lock(&mutex);
+					nodo_eliminar(nodo_id);
+					pthread_mutex_unlock(&mutex);
+				}else{
+					printf("Error. Ej: delnodo 1\n");
+				}
 				break;
 			case CAMBIAR_DIRECTORIO: //changedir ej. cd /home
-				pthread_mutex_lock(&mutex);
-				cambiar_directorio(input_user[1]);
-				pthread_mutex_unlock(&mutex);
+				if(input_user[1]!=NULL){
+					pthread_mutex_lock(&mutex);
+					cambiar_directorio(input_user[1]);
+					pthread_mutex_unlock(&mutex);
+				}else{
+					printf("Error. Ej: cd /carpeta1\n");
+				}
 				break;
 			case DIRECTORIO_CREAR:			//ej: mkdir carpetauno 0
-				dir_nombre = input_user[1];			//nombre
-				pthread_mutex_lock(&mutex);
-				directorio_crear(dir_nombre);
-				pthread_mutex_unlock(&mutex);
+				if(input_user[1]!=NULL){
+					dir_nombre = input_user[1];			//nombre
+					pthread_mutex_lock(&mutex);
+					directorio_crear(dir_nombre);
+					pthread_mutex_unlock(&mutex);
+				}else{
+					printf("Error. Ej: mkdir carpeta1\n");
+				}
 				break;
 			case DIRECTORIO_RENOMBRAR://renamedir hola holados
-				pthread_mutex_lock(&mutex);
-				directorio_renombrar(input_user[1], input_user[2]);
-				pthread_mutex_unlock(&mutex);
+				if(input_user[1]!=NULL && input_user[2]!=NULL){
+					pthread_mutex_lock(&mutex);
+					directorio_renombrar(input_user[1], input_user[2]);
+					pthread_mutex_unlock(&mutex);
+				}else{
+					printf("Error. ej: renamedir nombre_viejo nombre_nuevo\n");
+				}
+
 				break;
-			case DIRECTORIO_ELIMINAR:
-				dir_nombre = input_user[1];
-				pthread_mutex_lock(&mutex);
-				directorio_eliminar(dir_nombre);
-				pthread_mutex_unlock(&mutex);
+			case DIRECTORIO_ELIMINAR://rmdir
+				if(input_user[1]!=NULL){
+					dir_nombre = input_user[1];
+					pthread_mutex_lock(&mutex);
+					directorio_eliminar(dir_nombre);
+					pthread_mutex_unlock(&mutex);
+				}else{
+					printf("Error. Ej: rmdir carpeta1\n");
+				}
 				break;
 			case DIRECTORIO_LISTAR:			//lsdir
 				pthread_mutex_lock(&mutex);
@@ -454,11 +502,22 @@ int grabar_archivo(int fd, t_msg* msg){
 	char* destino;
 	msg = recibir_mensaje(fd);
 	destino = strdup(msg->stream);
+	char* original = strdup(msg->stream);
 	destroy_message(msg);
 
 	char* filename = strdup(basename(destino));
 	char* dir_nombre = dirname(destino);
 	int dir_id = fs_dir_get_index(dir_nombre, 0);
+
+	//si ya existe le concateno la hora de ahora y
+	if(fs_existe_archivo(filename, dir_id)){
+		char* now = temporal_get_string_time();
+		string_append(&filename, "_");
+		string_append(&filename, now);
+		FREE_NULL(now);
+
+		log_trace(logger, "El archivo %s ya existe, se guardara con el nombre %s", original, filename);
+	}
 
 	//ahora guardo el archivo en el fs
 	//me conecto al nodo y le pido el archivo
@@ -476,17 +535,22 @@ int grabar_archivo(int fd, t_msg* msg){
 		FILE* file = fopen(nombre_tmp, "w");
 		fwrite(msg->stream, strlen(msg->stream), 1, file);
 		fclose(file);
+		int rs;
 
-		fs_copiar_archivo_local_al_fs(nombre_tmp, dir_id);
-
+		rs = fs_copiar_archivo_local_al_fs(nombre_tmp, dir_id);
 		destroy_message(msg);
-		remove(nombre_tmp);
-		FREE_NULL(filename);
-		FREE_NULL(nombre_tmp);
+		//remove(nombre_tmp);
 
 		close(socket_nodo);
 
-		msg = argv_message(FS_OK, 0);
+		if(rs==0)
+			msg = string_message(FS_OK, filename, 0);
+		else
+			msg = argv_message(FS_NO_OK, 0);
+
+		FREE_NULL(filename);
+		FREE_NULL(nombre_tmp);
+		FREE_NULL(original);
 		enviar_mensaje(fd, msg);
 		destroy_message(msg);
 		return 0;

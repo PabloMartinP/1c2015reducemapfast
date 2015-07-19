@@ -33,6 +33,10 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 	int rs;
 	int _reader_writer(int fdreader, int fdwriter) {
 		int _writer(int *fdwriter) {
+			pthread_mutex_lock(mutex);
+			log_trace(logger, "**********************************************");
+			log_trace(logger, "Comenzando thread escribir en REDUCE");
+			pthread_mutex_unlock(mutex);
 			int fd = *fdwriter;
 			int rs;
 			int cant_red_files, cant_total_files, cant_local_files;
@@ -105,7 +109,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			i = 0;
 			rs=0;
 			pthread_mutex_lock(mutex);
-			log_trace(logger, "trayendo archivos de red tmps a reducir");
+			log_trace(logger, "trayendo archivos de red tmps a reducir. cant:%d", list_size(red_files));
 			pthread_mutex_unlock(mutex);
 			void _request_file_to_nodo(t_files_reduce* fr) {
 				fdred[i] = client_socket(fr->ip, fr->puerto);
@@ -149,7 +153,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				return -1;
 			}
 			pthread_mutex_lock(mutex);
-			log_info(logger, "Todos los archivos de red se trajeron OK");
+			log_info(logger, "Todos los archivos de red se trajeron OK. cant: %d", list_size(red_files));
 			pthread_mutex_unlock(mutex);
 			////////////////////////////////////////////////////////////////////////////////////////
 			////////////////////////////////////////////////////////////////////////////////////////
@@ -206,22 +210,34 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 
 			//empiezo a insertar en stdin
 			i = 0;
-			int c = 0;
+			//int c = 0;
 			int rs_recLinea;
+			//char* key_menor = malloc(LEN_KEYVALUE);
+			char* key_menor = NULL;
 
+			char* key_max = malloc(LEN_KEYVALUE);
+			memset(key_max, 255, LEN_KEYVALUE);
+
+			key_menor = key_max;
+
+			//memset(key_menor, 255, LEN_KEYVALUE);
 			while (alguna_key_distinta_null(keys, cant_total_files)) {
 				//obtengo cual es el menor
-				index_menor = get_index_menor(keys, cant_total_files);
+				//key_menor = key_max;
+				//index_menor = get_index_menor(keys, cant_total_files, key_menor);
+				index_menor = get_index_menor(keys, cant_total_files, key_max);
 				//el menor lo mando a stdinn (keys[i])
 				//fprintf(stdout, "%s\n", keys[index_menor]);
+				key_menor = keys[index_menor];
 
 				rs = escribir_todo(fd, keys[index_menor], strlen(keys[index_menor]));
+				//rs = write(fd, keys[index_menor],  strlen(keys[index_menor]));
 				//comentado solo para que ande mas rapido
-				/*if(rs<0){
+				if(rs<0){
 					perror("escribir tod0");
 					close(fd);
 					return -1;
-				}*/
+				}
 
 				//leo el siguiente elmento del fdlocal[index_menor]
 				//len_key = LEN_KEYVALUE;
@@ -247,7 +263,6 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 					}
 					//keys[index_menor] = recibir_linea( fdred[cant_local_files - index_menor]);
 				}
-
 				//cuando termina devuelve NULL;
 				/*
 				if (i > 1024) {
@@ -260,12 +275,10 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 					c++;
 				}*/
 
-				i++;
+				//i++;
 			}
 
-			pthread_mutex_lock(mutex);
-			log_info(logger, "Fin reducer sobre %d archivos", cant_total_files);
-			pthread_mutex_unlock(mutex);
+			FREE_NULL(key_max);
 
 			//si llego hasta aca termino de enviarle cosas por stdin,
 			//cierro el stdin
@@ -292,8 +305,10 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				FREE_NULL(keys[i]);
 			}
 			FREE_NULL(keys);
-
-
+			pthread_mutex_lock(mutex);
+			log_info(logger, "Fin reducer sobre %d archivos", cant_total_files);
+			log_info(logger, "**********************************************");
+			pthread_mutex_unlock(mutex);
 			return 0;
 
 		}//fin writer
@@ -397,17 +412,18 @@ int recibir_linea_fd(int fd, char* linea){
 	}
 }
 
-int get_index_menor(char** keys, int cant){
-	char key_men[LEN_KEYVALUE];
-	memset(key_men, 255, LEN_KEYVALUE);
+int get_index_menor(char** keys, int cant, char* key_men){
+	//char key_men[LEN_KEYVALUE];
+	//memset(key_men, 255, LEN_KEYVALUE);
+	//char* key_men = keys[0];
 
 	int index = 0;
 	int i;
 	for(i=0;i<cant;i++){
 		if (keys[i] != NULL)
 			if (strcmp(keys[i], key_men) < 0) {
-				//key_men = keys[i];
-				strcpy(key_men, keys[i]);
+				key_men = keys[i];
+				//strcpy(key_men, keys[i]);
 				index = i;
 			}
 	}
@@ -683,16 +699,6 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 					rs = -1;
 					break;
 				}
-				/*pthread_mutex_lock(&mx_mr);
-				aux = 0;
-				bytes_escritos = 0;
-				do {
-					aux = write(pipes[PARENT_WRITE_PIPE][WRITE_FD],	stdinn + bytes_leidos + bytes_escritos,	len_buff_write - bytes_escritos);
-					bytes_escritos = bytes_escritos + aux;
-				} while (bytes_escritos < len_buff_write);
-				fsync(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
-				//fprintf(stdout, "*************total: %d\n", bytes_escritos);
-				pthread_mutex_unlock(&mx_mr);*/
 
 				len = len - bytes_escritos;
 				bytes_leidos = bytes_leidos + len_buff_write;
@@ -1322,35 +1328,26 @@ void incicar_server_sin_select() {
 			perror("recibir_msgggg");
 			printf("reccc msj %d\n", smsg->socket);
 			//return NULL;
-		}
-		/*
-		 * PARA SALIR DEL NODO
-		if(smsg->msg->header.id==123){
-			close(nuevaConexion);
-			destroy_message(smsg->msg);
-			FREE_NULL(smsg);
-			return;
-		}*/
+		} else {
+			if (requiere_hilo(smsg->msg)) {
 
-		if(requiere_hilo(smsg->msg)){
-
-			//printf("sock %d nuevo hilo\n", smsg->socket);
-			log_info(logger, "Se requiere un hilo ");
-			if(	(pthread_create(&thread, NULL, (void*)atenderProceso, smsg)) <0){
-				perror("pthread_create");
-			}else{
-				//printf("genero nuevo thread el sock%d\n", smsg->socket);
+				//printf("sock %d nuevo hilo\n", smsg->socket);
+				log_info(logger, "Se requiere un hilo ");
+				if ((pthread_create(&thread, NULL, (void*) atenderProceso, smsg)) < 0) {
+					perror("pthread_create");
+				} else {
+					//printf("genero nuevo thread el sock%d\n", smsg->socket);
+				}
+				pthread_detach(thread);
+			} else {
+				log_info(logger, "No se requere hilo ");
+				//si no requiere hilo
+				procesar_mensaje(smsg->socket, smsg->msg);
+				close(smsg->socket);
+				FREE_NULL(smsg);
 			}
-			pthread_detach(thread);
-		}else{
-			log_info(logger, "No se requere hilo ");
-			//si no requiere hilo
-			procesar_mensaje(smsg->socket, smsg->msg);
-			close(smsg->socket);
-			FREE_NULL(smsg);
+
 		}
-
-
 
 
 	}

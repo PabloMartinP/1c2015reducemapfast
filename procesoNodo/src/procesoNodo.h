@@ -112,7 +112,7 @@ bool file_reduce_es_de_red(t_files_reduce* fr);
 
 bool alguna_key_distinta_null(char** keys, int cant);
 int recibir_linea_fd(int fd, char*linea);
-int get_index_menor(char** keys, int cant);
+int get_index_menor(char** keys, int cant, char* key_menor);
 int read_line(char* buff, int fd);
 /*
  * devuelve el archivo creado en el  temp del nodo

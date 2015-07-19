@@ -278,23 +278,6 @@ int conectar_con_marta(){
 	}
 	destroy_message(msg);
 
-	/*
-	 * si todo salio bien hasta aca lo siguiente que hay que hacer es mandarle a marta los archivos a reducir
-	 * y el nombre del archivo resultado, ademas si soporta o no combiner
-	 * marta me contesta diciendome los nodos (ip:puerto) y numero_bloque del nodo de los archivos(los que selecciono de la planificacion)
-	 * luego tengo que lanzar los hilos que se conecten al nodo, apliquen map, me avisen y yo le aviso a marta con el mensaje JOB_MAP_TERMINO
-	 *
-	 * por ejemplo si me llegan tres nodos son tres hilos mapper
-	 * el proceso job se tiene que quedar bloqueado hasta que terminen los tres hilos (pthread_join()) (creo ...)
-	 *
-	 * una vez que terminaron los mappers tengo que esperar el mensaje de marta diciendome que archivos son los que tengo qeu reducir
-	 * me va llegar algo asi como lista_archivos (guardados en el tmp del nodo) y el nodo(ip:puerto)
-	 * creo tantos hilos reducers como nodos me lleguen
-	 *
-	 * finalmente puedo quedarme esperando a que marta me mande el mensaje JOB_TERMINADO
-	 * para saber si termino correctamente
-	 */
-
 	//envio los archivos a marta
 	char** archivos = JOB_ARCHIVOS();
 
@@ -355,8 +338,7 @@ int conectar_con_marta(){
 
 		if (msg->header.id == MARTA_RESULTADO_REDUCE_GUARDADO_OK) {
 			pthread_mutex_lock(&mutex_log);
-			log_info(logger, "Resultado final %s guardado en FS OK",
-					JOB_RESULTADO());
+			log_info(logger, "Resultado final %s guardado en FS OK con nombre %s", JOB_RESULTADO(), msg->stream);
 			pthread_mutex_unlock(&mutex_log);
 		} else {
 			pthread_mutex_lock(&mutex_log);
@@ -368,12 +350,21 @@ int conectar_con_marta(){
 		reduce_free(reduce_final);
 	}
 
+	destroy_message(msg);
+
+	msg = argv_message(JOB_TERMINO, 1, JOB_ID);
+	enviar_mensaje(socket_marta, msg);
+	destroy_message(msg);
+	close(socket_marta);
 
 	//cerrar marta
 	msg = argv_message(MARTA_SALIR, 0);
 	enviar_mensaje(socket_marta, msg);
 	destroy_message(msg);
 	close(socket_marta);
+
+
+
 
 	log_info(logger, "Desconecto de marta");
 

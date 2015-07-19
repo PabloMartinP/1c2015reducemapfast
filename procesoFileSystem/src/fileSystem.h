@@ -918,7 +918,7 @@ t_list* distribuir_copias(int partes){
 	if(list_size(fs.nodos)==0)
 		return NULL;
 
-	int i, j, k, nro_bloque;
+	int i;
 	t_list* copia1 = list_create();//lista de t_archivo_nodo_bloque*
 	t_list* copia2 = list_create();//lista de t_archivo_nodo_bloque*
 	t_list* copia3 = list_create();//lista de t_archivo_nodo_bloque*
@@ -979,22 +979,21 @@ t_list* distribuir_copias(int partes){
 	}
 	//t_archivo_nodo_bloque* anb = NULL;
 	//abcc = bloque_de_datos_crear();
-
+	printf("Cantidad de partes:%d\nBloques necesarios: %d\n", partes, BLOQUE_CANT_COPIAS*partes);
 	////////////////////////////////////////
 	void _print_nodo(t_archivo_nodo_bloque* anb){
 		printf("nodo:%s, bloque:%d\n", nodo_base_to_string(anb->base), anb->numero_bloque);
-		nodo = fs_buscar_nodo_por_id(anb->base->id);
-		bloque = nodo_buscar_bloque(nodo, anb->numero_bloque);
+		//nodo = fs_buscar_nodo_por_id(anb->base->id);
+		//bloque = nodo_buscar_bloque(nodo, anb->numero_bloque);
 		//bloque->libre = false;
-		bloque_marcar_como_usado(bloque);
-
+		//bloque_marcar_como_usado(bloque);
 	}
 	printf("********************copia 1\n");
-	list_iterate(copia1, _print_nodo);
+	list_iterate(copia1, (void*)_print_nodo);
 	printf("********************copia2\n");
-	list_iterate(copia2, _print_nodo);
+	list_iterate(copia2, (void*)_print_nodo);
 	printf("********************copia 3\n");
-	list_iterate(copia3, _print_nodo);
+	list_iterate(copia3, (void*)_print_nodo);
 
 	printf("***************************************************************\n");
 

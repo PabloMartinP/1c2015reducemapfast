@@ -223,7 +223,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			//memset(key_menor, 255, LEN_KEYVALUE);
 			while (alguna_key_distinta_null(keys, cant_total_files)) {
 				//obtengo cual es el menor
-				//key_menor = key_max;
+				key_menor = key_max;
 				//index_menor = get_index_menor(keys, cant_total_files, key_menor);
 				index_menor = get_index_menor(keys, cant_total_files, key_max);
 				//el menor lo mando a stdinn (keys[i])
@@ -257,7 +257,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				} else {
 					//FREE_NULL(keys[index_menor]);
 					//keys[index_menor] = recibir_linea( fdred[cant_local_files - index_menor], keys[index_menor]);
-					rs_recLinea = recibir_linea( fdred[cant_local_files - index_menor], keys[index_menor]);
+					rs_recLinea = recibir_linea( fdred[index_menor-cant_local_files ], keys[index_menor]);
 					if(rs_recLinea!=0){
 						keys[index_menor] = NULL;
 					}
@@ -659,6 +659,7 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 			pthread_mutex_lock(mutex);
 			stdinn = getBloque(n_bloque);
 			pthread_mutex_unlock(mutex);
+			printf("%d\n", strlen(stdinn));
 			if(stdinn==NULL){
 				pthread_mutex_lock(mutex);
 				log_trace(logger, "Error al escribir getBloque(%d)", n_bloque);
@@ -670,6 +671,7 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 
 			size_t len = strlen(stdinn);
 
+/*
 			if (stdinn[len - 1] != '\n') {
 				//printf("ERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR\n");
 				//usleep(1000);
@@ -677,7 +679,7 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 				len += 1;
 				stdinn[len] = '\0';
 				stdinn[len - 1] = '\n';
-			}
+			}*/
 
 			pthread_mutex_lock(mutex);
 			log_trace(logger, "Escribiendo en stdin bloque %d", n_bloque);
@@ -687,7 +689,8 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 			//inicializo en el primer enter
 			size_t len_buff_write = 0;
 			//size_t len_buff_read = LEN_KEYVALUE;
-
+			rs = escribir_todo(fd, stdinn, len);
+			/*
 			do {
 				len_buff_write = len_hasta_enter(stdinn + bytes_leidos);
 				bytes_escritos = escribir_todo(fd, stdinn + bytes_leidos, len_buff_write);
@@ -705,8 +708,7 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 				//fprintf(stdout, "bytes escritos: %d\n", bytes_escritos);
 				//printf("contador %d bloque %d\n", i, n_bloque);
 				i++;
-
-			} while (len > 0);
+			} while (len > 0);*/
 
 			if (rs < 0) {
 				pthread_mutex_lock(mutex);
@@ -1175,7 +1177,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		pthread_mutex_unlock(&mutex);
 		msg = string_message(NODO_GET_BLOQUE, bloque, 0);//en la posicion 0 esta en nuemro de bloque
 		enviar_mensaje(fd, msg);
-		FREE_NULL(bloque);
+		//FREE_NULL(bloque);
 		destroy_message(msg);
 
 		break;

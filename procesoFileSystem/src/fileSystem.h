@@ -288,6 +288,7 @@ int fs_copiar_mdfs_a_local(char* nombre, int dir_id, char* destino) {
 	//obtengo el nombre del archivo destino
 	char* nombre_nuevo_archivo = NULL;
 	if(string_starts_with(destino, "/tmp")){
+		printf("No se puede guardar en tmp\n");
 		nombre_nuevo_archivo = strdup(destino);
 	}else{
 		nombre_nuevo_archivo = file_combine(destino, archivo->info->nombre);

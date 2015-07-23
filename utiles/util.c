@@ -1262,30 +1262,20 @@ int recibir_linea(int sock_fd, char*linea){
 		bytes_leidos++;
 	}while(status>0 && caracter!='\n' && caracter!='\0');
 	if (caracter == '\n') {
-		status = -2;		//fin de linea
-	}
-	if (caracter == '\0')
-		status = -3;
-	/////////////////////////////////////
-	if(status==-2){//
+		//status = -2;		//fin de linea
 		linea[bytes_leidos] = '\0';
 		//return linea;
-		return 0;
+		return 0;//fin OK
 	}
-	else
-	{
-		if(status==-3){//termino de leer el archivo
-			//FREE_NULL(linea);
-			//return NULL;
-			return -1;
-		}
-		else{
-			//FREE_NULL(linea);
-			perror("El nodo perdio conexion\n");
-			return -1;
-
-		}
+	////////////////////////////////////////-
+	if (caracter == '\0'){
+		status = -3;
+		return -1;//algo paso
 	}
+	/////////////////////////////////////
+	perror("El nodo perdio conexion\n");
+	//si llego hasta aca el nodo perdio conexion
+	return -2;
 }
 
 t_nodo_base* nodo_base_new(int id, char* ip, int puerto){

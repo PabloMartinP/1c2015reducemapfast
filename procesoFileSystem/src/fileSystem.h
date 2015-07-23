@@ -63,6 +63,7 @@ int cant_registros(char** registros);
 t_list* fs_importar_archivo(char* archivo);
 t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_nodo(t_nodo_base* otro_nb, int pos_inicial);
 t_list* distribuir_copias(int partes);
+int fs_arch_eliminar(char* nombre);
 t_archivo_bloque_con_copias* guardar_bloque(char* bloque_origen,	size_t offset);
 int fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque,	size_t tamanio_real);
 t_archivo_nodo_bloque** fs_get_tres_nodo_bloque_libres();
@@ -100,7 +101,7 @@ void fs_print_archivos();
 int fs_marcar_nodo_como_desconectado(t_nodo* nodo);
 char* bloque_de_datos_traer_data(t_list* nodosBloque);
 char* fs_archivo_get_bloque(char* nombre, int dir_id,	int numero_bloque);
-int fs_archivo_ver_bloque(char* nombre, int dir_id,	int numero_bloque);
+int fs_archivo_ver_bloque(char* nombre, int dir_id,	int numero_bloque, char* destino);
 bool fs_esta_operativo();
 bool fs_existe_nodo_por_id(int nodo_id);
 void fs_cargar_nodo_base(t_nodo_base* destino, int nodo_id);
@@ -146,7 +147,7 @@ bool fs_esta_operativo() {
 	return list_size(fs.nodos)>=fs.cant_nodos_minima;
 }
 
-int fs_archivo_ver_bloque(char* nombre, int dir_id, int numero_bloque) {
+int fs_archivo_ver_bloque(char* nombre, int dir_id, int numero_bloque, char* destino) {
 	char* datos_bloque = NULL;
 
 	if ((datos_bloque = fs_archivo_get_bloque(nombre, dir_id, numero_bloque))	!= NULL) {
@@ -163,6 +164,116 @@ int fs_archivo_ver_bloque(char* nombre, int dir_id, int numero_bloque) {
 
 
 
+}
+
+int nodo_guardar_bloque_en_archivo(t_archivo_nodo_bloque* nb, char* destino){
+	//me conecto con el nodo
+	int fd = client_socket(nb->base->red.ip, nb->base->red.puerto);
+	if(fd<0){
+		return -1;
+	}
+	//le pido el bloque numero_bloque
+	t_msg* msg = argv_message(NODO_GET_BLOQUE, 1, nb->numero_bloque);
+	enviar_mensaje(fd, msg);
+	destroy_message(msg);
+
+	msg = recibir_mensaje(fd);
+	if(msg==NULL){
+		//close(fd);
+		return -1;
+	}
+	//copy los datos del stream a una copia para devolver
+	FILE* file = txt_open_for_append(destino);
+	if(file==NULL){
+		destroy_message(msg);
+		return -1;
+	}
+	int rs;
+	rs = fwrite(msg->stream, msg->header.length, 1, file);
+	fclose(file);
+	destroy_message(msg);
+	//enviar_mensaje_nodo_close(fd);
+	if(rs==1){//1 porque devuelve el count
+		return 0;
+	}else{
+		return -1;
+	}
+}
+
+char* fs_archivo_guardar_bloque(char* nombre, int dir_id, int numero_bloque, char* destino) {
+	int i;
+	//busco el archivo
+	t_archivo* archivo = NULL;
+	archivo = fs_buscar_archivo_por_nombre(fs.archivos, nombre, dir_id);
+
+	//busco el bloque
+	t_archivo_bloque_con_copias* bloque = NULL;
+	bloque = arch_buscar_parte(archivo, numero_bloque);
+
+	//tengo que verificar si alguno de los nodos que tiene la copia esta disponible
+	//hardcodeo ip y puerto
+	//char* ip = "127.0.0.1";
+	//int puerto = 6001;
+
+	t_archivo_nodo_bloque* nb = NULL;
+
+	char* datos_bloque = NULL;
+	int rs =-1;
+	for (i = 0; i < list_size(bloque->nodosbloque); i++) {
+		nb = NULL;
+		nb = list_get(bloque->nodosbloque, i);
+
+		t_nodo* nodo = fs_buscar_nodo_por_id(nb->base->id);
+
+		if (nodo != NULL) {
+
+			//if (nodo_esta_vivo(nb->base->red.ip, nb->base->red.puerto)) {
+			if (nodo_esta_activo(nb->base)) {
+				//si esta vivo inicio la transferencia del bloque
+				nb = NULL;
+				nb = list_get(bloque->nodosbloque, i);
+
+				rs = nodo_guardar_bloque_en_archivo(nb, destino);
+				if(rs==0){
+					printf("Archivo %s, bloque: %d, guardado en %s\n", nombre, numero_bloque, destino);
+					break;
+				}
+				/*
+				//me conecto con el nodo
+				int fd = client_socket(nb->base->red.ip, nb->base->red.puerto);
+				//le pido el bloque numero_bloque
+				t_msg* msg = argv_message(NODO_GET_BLOQUE, 1,	nb->numero_bloque);
+				enviar_mensaje(fd, msg);
+				destroy_message(msg);
+				msg = recibir_mensaje(fd);
+				//print_msg(msg);
+
+				//copy los datos del stream a una copia para devolver
+				datos_bloque = malloc(msg->header.length + 1);
+				memccpy(datos_bloque, msg->stream, 1, msg->header.length + 1);
+
+				destroy_message(msg);
+				enviar_mensaje_nodo_close(fd);
+				//close(fd);
+				*/
+
+
+				//break;
+			} else {		//el nodo se desconecto
+				fs_marcar_nodo_como_desconectado(nodo);
+			}
+		}else{
+			printf("El nodo %d no esta conectado %s:%d\n", nb->base->id, nb->base->red.ip, nb->base->red.puerto);
+		}
+
+	}
+
+
+	//si llego hasta aca significa que las tres copias de bloques que tiene estan desconectadas
+	//por lo tanto marco al archivo como no-disponible
+	archivo->info->disponible = false;
+
+	return NULL;
 }
 
 /*
@@ -201,6 +312,9 @@ char* fs_archivo_get_bloque(char* nombre, int dir_id, int numero_bloque) {
 				nb = NULL;
 				nb = list_get(bloque->nodosbloque, i);
 
+				//nodo_guardar_bloque_en_archivo(nb, destino);
+
+
 				//me conecto con el nodo
 				int fd = client_socket(nb->base->red.ip, nb->base->red.puerto);
 				//le pido el bloque numero_bloque
@@ -217,6 +331,7 @@ char* fs_archivo_get_bloque(char* nombre, int dir_id, int numero_bloque) {
 				destroy_message(msg);
 				enviar_mensaje_nodo_close(fd);
 				//close(fd);
+
 
 				return datos_bloque;
 				//break;
@@ -277,7 +392,7 @@ bool fs_existe_dir_por_id(int dir_id) {
 }
 
 int fs_copiar_mdfs_a_local(char* nombre, int dir_id, char* destino) {
-	int i;
+
 	t_archivo* archivo = NULL;
 	log_trace(logger, "Comienzo a copiar el archivo");
 	//tengo que leer donde esta cada bloque y juntar cada uno para generar un archivo
@@ -305,14 +420,15 @@ int fs_copiar_mdfs_a_local(char* nombre, int dir_id, char* destino) {
 	FILE* file = txt_open_for_append(nombre_nuevo_archivo);
 
 	int rs=0;
+	int numero_bloque;
 	char* datos_bloque;
-	for (i = 0; i < archivo->info->cant_bloques; i++) {/**/
+	for (numero_bloque = 0; numero_bloque < archivo->info->cant_bloques; numero_bloque++) {/**/
 		//bloque_de_datos = NULL;
-		//leo el bloque i
+		//leo el bloque numero_bloque
 		//bloque_de_datos = list_get(archivo->bloques_de_datos, i);
 
 		//le paso la lista de los tres lugares donde esta y me tiene que devolver los datos leidos de cualquiera de lso nodosBloque
-		datos_bloque = fs_archivo_get_bloque(nombre, dir_id, i);
+		datos_bloque = fs_archivo_get_bloque(nombre, dir_id, numero_bloque);
 		if(datos_bloque!=NULL){
 			//una vez que traigo el bloque lo grabo en el archivo destino
 			txt_write_in_file(file, datos_bloque);
@@ -322,14 +438,11 @@ int fs_copiar_mdfs_a_local(char* nombre, int dir_id, char* destino) {
 			rs = -1;
 			break;
 		}
-
-
-
 	}
 
-	if(rs==-1){
+	if (rs == -1) {
 
-	}else{
+	} else {
 		printf("Creado archivo nuevo: %s\n", nombre_nuevo_archivo);
 	}
 
@@ -620,7 +733,7 @@ int fs_agregar_nodo(int id_nodo) {
 	//busco el nodo en la lista de no agregados para saber si existe
 	t_nodo* nodo;
 	if ((nodo = list_find(fs.nodos_no_agregados,(void*) _buscar_nodo_por_id)) == NULL) {
-		log_trace(logger, "El nodo ingresado no existe: %d\n", id_nodo);
+		log_trace(logger, "El nodo ingresado no existe: %d", id_nodo);
 		return -1;
 	}
 
@@ -634,7 +747,7 @@ int fs_agregar_nodo(int id_nodo) {
 	//le aviso al nodo que esta conectado
 	int fd = client_socket(nodo->base->red.ip, nodo->base->red.puerto);
 	if((fd<0)){
-		log_trace(logger, "No se pudo conectar con el nodo. %s:%d\n", nodo->base->red.ip, nodo->base->red.puerto);
+		log_trace(logger, "No se pudo conectar con el nodo. %s:%d", nodo->base->red.ip, nodo->base->red.puerto);
 		nodo->conectado = false;
 		return -1;
 	}
@@ -664,7 +777,7 @@ int fs_agregar_nodo(int id_nodo) {
 	enviar_mensaje_nodo_close(fd);
 	//close(fd);
 
-	log_trace(logger, "El nodo fue agregado al fs: \n");
+	log_trace(logger, "El nodo %d fue agregado al fs", id_nodo);
 	//nodo_print_info(nodo);
 
 	return 0;
@@ -913,6 +1026,7 @@ t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_dos_nodos(t_nodo_base* un_nb,
 
 	return nodo->base;
 }
+
 
 t_list* distribuir_copias(int partes){
 

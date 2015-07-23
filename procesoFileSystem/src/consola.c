@@ -49,6 +49,8 @@ e_comando getComando(char* comando) {
 		return MD5;
 	if (string_equals_ignore_case(comando, "dc"))
 		return DISTRIBUIR_COPIAS;
+	if (string_equals_ignore_case(comando, "rmfile"))
+		return ARCHIVO_ELIMINAR;
 
 
 	return NADA;

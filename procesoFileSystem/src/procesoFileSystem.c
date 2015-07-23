@@ -71,6 +71,7 @@ void iniciar_consola() {
 	//int dir_id, dir_padre;
 	char* archivo_nombre;
 	char* dir_nombre;
+
 	int nro_bloque;
 	//char* buff  ;
 	char comando[COMMAND_MAX_SIZE];
@@ -96,21 +97,30 @@ void iniciar_consola() {
 		} else {
 
 			switch (cmd) {
+			case ARCHIVO_ELIMINAR:
+				if(input_user[1]!=NULL){
+					fs_arch_eliminar(input_user[1]);
+				}else{
+					printf("Error. Ej: rmfile hola.txt \n")	;
+				}
+				break;
 			case DISTRIBUIR_COPIAS:
 				if(input_user[1]!=NULL){
 					distribuir_copias(atoi(input_user[1]));
 				}
 				break;
-			case ARCHIVO_VERBLOQUE:	//filevb nombre dir nro_bloque
-				if (input_user[1] != NULL && input_user[2] != NULL) {
+			case ARCHIVO_VERBLOQUE:	//filevb nombre dir nro_bloque destino
+				if (input_user[1] != NULL && input_user[2] != NULL && input_user[3]!=NULL) {
 					archivo_nombre = input_user[1];
 					nro_bloque = atoi(input_user[2]);
 
+
 					pthread_mutex_lock(&mutex);
-					archivo_ver_bloque(archivo_nombre, nro_bloque);
+					archivo_guardar_bloque(archivo_nombre, nro_bloque, input_user[3]);
+					//archivo_ver_bloque(archivo_nombre, nro_bloque, input_user[3]);
 					pthread_mutex_unlock(&mutex);
 				}else{
-					printf("Error. Ej: filebv hola.txt 0\n")	;
+					printf("Error. Ej: filebv hola.txt 0 /home/utnso/hola-bloque-0.txt\n")	;
 				}
 				break;
 			case ARCHIVO_LISTAR:	//lsfile
@@ -419,19 +429,61 @@ void archivo_info(char* nombre){
 
 }
 
-void archivo_ver_bloque(char* nombre, int nro_bloque){
-	if (fs_existe_archivo(nombre, DIR_ACTUAL))
 
-		if (fs_archivo_ver_bloque(nombre, DIR_ACTUAL, nro_bloque) < 0) {
+int fs_arch_eliminar(char* nombre){
+
+
+	if(fs_existe_archivo(nombre, DIR_ACTUAL)){
+		t_archivo* a = NULL;
+		a = fs_buscar_archivo_por_nombre(fs.archivos, nombre, DIR_ACTUAL);
+		t_nodo* nodo = NULL;
+		void _liberar_bloque_con_copias(t_archivo_bloque_con_copias* abcc){
+			void _liberar_copia(t_archivo_nodo_bloque* anb){
+				nodo = fs_buscar_nodo_por_id(anb->base->id);
+				nodo_marcar_bloque_como_libre(nodo, anb->numero_bloque);
+			}
+			list_iterate(abcc->nodosbloque, (void*)_liberar_copia);
+		}
+		list_iterate(a->bloques_de_datos, (void*)_liberar_bloque_con_copias);
+
+		bool _archivo_buscar(t_archivo* archivo){
+			return archivo->info->id == a->info->id;
+		}
+
+		list_remove_and_destroy_by_condition(fs.archivos, (void*)_archivo_buscar, (void*)arch_destroy);
+
+	}else{
+		printf("El archivo %s no existe en la carpeta actual\n", nombre);
+	}
+
+
+
+
+	return 0;
+}
+
+int archivo_guardar_bloque(char* nombre, int numero_bloque, char* destino){
+	if (fs_existe_archivo(nombre, DIR_ACTUAL)){
+		fs_archivo_guardar_bloque(nombre, DIR_ACTUAL, numero_bloque, destino);
+
+	}else{
+		printf("No existe el archivo %s\n", nombre);
+	}
+
+	return 0;
+}
+
+void archivo_ver_bloque(char* nombre, int nro_bloque, char* destino){
+	if (fs_existe_archivo(nombre, DIR_ACTUAL))
+		if (fs_archivo_ver_bloque(nombre, DIR_ACTUAL, nro_bloque, destino) < 0) {
 			log_info(logger,
 					"No se pudo obtener el bloque %d del archivo %s dir %d",
 					nro_bloque, nombre, DIR_ACTUAL);
 		} else {
-			log_info(logger, "ver bloque nro %d en archivo %s en dir %d ",
-					nro_bloque, nombre, DIR_ACTUAL);
+			log_info(logger, "ver bloque nro %d en archivo %s en dir %d ", nro_bloque, nombre, DIR_ACTUAL);
 		}
 	else
-		printf("el archivo no existe: %s\n", nombre);
+		printf("El archivo no existe: %s\n", nombre);
 }
 
 void finalizar() {

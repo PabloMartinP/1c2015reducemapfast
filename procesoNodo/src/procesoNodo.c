@@ -260,6 +260,13 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 					rs_recLinea = recibir_linea( fdred[index_menor-cant_local_files ], keys[index_menor]);
 					if(rs_recLinea!=0){
 						keys[index_menor] = NULL;
+						if(rs_recLinea==-2){
+							pthread_mutex_lock(mutex);
+							log_trace(logger, "El nodo perdio conexion");
+							pthread_mutex_unlock(mutex);
+							rs = -1;
+							break;
+						}
 					}
 					//keys[index_menor] = recibir_linea( fdred[cant_local_files - index_menor]);
 				}
@@ -309,7 +316,8 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			log_info(logger, "Fin reducer sobre %d archivos", cant_total_files);
 			log_info(logger, "**********************************************");
 			pthread_mutex_unlock(mutex);
-			return 0;
+
+			return rs;
 
 		}//fin writer
 
@@ -685,9 +693,9 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 			log_trace(logger, "Escribiendo en stdin bloque %d", n_bloque);
 			pthread_mutex_unlock(mutex);
 
-			size_t bytes_escritos = 0, bytes_leidos = 0, i=0;
+			//size_t bytes_escritos = 0, bytes_leidos = 0, i=0;
 			//inicializo en el primer enter
-			size_t len_buff_write = 0;
+			//size_t len_buff_write = 0;
 			//size_t len_buff_read = LEN_KEYVALUE;
 			rs = escribir_todo(fd, stdinn, len);
 			/*
@@ -1334,7 +1342,7 @@ void incicar_server_sin_select() {
 			if (requiere_hilo(smsg->msg)) {
 
 				//printf("sock %d nuevo hilo\n", smsg->socket);
-				log_info(logger, "Se requiere un hilo ");
+				//log_info(logger, "Se requiere un hilo ");
 				if ((pthread_create(&thread, NULL, (void*) atenderProceso, smsg)) < 0) {
 					perror("pthread_create");
 				} else {
@@ -1342,7 +1350,7 @@ void incicar_server_sin_select() {
 				}
 				pthread_detach(thread);
 			} else {
-				log_info(logger, "No se requere hilo ");
+				//log_info(logger, "No se requere hilo ");
 				//si no requiere hilo
 				procesar_mensaje(smsg->socket, smsg->msg);
 				close(smsg->socket);
@@ -1360,7 +1368,9 @@ void* atenderProceso(t_socket_msg* smsg){
 
 
 	int fd = smsg->socket;
-
+	pthread_mutex_lock(&mutex);
+	log_trace(logger, "Nuevo hilo");
+	pthread_mutex_unlock(&mutex);
 	//printf("NuevoThread sock %d\n", fd);
 
 	//pthread_mutex_lock(&mutex);
@@ -1369,7 +1379,9 @@ void* atenderProceso(t_socket_msg* smsg){
 		printf("ERRRRRRORRRRRRRRRR\n");
 	}
 	//pthread_mutex_unlock(&mutex);
+	pthread_mutex_lock(&mutex);
 	log_info(logger, "FinThread ", fd);
+	pthread_mutex_unlock(&mutex);
 	close(fd);
 	FREE_NULL(smsg);
 

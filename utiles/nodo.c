@@ -34,6 +34,7 @@ void reduce_free(t_reduce* reduce){
 	FREE_NULL(reduce);
 }
 
+
 bool nodo_esta_activo(t_nodo_base* nb){
 	bool on ;
 	//obtengo un socket cliente para ver si responde
@@ -221,6 +222,12 @@ void nodo_marcar_bloque_como_usado(t_nodo* nodo, int n_bloque){
 	bloque = nodo_buscar_bloque(nodo, n_bloque);
 	bloque->libre = false;
 	bloque->requerido_para_copia = true;//se usa al copiar del fs local al mdfs
+}
+void nodo_marcar_bloque_como_libre(t_nodo* nodo, int n_bloque){
+	t_bloque* bloque = NULL;
+	bloque = nodo_buscar_bloque(nodo, n_bloque);
+	bloque->libre = true;
+	bloque->requerido_para_copia = false;//se usa al copiar del fs local al mdfs
 }
 
 t_bloque* nodo_buscar_bloque(t_nodo* nodo, int n_bloque){

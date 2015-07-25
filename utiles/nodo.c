@@ -58,7 +58,7 @@ bool nodo_esta_activo(t_nodo_base* nb){
 		on = msg->header.id == NODO_HOLA;
 		destroy_message(msg);
 	}
-
+	close(fd);
 	//enviar_mensaje_nodo_close(fd);
 
 

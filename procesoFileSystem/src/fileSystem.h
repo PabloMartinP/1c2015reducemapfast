@@ -162,8 +162,6 @@ int fs_archivo_ver_bloque(char* nombre, int dir_id, int numero_bloque, char* des
 		return -1;
 	}
 
-
-
 }
 
 int nodo_guardar_bloque_en_archivo(t_archivo_nodo_bloque* nb, char* destino){
@@ -1338,7 +1336,7 @@ int fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque, size_t tamanio_re
 
 	//enviar_mensaje_nodo_close(fd);
 
-	//close(fd);
+	close(fd);
 
 	log_trace(logger, "transferencia realizada OK\n");
 	return rs;

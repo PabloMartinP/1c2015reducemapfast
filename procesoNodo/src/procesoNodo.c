@@ -219,7 +219,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			memset(key_max, 255, LEN_KEYVALUE);
 
 			key_menor = key_max;
-
+			rs = 0;
 			//memset(key_menor, 255, LEN_KEYVALUE);
 			while (alguna_key_distinta_null(keys, cant_total_files)) {
 				//obtengo cual es el menor
@@ -230,13 +230,14 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				//fprintf(stdout, "%s\n", keys[index_menor]);
 				key_menor = keys[index_menor];
 
-				rs = escribir_todo(fd, keys[index_menor], strlen(keys[index_menor]));
+				rs_recLinea = escribir_todo(fd, keys[index_menor], strlen(keys[index_menor]));
 				//rs = write(fd, keys[index_menor],  strlen(keys[index_menor]));
 				//comentado solo para que ande mas rapido
-				if(rs<0){
+				if(rs_recLinea<0){
 					perror("escribir tod0");
 					close(fd);
-					return -1;
+					rs = -1;
+					break;
 				}
 
 				//leo el siguiente elmento del fdlocal[index_menor]
@@ -264,7 +265,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 							pthread_mutex_lock(mutex);
 							log_trace(logger, "El nodo perdio conexion");
 							pthread_mutex_unlock(mutex);
-							rs = -1;
+							rs = -2;
 							break;
 						}
 					}

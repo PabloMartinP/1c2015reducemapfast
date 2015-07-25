@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
 	//por param le tiene que llegar el tamaño del archivo data.bin
 	//por ahora hardcodeo 100mb, serian 10 bloques de 20 mb
 
-
+	printf("JJJJJJJJJJJJJJJ\n");
 	inicializar();
 
 	probar_conexion_fs();
@@ -18,8 +18,8 @@ int main(int argc, char *argv[]) {
 
 	//iniciar_server_thread();
 	//iniciar_server();
-	incicar_server_sin_select();
-	//iniciar_server_fork();
+	//incicar_server_sin_select();
+	iniciar_server_fork();
 
 
 	//bool fin = true	;
@@ -213,29 +213,29 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			//int c = 0;
 			int rs_recLinea;
 			//char* key_menor = malloc(LEN_KEYVALUE);
-			char* key_menor = NULL;
+			//char* key_menor = NULL;
 
 			char* key_max = malloc(LEN_KEYVALUE);
 			memset(key_max, 255, LEN_KEYVALUE);
 
-			key_menor = key_max;
+			//key_menor = key_max;
 			rs = 0;
 			//memset(key_menor, 255, LEN_KEYVALUE);
 			while (alguna_key_distinta_null(keys, cant_total_files)) {
 				//obtengo cual es el menor
-				key_menor = key_max;
+				//key_menor = key_max;
 				//index_menor = get_index_menor(keys, cant_total_files, key_menor);
 				index_menor = get_index_menor(keys, cant_total_files, key_max);
 				//el menor lo mando a stdinn (keys[i])
 				//fprintf(stdout, "%s\n", keys[index_menor]);
-				key_menor = keys[index_menor];
+				//key_menor = keys[index_menor];
 
 				rs_recLinea = escribir_todo(fd, keys[index_menor], strlen(keys[index_menor]));
 				//rs = write(fd, keys[index_menor],  strlen(keys[index_menor]));
 				//comentado solo para que ande mas rapido
 				if(rs_recLinea<0){
 					perror("escribir tod0");
-					close(fd);
+					//close(fd);
 					rs = -1;
 					break;
 				}
@@ -272,16 +272,6 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 					//keys[index_menor] = recibir_linea( fdred[cant_local_files - index_menor]);
 				}
 				//cuando termina devuelve NULL;
-				/*
-				if (i > 1024) {
-					i = 0;
-					if (c % 100 == 0){
-						pthread_mutex_lock(mutex);
-						log_trace(logger, "Contador reduce %d ", c);
-						pthread_mutex_unlock(mutex);
-					}
-					c++;
-				}*/
 
 				//i++;
 			}
@@ -1056,9 +1046,9 @@ int procesar_mensaje(int fd, t_msg* msg) {
 
 		pthread_mutex_lock(&mutex);
 		if(rs<0){
-			log_info(logger, "Error job:%d, REDUCE: %d, cant_archivos: %d", reduce->info->job_id, reduce->info->id, list_size(reduce->nodos_archivo));
+			log_info(logger, "Error job:%d, REDUCE: %d, cant_archivos: %d, Resultado %d", reduce->info->job_id, reduce->info->id, list_size(reduce->nodos_archivo), rs);
 		}else{
-			log_info(logger, "Termino job:%d, REDUCE: %d, cant_archivos: %d, guardado en %s", reduce->info->job_id, reduce->info->id, list_size(reduce->nodos_archivo), reduce->info->resultado);
+			log_info(logger, "Termino job:%d, REDUCE: %d, cant_archivos: %d, guardado en %s, Resultado %d", reduce->info->job_id, reduce->info->id, list_size(reduce->nodos_archivo), reduce->info->resultado, rs);
 		}
 		pthread_mutex_unlock(&mutex);
 
@@ -1082,9 +1072,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 	case JOB_MAPPER:
 
 		destroy_message(msg);
-		pthread_mutex_lock(&mutex);
 
-		pthread_mutex_unlock(&mutex);
 		//recibo el map que me envio
 		map = NULL;
 		map = recibir_mensaje_map(fd);
@@ -1239,69 +1227,140 @@ void iniciar_server() {
 }
 
 void iniciar_server_fork(){
+	printf("FORKKKKKKKKKKKKKKKKKKKKKKKKKKK\n");
 	log_trace(logger, "Iniciado server. Puerto: %d\n", NODO_PORT());
+	//pthread_t thread;
 	int listener = server_socket(NODO_PORT());
 	if (listener < 0) {
 		printf("ERRROr listener %d\n", NODO_PORT());
 		return;
 	}
 
+	///////////////////////////////////////
+	int c_ftok=NODO_ID();
+	key_t shmkey; /*      shared memory key       */
+	int shmid; /*      shared memory id        */
+	sem_t *sem; /*      synch semaphore         *//*shared */
+	sem = sem_crear(&shmid, &shmkey, c_ftok);
+	//////////////////////////////////////////////
 	int nuevaConexion;
+	t_msg* msg = NULL;
 	int pfork = 1;
-	t_msg* msg =  NULL;
-	signal(SIGCHLD, SIG_IGN);
+	bool lanzo_fork = false;
 	while (pfork) {
-
-		nuevaConexion = accept_connection(listener);
-		if (nuevaConexion < 0){
-			perror("accept");
-			return;
+		if (lanzo_fork) {
+			pthread_mutex_lock(&mutex);
+			lanzo_fork = false;
+			pthread_mutex_unlock(&mutex);
+			printf("antes wait\n");
+			sem_wait(sem);
+			printf("despues wait\n");
 		}
-		log_trace(logger, "******************NuevaConexion sock %d\n", nuevaConexion);
+		nuevaConexion = accept_connection(listener);
 
-		 msg = recibir_mensaje(nuevaConexion);
-		if(msg!=NULL){
+		if (nuevaConexion < 0)
+			perror("accept");
 
-			if(msg->header.id==JOB_REDUCER || msg->header.id == JOB_MAPPER ){
-				procesar_mensaje(nuevaConexion, msg);
-			}else{
+		pthread_mutex_lock(&mutex);
+		log_info(logger, "Nueva Conexion");
+		pthread_mutex_unlock(&mutex);
 
+		//t_socket_msg* smsg = malloc(sizeof(t_socket_msg));
+		//(*smsg).socket = nuevaConexion;
+
+		//recibo el mensaje para saber si es algo para lanzar hilo
+		msg = recibir_mensaje(nuevaConexion);
+		if (msg == NULL) {
+			perror("recibir_msgggg");
+			printf("reccc msj %d\n", nuevaConexion);
+			//return NULL;
+		} else {
+			if (requiere_hilo(msg)) {
+				printf("Req fork\n");
+				pthread_mutex_lock(&mutex);
+				lanzo_fork = true;
+				pthread_mutex_unlock(&mutex);
+				printf("antes fork\n");
 				pfork = fork();
+				printf("despues fork\n");
+
+			} else {
+				//lanzo_fork = 0;
+				//log_info(logger, "No se requere hilo ");
+				//si no requiere hilo
+				procesar_mensaje(nuevaConexion, msg);
+				close(nuevaConexion);
+				//FREE_NULL(smsg);
+
 			}
 		}
-	}
-	if(pfork==0){
-		//hijo
-		printf("soy el hijo del fork;\n");
-		atenderProceso_fork(nuevaConexion, msg );
-		printf("exit(0) sock %d\n", nuevaConexion);
-		//exit(0);
-		//_exit(0);
-	}
-}
+		////////////////////////////////////////////
+		puts("Salio del while");
+		if (pfork == 0) {
+			puts("Salio del while 2");
+			//hijo
+			t_socket_msg* smsg = malloc(sizeof(t_socket_msg));
+			smsg->socket = nuevaConexion;
+			puts("Salio del while 3");
+			//print_msg(msg);
+			printf("%d-----------\n", msg->header.argc);
+			puts("Salio del while 4");
+			switch (msg->header.argc) {
+			case 0:
+				puts("antes 0");
+				if(msg->stream != NULL)
+					smsg->msg = string_message(msg->header.id, msg->stream, 0);
+				else
+					smsg->msg = argv_message(msg->header.id, 0);
+				puts("despues 0");
+				break;
+			case 1:
+				puts("antes 1");
+				if(msg->stream!=NULL)
+					smsg->msg = string_message(msg->header.id, msg->stream, 1, msg->argv[0]);
+				else
+					smsg->msg = argv_message(msg->header.id, 1, msg->argv[0]);
+				puts("despues 1");
+				break;
+			case 2:
+				puts("antes 2");
+				if(msg->stream!=NULL)
+					smsg->msg = string_message(msg->header.id, msg->stream, 2, msg->argv[0], msg->argv[1]);
+				else
+					smsg->msg = argv_message(msg->header.id, 2, msg->argv[0], msg->argv[1]);
+				puts("antes 2");
+				break;
+			case 3:
+				puts("antes 3");
+				if(msg->stream!=NULL)
+					smsg->msg = string_message(msg->header.id, msg->stream, 3,	msg->argv[0], msg->argv[1], msg->argv[2]);
+				else
+					smsg->msg = argv_message(msg->header.id, 3, msg->argv[0], msg->argv[1], msg->argv[2]);
+				puts("antes 3");
+				break;
+			}
+			puts("Salio del while 5");
+			destroy_message(msg);
+			printf("antes post \n");
+			pthread_mutex_lock(&mutex);
+			lanzo_fork = false;
+			pthread_mutex_unlock(&mutex);
+			sem_post(sem);
+			printf("despues post \n");
 
-void* atenderProceso_fork(int fd, t_msg* msg){
+			printf("soy el hijo del fork;\n");
+			atenderProceso(smsg);
+			//atenderProceso_fork(nuevaConexion, msg);
+			printf("exit(0) sock %d\n", nuevaConexion);
+			//FREE_NULL(smsg);
+			//exit(0);
+			_exit(0);
+		}
+		//////////////////
+	}//fin while pfork
 
 
-	printf("nuevo fork sock %d\n", fd);
 
-	if(msg == NULL){
-		perror("recibir_msgggg");
-		printf("reccc msj %d\n", fd);
-		return NULL;
-	}
-
-
-	//pthread_mutex_lock(&mutex);
-	int rs = procesar_mensaje(fd, msg);
-	if(rs != 0){
-		printf("ERRRRRRORRRRRRRRRR\n");
-	}
-	//pthread_mutex_unlock(&mutex);
-	printf("Fin fork sock %d\n", fd);
-	close(fd);
-
-	return NULL;
 }
 
 bool requiere_hilo(t_msg* msg){
@@ -1314,7 +1373,6 @@ bool requiere_hilo(t_msg* msg){
 }
 
 void incicar_server_sin_select() {
-
 	log_trace(logger, "Iniciado server. Puerto: %d\n",NODO_PORT() );
 	pthread_t thread;
 	int listener = server_socket(NODO_PORT());
@@ -1328,6 +1386,7 @@ void incicar_server_sin_select() {
 		nuevaConexion = accept_connection(listener);
 		if(nuevaConexion<0)
 			perror("accept");
+
 		log_info(logger, "Nueva Conexion");
 
 		t_socket_msg* smsg = malloc(sizeof(t_socket_msg));
@@ -1342,6 +1401,7 @@ void incicar_server_sin_select() {
 		} else {
 			if (requiere_hilo(smsg->msg)) {
 
+
 				//printf("sock %d nuevo hilo\n", smsg->socket);
 				//log_info(logger, "Se requiere un hilo ");
 				if ((pthread_create(&thread, NULL, (void*) atenderProceso, smsg)) < 0) {
@@ -1350,6 +1410,7 @@ void incicar_server_sin_select() {
 					//printf("genero nuevo thread el sock%d\n", smsg->socket);
 				}
 				pthread_detach(thread);
+
 			} else {
 				//log_info(logger, "No se requere hilo ");
 				//si no requiere hilo
@@ -1357,12 +1418,8 @@ void incicar_server_sin_select() {
 				close(smsg->socket);
 				FREE_NULL(smsg);
 			}
-
 		}
-
-
 	}
-
 }
 
 void* atenderProceso(t_socket_msg* smsg){

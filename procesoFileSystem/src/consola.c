@@ -12,7 +12,7 @@
 
 e_comando getComando(char* comando) {
 
-	if (string_equals_ignore_case(comando, "addnodo"))
+	if (string_equals_ignore_case(comando, "an"))
 		return NODO_AGREGAR;
 	if (string_equals_ignore_case(comando, "delnodo"))
 		return NODO_ELIMINAR;

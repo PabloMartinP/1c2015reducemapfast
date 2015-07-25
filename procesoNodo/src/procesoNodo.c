@@ -1283,6 +1283,16 @@ void iniciar_server_fork(){
 				printf("antes fork\n");
 				pfork = fork();
 				printf("despues fork\n");
+				if(pfork <0){
+					perror("fork");
+					printf("No se pudo crear el fork\n");
+					pthread_mutex_lock(&mutex);
+					pfork = 1;//pongo uno para que no joda el while
+					lanzo_fork = false;
+					destroy_message(msg);
+					close(nuevaConexion);//cierro la conexion
+					pthread_mutex_unlock(&mutex);
+				}
 
 			} else {
 				//lanzo_fork = 0;
@@ -1295,19 +1305,19 @@ void iniciar_server_fork(){
 			}
 		}
 		////////////////////////////////////////////
-		puts("Salio del while");
+		//puts("Salio del while");
 		if (pfork == 0) {
-			puts("Salio del while 2");
+			//puts("Salio del while 2");
 			//hijo
 			t_socket_msg* smsg = malloc(sizeof(t_socket_msg));
 			smsg->socket = nuevaConexion;
-			puts("Salio del while 3");
+			//puts("Salio del while 3");
 			//print_msg(msg);
-			printf("%d-----------\n", msg->header.argc);
-			puts("Salio del while 4");
+			//printf("%d-----------\n", msg->header.argc);
+			//puts("Salio del while 4");
 			switch (msg->header.argc) {
 			case 0:
-				puts("antes 0");
+				//puts("antes 0");
 				if(msg->stream != NULL)
 					smsg->msg = string_message(msg->header.id, msg->stream, 0);
 				else
@@ -1315,31 +1325,31 @@ void iniciar_server_fork(){
 				puts("despues 0");
 				break;
 			case 1:
-				puts("antes 1");
+				//puts("antes 1");
 				if(msg->stream!=NULL)
 					smsg->msg = string_message(msg->header.id, msg->stream, 1, msg->argv[0]);
 				else
 					smsg->msg = argv_message(msg->header.id, 1, msg->argv[0]);
-				puts("despues 1");
+				//puts("despues 1");
 				break;
 			case 2:
-				puts("antes 2");
+				//puts("antes 2");
 				if(msg->stream!=NULL)
 					smsg->msg = string_message(msg->header.id, msg->stream, 2, msg->argv[0], msg->argv[1]);
 				else
 					smsg->msg = argv_message(msg->header.id, 2, msg->argv[0], msg->argv[1]);
-				puts("antes 2");
+				//puts("antes 2");
 				break;
 			case 3:
-				puts("antes 3");
+				//puts("antes 3");
 				if(msg->stream!=NULL)
 					smsg->msg = string_message(msg->header.id, msg->stream, 3,	msg->argv[0], msg->argv[1], msg->argv[2]);
 				else
 					smsg->msg = argv_message(msg->header.id, 3, msg->argv[0], msg->argv[1], msg->argv[2]);
-				puts("antes 3");
+				//puts("antes 3");
 				break;
 			}
-			puts("Salio del while 5");
+			//puts("Salio del while 5");
 			destroy_message(msg);
 			printf("antes post \n");
 			pthread_mutex_lock(&mutex);

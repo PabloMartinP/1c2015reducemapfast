@@ -18,8 +18,15 @@ int main(int argc, char *argv[]) {
 
 	//iniciar_server_thread();
 	//iniciar_server();
-	//incicar_server_sin_select();
-	iniciar_server_fork();
+
+	void _server_test(){
+		incicar_server_sin_select();
+	}
+	pthread_t th;
+	pthread_create(&th, NULL, (void*)_server_test, NULL);
+	pthread_join(th, NULL);
+
+	//iniciar_server_fork();
 
 
 	//bool fin = true	;

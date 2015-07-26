@@ -24,7 +24,7 @@
 char FILE_LOG[1024] ="log_fs.txt";
 
 
-pthread_mutex_t mutex;
+//pthread_mutex_t mutex;
 bool OPERATIVO = false;
 int DIR_ACTUAL = 0;//0 raiz /
 

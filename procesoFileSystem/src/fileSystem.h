@@ -23,7 +23,8 @@
 //char FILE_NODOS[1024];
 
 //#define ID_NODO_INIT 1
-
+pthread_mutex_t mutex;
+pthread_mutex_t mutex_log;
 t_log* logger;
 
 typedef struct {
@@ -1221,6 +1222,50 @@ t_list* fs_importar_archivo(char* archivo) {
 	return copias;
 }
 
+int guardar_parte_threads(char* bloque_origen,size_t bytes_a_copiar, t_archivo_bloque_con_copias* abcc) {
+	int i;
+	char* bloque = malloc(bytes_a_copiar+1);
+	memcpy(bloque, bloque_origen, bytes_a_copiar);
+	bloque[bytes_a_copiar] = '\0';
+	t_archivo_nodo_bloque* anb = NULL;
+	//me traigo en un vector los tres t_nodo_bloque donde va a ir la copia del bloque
+	//nb = fs_get_tres_nodo_bloque_libres(fs);
+
+	int _set_bloque(t_archivo_nodo_bloque* anb){
+		fs_guardar_bloque(anb, bloque, bytes_a_copiar);
+
+		t_nodo* nodo = fs_buscar_nodo_por_id(anb->base->id);
+
+		nodo_marcar_bloque_como_usado(nodo, anb->numero_bloque);
+
+		pthread_mutex_lock(&mutex);
+		log_trace(logger, "nodo %d bloque %d marcado como usado", anb->base->id, anb->numero_bloque);
+		pthread_mutex_unlock(&mutex);
+		return 0;
+	}
+	pthread_t th_copia[BLOQUE_CANT_COPIAS];
+
+	for (i = 0; i < BLOQUE_CANT_COPIAS; i++) {
+		anb = NULL;
+		anb = list_get(abcc->nodosbloque, i);
+		if (!nodo_esta_activo(anb->base)) {
+			pthread_mutex_lock(&mutex);
+			log_trace(logger, "Nodo %s NO activo", anb->base);
+			pthread_mutex_unlock(&mutex);
+			return -1;
+		}
+		pthread_create(&(th_copia[i]), NULL, (void*)_set_bloque, NULL);
+	}
+	int th_rs[BLOQUE_CANT_COPIAS];
+	for (i = 0; i < BLOQUE_CANT_COPIAS; i++) {
+		pthread_join(th_copia[BLOQUE_CANT_COPIAS], (void*)&(th_rs[i]));
+	}
+
+	FREE_NULL(bloque);
+	return 0;
+}
+
+
 int guardar_parte(char* bloque_origen,size_t bytes_a_copiar, t_archivo_bloque_con_copias* abcc) {
 	int i;
 	char* bloque = malloc(bytes_a_copiar+1);
@@ -1229,6 +1274,10 @@ int guardar_parte(char* bloque_origen,size_t bytes_a_copiar, t_archivo_bloque_co
 	t_archivo_nodo_bloque* anb = NULL;
 	//me traigo en un vector los tres t_nodo_bloque donde va a ir la copia del bloque
 	//nb = fs_get_tres_nodo_bloque_libres(fs);
+
+
+	///////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////
 
 	for (i = 0; i < BLOQUE_CANT_COPIAS; i++) {
 
@@ -1244,29 +1293,16 @@ int guardar_parte(char* bloque_origen,size_t bytes_a_copiar, t_archivo_bloque_co
 		t_nodo* nodo = fs_buscar_nodo_por_id(anb->base->id);
 
 		nodo_marcar_bloque_como_usado(nodo, anb->numero_bloque);
-		/*
-		bool buscar_bloque(t_bloque* bloque) {
-			return bloque->posicion == nb[i]->numero_bloque;
-		}
-		//busco el nodo por id para obtener su lista de bloques
-		nodo = fs_buscar_nodo_por_id(nb[i]->nodo->id);
-
-		bloque_usado = list_find(nodo->bloques, (void*) buscar_bloque);
-		bloque_marcar_como_usado(bloque_usado);
-		*/
 
 		log_trace(logger, "nodo %d bloque %d marcado como usado\n", anb->base->id,anb->numero_bloque);
 
 		//agrego el bloquenodo a la lista, al final del for quedaria con las tres copias y faltaria settear el nro_bloque
 		//list_add(new->nodosbloque, (void*) nb[i]);
 	}
-	//free(nb);
 	//hacer free de lam matriz
 
 	FREE_NULL(bloque);
-
 	return 0;
-	//return new;
 }
 
 
@@ -1306,7 +1342,7 @@ t_archivo_bloque_con_copias* guardar_bloque(char* bloque_origen,size_t bytes_a_c
 		*/
 
 
-		log_trace(logger, "nodo %d bloque %d marcado como usado\n", nb[i]->base->id,nb[i]->numero_bloque);
+		//log_trace(logger, "nodo %d bloque %d marcado como usado\n", nb[i]->base->id,nb[i]->numero_bloque);
 
 		//agrego el bloquenodo a la lista, al final del for quedaria con las tres copias y faltaria settear el nro_bloque
 		list_add(new->nodosbloque, (void*) nb[i]);
@@ -1323,7 +1359,9 @@ int fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque, size_t tamanio_re
 	//me tengo que conectar con el nodo y pasarle el bloque
 	//obtengo info del bloque
 	int rs ;
-	log_trace(logger, "Iniciando transferencia a Ip:%s:%d bloque %d\n", nb->base->red.ip,nb->base->red.puerto, nb->numero_bloque);
+	pthread_mutex_lock(&mutex_log);
+	log_trace(logger, "Iniciando transferencia a Ip:%s:%d bloque %d", nb->base->red.ip,nb->base->red.puerto, nb->numero_bloque);
+	pthread_mutex_unlock(&mutex_log);
 	int fd = client_socket(nb->base->red.ip, nb->base->red.puerto);
 
 	//le digo que grabe el blque en el nodo n
@@ -1338,7 +1376,9 @@ int fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque, size_t tamanio_re
 
 	close(fd);
 
-	log_trace(logger, "transferencia realizada OK\n");
+	pthread_mutex_lock(&mutex_log);
+	log_trace(logger, "transferencia realizada OK");
+	pthread_mutex_unlock(&mutex_log);
 	return rs;
 }
 

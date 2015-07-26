@@ -142,7 +142,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 
 			//limpio las listas que ya no las voy a usar
 			//list_destroy(local_files);
-			list_destroy(red_files);
+
 
 			if (rs != 0) {
 				pthread_mutex_lock(mutex);
@@ -159,9 +159,11 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				close(fd);
 				return -1;
 			}
+
 			pthread_mutex_lock(mutex);
 			log_info(logger, "Todos los archivos de red se trajeron OK. cant: %d", list_size(red_files));
 			pthread_mutex_unlock(mutex);
+			list_destroy(red_files);
 			////////////////////////////////////////////////////////////////////////////////////////
 			////////////////////////////////////////////////////////////////////////////////////////
 
@@ -456,115 +458,7 @@ bool file_reduce_es_de_red(t_files_reduce* fr) {
 bool file_reduce_es_local(t_files_reduce* fr) {
 	return nodo_es_local(fr->ip, fr->puerto);
 }
-/*
-int aplicar_reduce_local(t_list* files, char*script_reduce,
-	char* filename_result) {
-	int i = 0;
-	int rs;
-	int cant_files = list_size(files);
-	t_list* local_files = list_create();
-	void _convertir_a_absoluto(char* filename) {
-		list_add(local_files, convertir_a_temp_path_filename(filename));
-	}
-	list_iterate(files, (void*) _convertir_a_absoluto);
-	//creo un descriptor de archivo por cada file
-	FILE** fd = malloc(cant_files * sizeof(FILE*));
 
-	//abro los archivos
-	i = 0;
-	void _open_file(char* filename) {
-		fd[i] = fopen(filename, "r");
-		i++;
-	}
-	list_iterate(local_files, (void*) _open_file);
-
-	//limpio local_files
-	list_destroy_and_destroy_elements(local_files, (void*) free);
-
-	int index_menor; //para guardar el menor item
-	//creo una lista de key para guardar las key de cada file
-	size_t len_key = LEN_KEYVALUE;
-	char* key = NULL;
-	char** keys = malloc(sizeof(char*) * cant_files);
-	int _reduce_local() {
-		int i = 0;
-
-		//cargo las keys, con su primer valor
-		for (i = 0; i < cant_files; i++) {
-			//rs = getline(&(keys[i]), &len_key, fd[i]);
-			key = malloc(LEN_KEYVALUE);
-			len_key = LEN_KEYVALUE;
-			rs = getline(&key, &len_key, fd[i]);
-			if (rs != -1) {
-				//key[rs] = '\0';
-				keys[i] = key;
-				//strcpy(keys[i], key);
-			}
-			//free(key);
-		}
-		//aca ya tengo todas las keys
-
-		while (alguna_key_distinta_null(keys, cant_files)) {
-			//obtengo cual es el menor
-			index_menor = get_index_menor(keys, cant_files);
-			//el menor lo mando a stdinn (keys[i])
-			printf("%s\n", keys[index_menor]);
-			write(pipes[PARENT_WRITE_PIPE][WRITE_FD] , keys[index_menor],
-					strlen(keys[index_menor]) + 1);
-			//leo el siguiente elmento del fd[index_menor]
-			len_key = LEN_KEYVALUE;
-			rs = getline(&(keys[index_menor]), &len_key, fd[index_menor]);
-			//rs = getline(&key, &len_key, fd[index_menor]);
-
-			//si es igual a -1, termino el file, marco como null la key para que la ignore cuando obtiene el menor
-			if (rs == -1) {
-				FREE_NULL(keys[index_menor]);
-				keys[index_menor] = NULL;
-				//keys[index_menor] = KEYVALUE_END;
-			}
-
-		}
-		//si llego hasta aca termino de enviarle cosas por stdin,
-		//cierro el stdin
-		close(pipes[PARENT_WRITE_PIPE][WRITE_FD] );
-
-		int count;
-		char* new_file_reduced;
-		new_file_reduced = convertir_a_temp_path_filename(filename_result);	//genero filename absoluto
-		FILE* file_reduced = txt_open_for_append(new_file_reduced);	//creo el file
-		FREE_NULL(new_file_reduced);		//limpio el nombre
-		char* buffer = malloc(1024);//creo un buffer para ir almacenando el stdout
-		i = 0;
-		do {
-			count = read(pipes[PARENT_READ_PIPE][READ_FD], buffer, 1024);
-			fwrite(buffer, count, 1, file_reduced);
-			if (count > 0) {
-				buffer[count] = '\0';
-				printf("%s\n", buffer);
-			}
-
-			i++;
-		} while (count != 0);
-		close(pipes[PARENT_READ_PIPE][READ_FD]);
-		fclose(file_reduced);
-		FREE_NULL(buffer);
-
-////////////////////////////////////////
-		for (i = 0; i < cant_files; i++)
-			fclose(fd[i]);
-		FREE_NULL(fd);
-
-		for (i = 0; i < cant_files; i++) {
-			free(keys[i]);
-		}
-		FREE_NULL(keys);
-
-		return 0;
-	}
-
-	return (int) ejecutar_script(script_reduce, (void*) _reduce_local);
-}
-*/
 bool nodo_es_local(char* ip, int puerto) {
 	return string_equals_ignore_case(ip, NODO_IP()) && puerto == NODO_PORT();
 }
@@ -583,76 +477,6 @@ char* convertir_a_temp_path_filename(char* filename) {
 	pthread_mutex_unlock(&mutex);
 	return new_path_file;
 }
-/*
-int thread_aplicar_map(int fd) {
-	pthread_t th;
-
-	pthread_create(&th, NULL, (void*) _aplicar_map, &fd);
-	pthread_detach(th);
-
-	return 0;
-}
-*/
-/*
-int _aplicar_map(void* param) {
-	int fd = *((int *) param);
-
-	//recibo el map que me envio
-	t_map* map = NULL;
-	map = recibir_mensaje_map(fd);
-	char* filename_script = generar_nombre_map_tmp();
-	recibir_mensaje_script_y_guardar(fd, filename_script);
-	int rs;
-	pthread_mutex_lock(&mutex);
-	log_trace(logger, "Aplicando mapper %s sobre el bloque %d", filename_script, map->archivo_nodo_bloque->numero_bloque);
-	pthread_mutex_unlock(&mutex);
-	///////////////////////////////////////////////////////////////////////
-
-
-	pthread_mutex_lock(&mutex);
-	log_trace(logger, "_______________________socket %d", fd);
-	pthread_mutex_unlock(&mutex);
-	rs = aplicar_map(map->archivo_nodo_bloque->numero_bloque, filename_script,map->info->resultado);
-	pthread_mutex_lock(&mutex);
-	log_trace(logger, "Info fin thread: res: %d", rs);
-	log_trace(logger,
-			"*****************************************************************");
-	pthread_mutex_unlock(&mutex);
-
-	char buffer[32];
-	if (recv(fd, buffer, sizeof(buffer), MSG_PEEK | MSG_DONTWAIT) == 0) {
-		printf("El  NODOOOO el sock %d conexionNNNNNNNNNNNNNNNNNNNNN \n", fd);
-		// if recv returns zero, that means the connection has been closed:
-
-		//close(fd);
-		return -1;
-		// do something else, e.g. go on vacation
-	}
-
-	t_msg* msg = argv_message(MAPPER_TERMINO, 0);
-
-	rs = enviar_mensaje(fd, msg);
-	if (rs < 0)
-		perror("holaaaa");
-
-	destroy_message(msg);
-
-
-	pthread_mutex_lock(&mutex);
-	log_trace(logger, "Enviado MAPPER_TERMINO al job");
-	log_trace(logger, "Fin mapper guardado en %s", map->info->resultado);
-	pthread_mutex_unlock(&mutex);
-
-	//close(fd);
-	free(filename_script);
-	remove(filename_script);
-
-	recibir_mensaje_nodo_ok(fd);
-
-	return rs;
-}
-*/
-
 
 int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthread_mutex_t* mutex){
 
@@ -665,7 +489,7 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 			pthread_mutex_lock(mutex);
 			stdinn = getBloque(n_bloque);
 			pthread_mutex_unlock(mutex);
-			printf("%d\n", strlen(stdinn));
+			//printf("%d\n", strlen(stdinn));
 			if(stdinn==NULL){
 				pthread_mutex_lock(mutex);
 				log_trace(logger, "Error al escribir getBloque(%d)", n_bloque);
@@ -856,6 +680,8 @@ int ordenar_map(char* origen, char* destino, pthread_mutex_t* mutex){
 		perror("pthread_join ordenar");
 		return -1;
 	}
+
+	FREE_NULL(p_ordenar);
 
 	pthread_mutex_lock(mutex);
 	log_trace(logger, "Fin ordenar %s, res: %s", origen, destino);
@@ -1088,8 +914,8 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		pthread_mutex_unlock(&mutex);
 		//filename_script = generar_nombre_map_tmp(map->info);
 
-		filename_script = string_from_format("%s/mapper_job_%d_map_%d", NODO_DIRTEMP(), map->info->job_id, map->info->id);
-
+		filename_script = string_from_format("%s/mapper_job_%d_map_%d_sock_%d", NODO_DIRTEMP(), map->info->job_id, map->info->id, fd);
+		printf("%s\n", filename_script);
 		recibir_mensaje_script_y_guardar(fd, filename_script);
 		///////////////////////////////////////////////////////////////////////
 		pthread_mutex_lock(&mutex);
@@ -1142,7 +968,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		break;
 	case NODO_GET_FILECONTENT:
 		//lo convierto a path absoluto
-			printf("%s\n", msg->stream);
+			//printf("%s\n", msg->stream);
 			buff = convertir_a_temp_path_filename(msg->stream);
 			//obtengo el char
 			file_data = getFileContent(msg->stream);
@@ -1152,7 +978,9 @@ int procesar_mensaje(int fd, t_msg* msg) {
 			destroy_message(msg);
 			msg = string_message(NODO_GET_FILECONTENT, file_data, 0);
 			enviar_mensaje(fd, msg);
-			free(buff);
+			destroy_message(msg);
+			FREE_NULL(file_data);
+			FREE_NULL(buff);
 
 		break;
 	case NODO_GET_FILECONTENT_DATA:
@@ -1167,6 +995,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		//msg = string_message(NODO_GET_FILECONTENT, file, 0);
 		enviar_mensaje_sin_header(fd, strlen(file_data) + 1, file_data);
 
+		FREE_NULL(file_data);
 		/*if((rs = enviar_mensaje(fd, msg))<0){
 		 printf("Error al arhivo temp NODO_GET_FILECONTENT\n");
 		 perror("enviar_mensaje ");

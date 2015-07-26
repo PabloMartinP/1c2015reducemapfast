@@ -97,11 +97,22 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 		close(pipes[PARENT_READ_PIPE][READ_FD]);
 		close(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
 
+
 		//execl("/usr/bin/sort", "sort", (char*) NULL);
 		sem_post(sem);
 
-		execl(path_script, name_script, (char*) NULL);
-		perror("Errro execv");
+		int rs = 1;
+		do {
+			rs = execl(path_script, name_script, (char*) NULL);
+			perror("Errro execv");
+			fprintf(stderr, "hola path:%s, name: %s, Res: %d\n", path_script, name_script, rs);
+			usleep(10000);
+		} while (rs < 0);
+
+		close(pipes[PARENT_READ_PIPE][READ_FD]);
+		close(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
+
+
 		_exit(1);
 
 	} else {
@@ -114,11 +125,17 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 		/* cleanup semaphores */
 		sem_destroy (sem);
 
-
-		close(pipes[PARENT_WRITE_PIPE][READ_FD]);
-		close(pipes[PARENT_READ_PIPE][WRITE_FD]);
-
 		int rs;
+
+		rs = close(pipes[PARENT_WRITE_PIPE][READ_FD]);
+		if(rs!=0){
+			perror("close1");
+		}
+		rs = close(pipes[PARENT_READ_PIPE][WRITE_FD]);
+		if(rs!=0){
+			perror("close2");
+		}
+
 		rs = reader_writer(pipes[PARENT_READ_PIPE][READ_FD], pipes[PARENT_WRITE_PIPE][WRITE_FD]);
 		int status;
 		waitpid(pid, &status, 0);
@@ -157,12 +174,9 @@ int ordenar(t_ordenar* param_ordenar){
 			while ((getline(&linea, &len_linea, file)) > 0) {
 				cant_writes = escribir_todo(fd, linea, strlen(linea));
 				if(cant_writes<0){
-
 					rs=-1;
 					break;
 				}
-				//write(pipes[PARENT_WRITE_PIPE][WRITE_FD], linea, strlen(linea));
-				//(pipes[PARENT_WRITE_PIPE][WRITE_FD], linea, strlen(linea));
 			}
 			free(linea);
 			fclose(file);

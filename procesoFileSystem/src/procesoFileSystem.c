@@ -491,7 +491,12 @@ void finalizar() {
 	fs_destroy();
 
 	log_destroy(logger);
+
 	config_destroy(config);
+
+	pthread_mutex_destroy(&mutex);
+	pthread_mutex_destroy(&mutex_log);
+
 	printf("FS Terminado!!!!\n");
 }
 
@@ -513,6 +518,8 @@ void set_cwd(){
 }
 void inicializar() {
 	pthread_mutex_init(&mutex, NULL);
+	pthread_mutex_init(&mutex_log, NULL);
+
 	//comento para que siempre que ejecute tome el mismo cwd
 	//set_cwd();
 

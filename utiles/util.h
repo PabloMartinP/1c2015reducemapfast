@@ -159,15 +159,15 @@ typedef enum {
 
 
 typedef struct{
-	char *origen;
-	char *destino;
+	char origen[1024];
+	char destino[1024];
 	pthread_mutex_t* mutex;
 	int contador_ftok;
 }t_ordenar;
 
 typedef struct {
 	int fd;
-	char* destino;
+	char destino[1024];
 }t_reader;
 
 typedef struct{

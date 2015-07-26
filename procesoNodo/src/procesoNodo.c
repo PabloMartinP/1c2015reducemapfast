@@ -216,6 +216,12 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				//rs = getline(&(keys[i]), &len_key, fdlocal[i]);
 			}
 			//aca ya tengo todas las keys
+			//copio los punteros a keys para que no se pierdan y poder hacer el free
+			char** keys_punteros = malloc(sizeof(char*) * (cant_total_files));
+			for (i = 0; i < cant_total_files; i++) {
+				keys_punteros[i] = keys[i];
+			}
+
 
 			//empiezo a insertar en stdin
 			i = 0;
@@ -261,7 +267,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 						//FREE_NULL(keys[index_menor]);
 						keys[index_menor] = NULL;
 					}*/
-
+					//FREE_NULL(keys[index_menor]);
 					keys[index_menor] = fgets(keys[index_menor], LEN_KEYVALUE, fdlocal[index_menor]);
 
 				} else {
@@ -308,10 +314,11 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			//free(fdred);
 			FREE_NULL(fdred);
 
-			for (i = 0; i < cant_total_files; i++) {
-				FREE_NULL(keys[i]);
-			}
 			FREE_NULL(keys);
+			for (i = 0; i < cant_total_files; i++) {
+				FREE_NULL(keys_punteros[i]);
+			}
+			FREE_NULL(keys_punteros);
 			pthread_mutex_lock(mutex);
 			log_info(logger, "Fin reducer sobre %d archivos", cant_total_files);
 			log_info(logger, "**********************************************");
@@ -336,7 +343,8 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			perror("result_reduce");
 			return -1;
 		}
-		treader.destino = result_reduce;
+		strcpy(treader.destino, result_reduce);
+		//treader.destino = result_reduce;
 
 		if((pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*) &treader))!=0){
 			perror("pthread_crete reader reduce");
@@ -464,8 +472,9 @@ bool nodo_es_local(char* ip, int puerto) {
 }
 
 char* convertir_a_temp_path_filename(char* filename) {
-	pthread_mutex_lock(&mutex);
-	char* new_path_file = string_new();
+	//pthread_mutex_lock(&mutex);
+	char* new_path_file = string_from_format("%s/%s", NODO_DIRTEMP(), filename);
+	/*char* new_path_file = string_new();
 	if(new_path_file == NULL){
 		perror("string_new convertir_a_temp_path_filename");
 		return NULL;
@@ -474,7 +483,8 @@ char* convertir_a_temp_path_filename(char* filename) {
 	string_append(&new_path_file, NODO_DIRTEMP());
 	string_append(&new_path_file, "/");
 	string_append(&new_path_file, filename);
-	pthread_mutex_unlock(&mutex);
+	//pthread_mutex_unlock(&mutex);
+	 */
 	return new_path_file;
 }
 
@@ -570,12 +580,14 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 
 		t_reader treader;
 		treader.fd = fdreader;
-		char* new_file_map_disorder = convertir_a_temp_path_filename(filename_result);
+		char* new_file_map_disorder = NULL;
+		new_file_map_disorder = convertir_a_temp_path_filename(filename_result);
 		if(new_file_map_disorder==NULL){
 			return -1;
 		}
 		string_append(&new_file_map_disorder, "-disorder.tmp");
-		treader.destino = new_file_map_disorder ;
+		strcpy(treader.destino , new_file_map_disorder);
+		//treader.destino = new_file_map_disorder ;
 
 		if( (pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*) &treader))!=0 ){
 			perror("pthread_create reader map")	;
@@ -607,7 +619,8 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 		log_info(logger, "Ordenando archivo %s", new_file_map_disorder);
 		pthread_mutex_unlock(mutex);
 
-		char* result_order = string_from_format("%s/%s", NODO_DIRTEMP(), filename_result);
+		char* result_order = NULL;
+		result_order = string_from_format("%s/%s", NODO_DIRTEMP(), filename_result);
 		if(result_order==NULL){
 			pthread_mutex_lock(mutex);
 			log_error(logger, "error al crear result_order");
@@ -629,24 +642,19 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 		pthread_mutex_unlock(mutex);
 
 		//puts("map Fin hilo lectura stdout\n");
-
+		printf("remove %s\n", new_file_map_disorder);
 		remove(new_file_map_disorder);
 		FREE_NULL(new_file_map_disorder);
 
 		return 0;
 	}
 	int rs;
+
 	/*
-	char* nombre_proc = string_from_format("map-on-block:%d", n_bloque);
-	if(nombre_proc==NULL){
-		pthread_mutex_lock(mutex);
-		log_error(logger, "Erro al crear nombre proc");
-		pthread_mutex_unlock(mutex);
-	}*/
-	//rs = ejecutar_script(script_map, nombre_proc, _reader_writer, mutex);
 	pthread_mutex_lock(mutex);
 	contador_ftok++;
 	pthread_mutex_unlock(mutex);
+	*/
 	rs = ejecutar_script(script_map, "mapper", _reader_writer, mutex, contador_ftok);
 	//FREE_NULL(nombre_proc);
 
@@ -655,22 +663,24 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 
 int ordenar_map(char* origen, char* destino, pthread_mutex_t* mutex){
 	int rs=-1;
-	t_ordenar* p_ordenar;
-	p_ordenar = malloc(sizeof(t_ordenar));
+	t_ordenar p_ordenar;
+	/*p_ordenar = malloc(sizeof(t_ordenar));
 	if(p_ordenar ==NULL){
 		perror("malloc ordenar_map");
 		return -1;
-	}
-	p_ordenar->origen = origen;
-	p_ordenar->destino =destino;
-	p_ordenar->mutex = mutex;
+	}*/
+	strcpy(p_ordenar.origen, origen);
+	strcpy(p_ordenar.destino, destino);
+	//p_ordenar->origen = origen;
+	//p_ordenar->destino =destino;
+	p_ordenar.mutex = mutex;
 	pthread_mutex_lock(mutex);
 	contador_ftok++;
 	pthread_mutex_unlock(mutex);
-	p_ordenar->contador_ftok = contador_ftok;
+	p_ordenar.contador_ftok = contador_ftok;
 	pthread_t th_ordenar;
 
-	if( (pthread_create(&th_ordenar, NULL, (void*)ordenar, (void*)p_ordenar))!=0 ){
+	if( (pthread_create(&th_ordenar, NULL, (void*)ordenar, (void*)&p_ordenar))!=0 ){
 		perror("pthread_create ordenar");
 		return -1;
 	}
@@ -681,11 +691,11 @@ int ordenar_map(char* origen, char* destino, pthread_mutex_t* mutex){
 		return -1;
 	}
 
-	FREE_NULL(p_ordenar);
+	//FREE_NULL(p_ordenar);
 
-	pthread_mutex_lock(mutex);
-	log_trace(logger, "Fin ordenar %s, res: %s", origen, destino);
-	pthread_mutex_unlock(mutex);
+	//pthread_mutex_lock(mutex);
+	//log_trace(logger, "Fin ordenar %s, res: %s", origen, rs);
+	//pthread_mutex_unlock(mutex);
 
 	return rs;
 }
@@ -1227,6 +1237,7 @@ void incicar_server_sin_select() {
 		return ;
 	}
 	int nuevaConexion;
+	t_socket_msg* smsg = NULL;
 	while (true) {
 
 		nuevaConexion = accept_connection(listener);
@@ -1235,21 +1246,22 @@ void incicar_server_sin_select() {
 
 		log_info(logger, "Nueva Conexion");
 
-		t_socket_msg* smsg = malloc(sizeof(t_socket_msg));
-		(*smsg).socket = nuevaConexion;
+		smsg = NULL;
+		smsg = malloc(sizeof(t_socket_msg));
+		smsg->socket = nuevaConexion;
 
 		//recibo el mensaje para saber si es algo para lanzar hilo
 		smsg->msg = recibir_mensaje(smsg->socket);
+		if(smsg->msg->header.id==-1){
+			destroy_message(smsg->msg);close(smsg->socket);FREE_NULL(smsg);printf("saliendoooooooooooooooooooooooooooo\n");
+			break;
+		}
 		if (smsg->msg == NULL) {
 			perror("recibir_msgggg");
 			printf("reccc msj %d\n", smsg->socket);
 			//return NULL;
 		} else {
 			if (requiere_hilo(smsg->msg)) {
-
-
-				//printf("sock %d nuevo hilo\n", smsg->socket);
-				//log_info(logger, "Se requiere un hilo ");
 				if ((pthread_create(&thread, NULL, (void*) atenderProceso, smsg)) < 0) {
 					perror("pthread_create");
 				} else {
@@ -1284,7 +1296,7 @@ void* atenderProceso(t_socket_msg* smsg){
 	}
 	//pthread_mutex_unlock(&mutex);
 	pthread_mutex_lock(&mutex);
-	log_info(logger, "FinThread ", fd);
+	log_trace(logger, "FinThread");
 	pthread_mutex_unlock(&mutex);
 	close(fd);
 	FREE_NULL(smsg);
@@ -1360,6 +1372,9 @@ void finalizar() {
 void inicializar() {
 
 	config = config_create(FILE_CONFIG);
+	NODO_CONFIG_INIT();
+	//strcpy(DIR_TMP, config_get_string_value(config, "DIR_TEMP"));
+
 	FILE* f = fopen(FILE_LOG, "wb");
 	fclose(f);
 	logger = log_create(FILE_LOG, "Nodo", true, LOG_LEVEL_TRACE);

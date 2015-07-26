@@ -196,7 +196,8 @@ int ordenar(t_ordenar* param_ordenar){
 
 		t_reader treader;
 		treader.fd = fdreader;
-		treader.destino = param_ordenar->destino;
+		strcpy(treader.destino, param_ordenar->destino);
+		//treader.destino = param_ordenar->destino;
 
 		if( (rs = pthread_create(&th_reader, NULL, (void*) reader_and_save_as, (void*)&treader))!=0 ){
 			perror("pthread_create readerrrr");

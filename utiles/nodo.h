@@ -67,7 +67,7 @@ void map_free_all(t_map* map);
 //void archivo_nodo_bloque_destroy(t_archivo_nodo_bloque* anb);
 t_bloque* nodo_get_bloque_libre(t_nodo* nodo);
 t_bloque* nodo_get_bloque_para_copiar(t_nodo* nodo);
-
+int nodo_cant_bloques_requerido_para_copia(t_nodo* nodo);
 
 void nodo_archivo_destroy(t_nodo_archivo* na);
 void reduce_free(t_reduce* reduce);

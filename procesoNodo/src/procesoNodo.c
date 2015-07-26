@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
 	//por param le tiene que llegar el tamaño del archivo data.bin
 	//por ahora hardcodeo 100mb, serian 10 bloques de 20 mb
 
-	printf("JJJJJJJJJJJJJJJ\n");
+	//printf("JJJJJJJJJJJJJJJ\n");
 	inicializar();
 
 	probar_conexion_fs();
@@ -1360,7 +1360,11 @@ void finalizar() {
 void inicializar() {
 
 	config = config_create(FILE_CONFIG);
+	FILE* f = fopen(FILE_LOG, "wb");
+	fclose(f);
 	logger = log_create(FILE_LOG, "Nodo", true, LOG_LEVEL_TRACE);
+
+
 	/*
 	 char*f;	f = convertir_path_absoluto(FILE_CONFIG);
 	 config = config_create(f);

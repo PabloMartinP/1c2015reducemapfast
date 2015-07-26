@@ -55,12 +55,12 @@ sem_t* sem_crear(int* shmid, key_t* shmkey, int contador_ftok){
 	return sem;
 }
 int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(int fdreader, int fdwriter), pthread_mutex_t* mutex, int c_ftok){
-
-	key_t shmkey; /*      shared memory key       */
-	int shmid; /*      shared memory id        */
-	sem_t *sem; /*      synch semaphore         *//*shared */
+/*
+	key_t shmkey;
+	int shmid;
+	sem_t *sem;
 	sem = sem_crear(&shmid, &shmkey, c_ftok);
-
+*/
 	int pipes[NUM_PIPES][2];
 	pthread_mutex_lock(mutex);
 
@@ -99,31 +99,33 @@ int ejecutar_script(char* path_script, char* name_script, int(*reader_writer)(in
 
 
 		//execl("/usr/bin/sort", "sort", (char*) NULL);
-		sem_post(sem);
+		//sem_post(sem);
 
 		int rs = 1;
 		do {
 			rs = execl(path_script, name_script, (char*) NULL);
 			perror("Errro execv");
 			fprintf(stderr, "hola path:%s, name: %s, Res: %d\n", path_script, name_script, rs);
-			usleep(10000);
+			usleep(100000);
+
+			_exit(127);
 		} while (rs < 0);
 
 		close(pipes[PARENT_READ_PIPE][READ_FD]);
 		close(pipes[PARENT_WRITE_PIPE][WRITE_FD]);
 
 
-		_exit(1);
+		_exit(127);
 
 	} else {
+		/*
 		printf("AAAAAAAAAAntes sem_wait(sem);\n");
 		sem_wait(sem);
 		printf("DDDDDDDDDESPUES sem_wait(sem);\n");
 
-		/* shared memory detach */
 		shmctl(shmid, IPC_RMID, 0);
-		/* cleanup semaphores */
 		sem_destroy (sem);
+		*/
 
 		int rs;
 

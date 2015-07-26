@@ -452,6 +452,8 @@ int fs_arch_eliminar(char* nombre){
 
 		list_remove_and_destroy_by_condition(fs.archivos, (void*)_archivo_buscar, (void*)arch_destroy);
 
+		printf("El achivo %s se elimino\n", nombre);
+
 	}else{
 		printf("El archivo %s no existe en la carpeta actual\n", nombre);
 	}

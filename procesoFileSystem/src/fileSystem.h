@@ -986,11 +986,11 @@ t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_nodo(t_nodo_base* otro_nb, in
 			nodo_get = (pos_inicial) % list_size(fs.nodos);
 			nodo = list_get(fs.nodos, nodo_get);
 			pos_inicial++;;
-		} while (!nodo_esta_activo(nodo->base));
+		} while (!nodo_esta_activo(nodo->base) || nodo_cant_bloques_libres(nodo)<=0 || nodo_cant_bloques_requerido_para_copia(nodo)<=0);
 
 		pos--;
 		encontro_nodo = !nodo_base_igual_a(*(nodo->base), *(otro_nb)) ;
-	}while(!encontro_nodo && pos>=0);
+	}while(!encontro_nodo && pos>=0 );
 	if(!encontro_nodo){
 		//no se encontro una copia que no se repita
 		log_trace(logger, "No se encontro una copia distinta al nodo %s", nodo_base_to_string(otro_nb));
@@ -1012,7 +1012,7 @@ t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_dos_nodos(t_nodo_base* un_nb,
 			nodo_get = (pos_inicial) % list_size(fs.nodos);
 			nodo = list_get(fs.nodos, nodo_get);
 			pos_inicial++;
-		}while(!nodo_esta_activo(nodo->base));
+		}while(!nodo_esta_activo(nodo->base) || nodo_cant_bloques_libres(nodo)<=0 || nodo_cant_bloques_requerido_para_copia(nodo)<=0);
 
 		pos--;
 		encontro_nodo = !nodo_base_igual_a(*(nodo->base), *otro_nb) && !nodo_base_igual_a(*(nodo->base), *un_nb);
@@ -1158,7 +1158,7 @@ t_list* fs_importar_archivo(char* archivo) {
 	log_trace(logger, "Tamanio : %zd b, %.2f kb, %.2f mb\n", size,	bytes_to_kilobytes(size), bytes_to_megabytes(size));
 	int partes = cant_partes_necesarias(archivo);
 	int cant_bloq_necesarios = cant_partes_necesarias(archivo) * BLOQUE_CANT_COPIAS;
-	log_trace(logger, "Bloques necesarios para el archivo: %d\n", cant_bloq_necesarios);
+	log_trace(logger, "Bloques necesarios para el archivo: %d", cant_bloq_necesarios);
 	if (cant_bloq_necesarios > fs_cant_bloques_libres()) {
 		printf(	"La cantidad de bloques necesarios para el archivo es %d y solo hay %d bloques libres\n",cant_bloq_necesarios, fs_cant_bloques_libres());
 		return NULL;

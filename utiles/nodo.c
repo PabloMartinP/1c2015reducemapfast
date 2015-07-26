@@ -174,6 +174,10 @@ t_bloque* nodo_get_bloque_para_copiar(t_nodo* nodo){
 }
 
 
+int nodo_cant_bloques_requerido_para_copia(t_nodo* nodo){
+	return list_count_satisfying((void*)nodo->bloques, (void*)bloque_esta_para_copiar );
+}
+
 int nodo_cant_bloques_libres(t_nodo* nodo){
 	return list_count_satisfying((void*)nodo->bloques, (void*)bloque_esta_libre );
 }

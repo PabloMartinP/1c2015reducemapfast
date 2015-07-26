@@ -488,6 +488,48 @@ char* convertir_a_temp_path_filename(char* filename) {
 	return new_path_file;
 }
 
+int aplicar_map_system(int n_bloque, char* script_map, char* filename_result, pthread_mutex_t* mutex){
+	int st ;
+	char* filename_block = NULL;
+	filename_block = string_from_format("%s/bloque_%d_%s", NODO_DIRTEMP(), n_bloque, filename_result);
+	FILE* file_block = txt_open_for_append(filename_block);
+	if(file_block==NULL){
+		perror("file");
+		return -1;
+	}
+
+
+	char* bloque = getBloque(n_bloque);
+	st = fwrite(bloque, strlen(bloque), 1, file_block);
+	if(st!=1){
+		perror("write-------------------__");
+		return -1;
+	}
+	fclose(file_block);
+
+	char* result_order = NULL;
+	result_order = string_from_format("%s/%s", NODO_DIRTEMP(), filename_result);
+	printf("%s\n", result_order);
+	char* map_system = string_from_format("cat %s | %s | sort > %s", filename_block, script_map, result_order);
+
+	printf("%s \n", map_system);
+
+
+	st = system(map_system);
+	/*
+	while(st!=0){
+		perror("systemmmmmmmmmmmmmmmmmm");
+		usleep(1000);
+		st = system(map_system);
+	}*/
+
+	FREE_NULL(filename_block);
+	FREE_NULL(map_system);
+	FREE_NULL(result_order);
+
+	return 0;
+}
+
 int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthread_mutex_t* mutex){
 
 	int _reader_writer(int fdreader, int fdwriter) {
@@ -642,7 +684,7 @@ int aplicar_map_ok(int n_bloque, char* script_map, char* filename_result, pthrea
 		pthread_mutex_unlock(mutex);
 
 		//puts("map Fin hilo lectura stdout\n");
-		printf("remove %s\n", new_file_map_disorder);
+		//printf("remove %s\n", new_file_map_disorder);
 		remove(new_file_map_disorder);
 		FREE_NULL(new_file_map_disorder);
 
@@ -925,7 +967,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		//filename_script = generar_nombre_map_tmp(map->info);
 
 		filename_script = string_from_format("%s/mapper_job_%d_map_%d_sock_%d", NODO_DIRTEMP(), map->info->job_id, map->info->id, fd);
-		printf("%s\n", filename_script);
+		//printf("%s\n", filename_script);
 		recibir_mensaje_script_y_guardar(fd, filename_script);
 		///////////////////////////////////////////////////////////////////////
 		pthread_mutex_lock(&mutex);
@@ -934,7 +976,10 @@ int procesar_mensaje(int fd, t_msg* msg) {
 
 		//pthread_mutex_lock(&mx_mr);
 		//rs = aplicar_map_final(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado);
-		rs = aplicar_map_ok(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado, &mutex);
+		//rs = aplicar_map_ok(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado, &mutex);
+		//rs = aplicar_map_ok(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado, &mutex);
+		rs = aplicar_map_system(map->archivo_nodo_bloque->numero_bloque, filename_script, map->info->resultado, &mutex);
+
 
 		pthread_mutex_lock(&mutex);
 		if(rs<0){
@@ -1252,6 +1297,7 @@ void incicar_server_sin_select() {
 
 		//recibo el mensaje para saber si es algo para lanzar hilo
 		smsg->msg = recibir_mensaje(smsg->socket);
+
 		if(smsg->msg->header.id==-1){
 			destroy_message(smsg->msg);close(smsg->socket);FREE_NULL(smsg);printf("saliendoooooooooooooooooooooooooooo\n");
 			break;
@@ -1299,6 +1345,7 @@ void* atenderProceso(t_socket_msg* smsg){
 	log_trace(logger, "FinThread");
 	pthread_mutex_unlock(&mutex);
 	close(fd);
+	//FREE_NULL(*smsg);
 	FREE_NULL(smsg);
 
 

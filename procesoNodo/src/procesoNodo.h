@@ -67,6 +67,7 @@ pthread_mutex_t mutex;
 char* data_get(char* filename);
 void data_destroy();
 char* getBloque(int32_t numero);
+int aplicar_map_system(int n_bloque, char* script_map, char* filename_result, pthread_mutex_t* mutex);
 void setBloque(int32_t numero, char* bloque);
 
 char* getFileContent(char* filename);

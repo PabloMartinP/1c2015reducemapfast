@@ -236,6 +236,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			//key_menor = key_max;
 			rs = 0;
 			//memset(key_menor, 255, LEN_KEYVALUE);
+			FILE* f = txt_open_for_append("/tmp/red79.txt");
 			while (alguna_key_distinta_null(keys, cant_total_files)) {
 				//obtengo cual es el menor
 				//key_menor = key_max;
@@ -246,6 +247,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				//key_menor = keys[index_menor];
 
 				rs_recLinea = escribir_todo(fd, keys[index_menor], strlen(keys[index_menor]));
+				fwrite(keys[index_menor], strlen(keys[index_menor]),1, f);
 				//rs = write(fd, keys[index_menor],  strlen(keys[index_menor]));
 				//comentado solo para que ande mas rapido
 				if(rs_recLinea<0){
@@ -290,7 +292,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 
 				//i++;
 			}
-
+			fclose(f);
 			FREE_NULL(key_max);
 
 			//si llego hasta aca termino de enviarle cosas por stdin,
@@ -437,7 +439,7 @@ int get_index_menor(char** keys, int cant, char* key_men){
 	int i;
 	for(i=0;i<cant;i++){
 		if (keys[i] != NULL)
-			if (strcmp(keys[i], key_men) < 0) {
+			if (strcoll(keys[i], key_men) < 0) {
 				key_men = keys[i];
 				//strcpy(key_men, keys[i]);
 				index = i;
@@ -497,10 +499,18 @@ int aplicar_map_system(int n_bloque, char* script_map, char* filename_result, pt
 		perror("file");
 		return -1;
 	}
-
-
 	char* bloque = getBloque(n_bloque);
+	//////////////////////////////////////////////
+	size_t len = strlen(bloque);
+	if (bloque[len - 1] != '\n') {
+		len += 1;
+		bloque[len] = '\0';
+		bloque[len - 1] = '\n';
+	}
+	/////////////////////////////////////////////
 	st = fwrite(bloque, strlen(bloque), 1, file_block);
+
+
 	if(st!=1){
 		perror("write-------------------__");
 		return -1;
@@ -522,7 +532,7 @@ int aplicar_map_system(int n_bloque, char* script_map, char* filename_result, pt
 		usleep(1000);
 		st = system(map_system);
 	}*/
-
+	remove(filename_block);
 	FREE_NULL(filename_block);
 	FREE_NULL(map_system);
 	FREE_NULL(result_order);

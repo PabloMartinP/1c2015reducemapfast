@@ -25,8 +25,10 @@ int archivo_a_usar();
 
 int enviar_maps(int fd, t_job* job);
 t_reduce* crear_reduce_final(t_job* job, t_nodo_base* nb);
+t_reduce* crear_reduce_final_no_comb(t_job* job, t_nodo_base* nb);
 //int crear_y_enviar_reduce_final(t_job* job, int fd);
-int avisar_nuevo_reduce_final(t_job* job, int fd);
+int crear_y_avisar_nuevo_reduce_final_comb(t_job* job, int fd);
+int crear_y_avisar_nuevo_reduce_final_no_comb(t_job* job, int fd);
 int enviar_map(int socket, int job_id, int map_id);
 t_reduce* marta_job_buscar_reduce_no_empezado(int job_id);
 char* subir_archivo_final_a_fs(int job_id, int reduce_id);
@@ -284,7 +286,7 @@ void procesar (int fd, t_msg*msg){
 				if(terminaron_todos_los_mappers(job->mappers) ){
 					log_trace(logger, "Ya termino todos sus mappers, como es sin combiner hago el reduce final");
 					//crear_y_enviar_reduce_final(job, fd);
-					avisar_nuevo_reduce_final(job, fd);
+					crear_y_avisar_nuevo_reduce_final_no_comb(job, fd);
 
 				}else{
 					log_trace(logger, "No terminaron todos sus maps, no puedo crear el reduce final");
@@ -323,7 +325,7 @@ void procesar (int fd, t_msg*msg){
 						log_trace(logger, "*************************************************");
 
 						//crear_y_enviar_reduce_final(job, fd);
-						avisar_nuevo_reduce_final(job, fd);
+						crear_y_avisar_nuevo_reduce_final_comb(job, fd);
 
 
 						//marco al job como que lanzo el reduce final
@@ -552,7 +554,36 @@ int enviar_map(int socket, int job_id, int map_id){
 }
 
 
-int avisar_nuevo_reduce_final(t_job* job, int fd){
+int crear_y_avisar_nuevo_reduce_final_no_comb(t_job* job, int fd){
+	log_trace(logger, "Hago el reduce final");
+
+	//tengo que seleccionar el nodo que mas archivos tenga archivos locales
+	//
+	t_nodo_base* nb = NULL;
+	nb = job_obtener_nodo_para_reduce_final_combiner(job);
+
+	log_trace(logger,
+			"Nodo con mas archivos locales %s (donde se aplica el reduce final)",
+			nodo_base_to_string(nb));
+
+	t_reduce* reduce = NULL;
+	reduce = crear_reduce_final_no_comb(job, nb);
+
+	log_trace(logger,
+			"Creado reduce %d  para el job %d, cant-nodo-archivo: %d, nodo_destino: %s",
+			reduce->info->id, job->id, list_size(reduce->nodos_archivo),
+			nodo_base_to_string(reduce->nodo_base_destino));
+	log_trace(logger, "Resultado: %s", reduce->info->resultado);
+	list_add(job->reducers, reduce);
+
+	//enviar_mensaje_reduce(fd, reduce);
+	avisar_nuevo_reduce_disponible(fd);
+
+	return 0;
+	return 0;
+}
+
+int crear_y_avisar_nuevo_reduce_final_comb(t_job* job, int fd){
 	log_trace(logger, "Hago el reduce final");
 
 	//tengo que seleccionar el nodo que mas archivos tenga archivos locales
@@ -598,6 +629,45 @@ int crear_y_enviar_reduce_final(t_job* job, int fd){
 
 	return 0;
 }*/
+
+
+t_reduce* crear_reduce_final_no_comb(t_job* job, t_nodo_base* nb){
+	t_reduce* reduce = NULL;
+
+	JOB_REDUCE_ID++;
+	char* resultado = generar_nombre_reduce(job->id, JOB_REDUCE_ID);
+	reduce = reduce_create(JOB_REDUCE_ID, job->id, resultado, nb);
+	//marco como el reduce final
+	reduce->final = true;
+
+	FREE_NULL(resultado);
+
+	t_nodo_archivo* na = NULL;
+
+	void _crear_reduce(t_map* m) {
+		na = NULL;
+		//verifico el nodo haya terminado
+		if (m->info->termino) {
+			na = nodo_archivo_create();
+
+			//copio el nombre para no complicarme con los frees
+			strcpy(na->archivo, m->info->resultado);
+			na->nodo_base = m->archivo_nodo_bloque->base;
+
+			//log_trace(logger, "%s", nodo_base_to_string(r->nodo_base_destino));
+			//log_trace(logger, "%s", nodo_base_to_string(na->nodo_base));
+			//printf("%s\n", na->archivo);
+			log_trace(logger, "Archivo %s en nodo %s", na->archivo, nodo_base_to_string(na->nodo_base));
+			//log_trace(logger, "Archivo %s en nodo id:%d, %s:%d", na->archivo, na->nodo_base->id, na->nodo_base->red.ip, na->nodo_base->red.puerto);
+			//log_trace(logger, "Archivo %s(en %s) reducir en nodo id:%d, %s:%d", na->archivo, na->nodo_base->id, na->nodo_base->red.ip, na->nodo_base->red.puerto);
+			//agrego a la lista el archivo
+			list_add(reduce->nodos_archivo, (void*) na);
+		}
+	}
+	list_iterate(job->mappers, (void*) _crear_reduce);
+
+	return reduce;
+}
 
 t_reduce* crear_reduce_final(t_job* job, t_nodo_base* nb){
 	t_reduce* reduce = NULL;

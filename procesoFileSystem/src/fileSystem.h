@@ -1366,7 +1366,7 @@ int fs_guardar_bloque(t_archivo_nodo_bloque* nb, char* bloque, size_t tamanio_re
 	//obtengo info del bloque
 	int rs ;
 	//pthread_mutex_lock(&mutex_log);
-	log_trace(logger, "Iniciando transferencia a Ip:%s:%d bloque %d", nb->base->red.ip,nb->base->red.puerto, nb->numero_bloque);
+	log_trace(logger, "Transfiriendo a nodo %d, ip:%s:%d bloque %d",nb->base->id, nb->base->red.ip,nb->base->red.puerto, nb->numero_bloque);
 	//pthread_mutex_unlock(&mutex_log);
 	int fd = client_socket(nb->base->red.ip, nb->base->red.puerto);
 

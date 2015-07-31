@@ -588,19 +588,23 @@ int grabar_archivo(int fd, t_msg* msg){
 		enviar_mensaje(socket_nodo, msg);
 		destroy_message(msg);
 
+		int rs;
 		//recibo el stream del file
 		msg = recibir_mensaje(socket_nodo);
-
-		//guardo el file en tmp
-		char* nombre_tmp = string_from_format("/tmp/%s", filename);
-		FILE* file = fopen(nombre_tmp, "w");
-		fwrite(msg->stream, strlen(msg->stream), 1, file);
-		fclose(file);
-		int rs;
-
-		rs = fs_copiar_archivo_local_al_fs(nombre_tmp, dir_id);
-		destroy_message(msg);
-		//remove(nombre_tmp);
+		if(msg!=NULL &&  msg->header.id == NODO_GET_FILECONTENT_OK){
+			//guardo el file en tmp
+			char* nombre_tmp = string_from_format("/tmp/%s", filename);
+			FILE* file = fopen(nombre_tmp, "w");
+			fwrite(msg->stream, strlen(msg->stream), 1, file);
+			fclose(file);
+			rs = fs_copiar_archivo_local_al_fs(nombre_tmp, dir_id);
+			destroy_message(msg);
+			FREE_NULL(nombre_tmp);
+			//remove(nombre_tmp);
+		}else{//si no tenia el archivo en el tmp del nodo marco como error
+			log_trace(logger, "El nodo %s no tiene el archivo %s", nodo_base_to_string(nodo_base), filename);
+			rs = -1;
+		}
 
 		close(socket_nodo);
 
@@ -610,7 +614,6 @@ int grabar_archivo(int fd, t_msg* msg){
 			msg = argv_message(FS_NO_OK, 0);
 
 		FREE_NULL(filename);
-		FREE_NULL(nombre_tmp);
 		FREE_NULL(original);
 		enviar_mensaje(fd, msg);
 		destroy_message(msg);
@@ -629,9 +632,7 @@ void procesar_mensaje_nodo(int fd, t_msg* msg) {
 	switch (msg->header.id) {
 
 	case FS_GRABAR_ARCHIVO:
-
 		grabar_archivo(fd, msg);
-
 		break;
 	case FS_ESTA_OPERATIVO:
 		destroy_message(msg);

@@ -1117,7 +1117,7 @@ t_list* distribuir_copias(int partes){
 
 	t_archivo_bloque_con_copias* abcc;
 	t_archivo_nodo_bloque* anb;
-	t_nodo_base* nb ;
+	//t_nodo_base* nb ;
 	t_list* list_archivo_nodo_bloque = list_create();
 	for(i=0;i<partes;i++){
 		//creo la lista que va tener tres elementos

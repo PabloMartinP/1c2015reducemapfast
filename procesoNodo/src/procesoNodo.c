@@ -1,7 +1,24 @@
 
 #include "procesoNodo.h"
-
+void     INThandler(int);
 int contador_ftok=0;//para inicializar el semaforo(?)
+
+void  INThandler(int sig)
+{
+	exit(-1);
+     /*char  c;
+
+     signal(sig, SIG_IGN);
+
+     printf("OUCH, did you hit Ctrl-C?\n"
+            "Do you really want to quit? [y/n] ");
+     c = getchar();
+     if (c == 'y' || c == 'Y')
+          exit(0);
+     else
+          signal(SIGINT, INThandler);
+          */
+}
 
 int main(int argc, char *argv[]) {
 	//por param le tiene que llegar el tamaño del archivo data.bin
@@ -11,6 +28,9 @@ int main(int argc, char *argv[]) {
 	inicializar();
 
 	probar_conexion_fs();
+
+
+    signal(SIGINT, INThandler);
 
 	signal(SIGCHLD, SIG_IGN);
 	//inicio el server para atender las peticiones del fs
@@ -520,22 +540,40 @@ int aplicar_map_system(int n_bloque, char* script_map, char* filename_result, pt
 	char* result_order = NULL;
 	result_order = string_from_format("%s/%s", NODO_DIRTEMP(), filename_result);
 	//printf("%s\n", result_order);
-	char* map_system = string_from_format("cat %s | %s | LC_ALL=C sort > %s", filename_block, script_map, result_order);
+	char* map_system = string_from_format("cat %s | %s | LC_ALL=C sort > %s ", filename_block, script_map, result_order);
 
 	//printf("%s", map_system);
+	//system(map_system);
+
+	st = -2;
+	pid_t pid;
+	pid = fork();
+	if (pid > 0) {
+		wait(0);
+		//printf("Termino ok=???????????????????????");
+		remove(filename_block);
+		FREE_NULL(filename_block);
+		FREE_NULL(map_system);
+		FREE_NULL(result_order);
+		return 0 ;
+	} else if (pid == 0) {
+		system(map_system);
+		//printf("CONTROL C !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+		exit(0);
+		return -1;
+	} else // could not fork
+	{
+		//printf("error on fork!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+		return -1;
+	}
 
 
-	st = system(map_system);
-	/*
-	while(st!=0){
-		perror("systemmmmmmmmmmmmmmmmmm");
-		usleep(1000);
-		st = system(map_system);
-	}*/
+
 	remove(filename_block);
 	FREE_NULL(filename_block);
 	FREE_NULL(map_system);
 	FREE_NULL(result_order);
+
 
 	return 0;
 }
@@ -911,7 +949,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 	char* bloque;
 	char* filename_script;
 	int n_bloque = 0, rs;
-	char* buff;
+	//char* buff;
 	char* file_data;
 	t_map* map = NULL;
 	t_reduce* reduce = NULL;
@@ -1034,18 +1072,26 @@ int procesar_mensaje(int fd, t_msg* msg) {
 	case NODO_GET_FILECONTENT:
 		//lo convierto a path absoluto
 			//printf("%s\n", msg->stream);
-			buff = convertir_a_temp_path_filename(msg->stream);
+			//buff = convertir_a_temp_path_filename(msg->stream);
 			//obtengo el char
 			file_data = getFileContent(msg->stream);
 			//FREE_NULL(buff);
+			destroy_message(msg);
 
 			//envio el archivo
-			destroy_message(msg);
-			msg = string_message(NODO_GET_FILECONTENT, file_data, 0);
+			if(file_data!=NULL){
+				msg = string_message(NODO_GET_FILECONTENT_OK, file_data, 0);
+				FREE_NULL(file_data);
+			}
+			else{
+				msg = argv_message(NODO_GET_FILECONTENT_ERROR, 0);
+			}
+
+
 			enviar_mensaje(fd, msg);
 			destroy_message(msg);
-			FREE_NULL(file_data);
-			FREE_NULL(buff);
+
+			//FREE_NULL(buff);
 
 		break;
 	case NODO_GET_FILECONTENT_DATA:
@@ -1057,15 +1103,18 @@ int procesar_mensaje(int fd, t_msg* msg) {
 
 		//envio el archivo
 		destroy_message(msg);
-		//msg = string_message(NODO_GET_FILECONTENT, file, 0);
-		enviar_mensaje_sin_header(fd, strlen(file_data) + 1, file_data);
 
-		FREE_NULL(file_data);
-		/*if((rs = enviar_mensaje(fd, msg))<0){
-		 printf("Error al arhivo temp NODO_GET_FILECONTENT\n");
-		 perror("enviar_mensaje ");
-		 }*/
-		//destroy_message(msg);
+		//envio el archivo
+		if (file_data != NULL){
+			//msg = string_message(NODO_GET_FILECONTENT_OK, file_data, 0);
+			enviar_mensaje_sin_header(fd, strlen(file_data) + 1, file_data);
+			FREE_NULL(file_data);
+		}
+		else{
+			msg = argv_message(NODO_GET_FILECONTENT_ERROR, 0);
+		}
+		//msg = string_message(NODO_GET_FILECONTENT, file, 0);
+
 		break;
 	case NODO_GET_BLOQUE:
 		n_bloque = msg->argv[0];
@@ -1458,15 +1507,32 @@ void inicializar() {
  */
 char* getFileContent(char* filename) {
 	pthread_mutex_lock(&mutex);
-	log_info(logger, "Inicio getFileContent(%s)", filename);
-	pthread_mutex_unlock(&mutex);
+		log_info(logger, "Inicio getFileContent(%s)", filename);
+		pthread_mutex_unlock(&mutex);
 	char* content = NULL;
 
 	//creo el espacio para almacenar el archivo
 	char* path = file_combine(NODO_DIRTEMP(), filename);
-	size_t size = file_get_size(path) + 1;
+
+	if(!file_exists(path)){
+		FREE_NULL(path);
+		pthread_mutex_lock(&mutex);
+		log_info(logger, "El archivo %s no existe", filename, NODO_DIRTEMP());
+		pthread_mutex_unlock(&mutex);
+		return NULL;
+	}
+	size_t size = file_get_size(path);
+	if(size==0){
+		FREE_NULL(path);
+		pthread_mutex_lock(&mutex);
+		log_info(logger, "El archivo %s tiene tamaño 0", filename, NODO_DIRTEMP());
+		pthread_mutex_unlock(&mutex);
+		return NULL;
+	}
+
+	size = file_get_size(path) + 1;
 	content = malloc(size);
-	log_trace(logger, "Tamaño: %d\n", size);
+	//log_trace(logger, "Tamaño: %d\n", size);
 	char* mapped = NULL;
 	mapped = file_get_mapped(path);
 	memcpy(content, mapped, size);	//

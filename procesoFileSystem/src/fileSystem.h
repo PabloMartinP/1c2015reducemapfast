@@ -217,7 +217,7 @@ char* fs_archivo_guardar_bloque(char* nombre, int dir_id, int numero_bloque, cha
 
 	t_archivo_nodo_bloque* nb = NULL;
 
-	char* datos_bloque = NULL;
+	//char* datos_bloque = NULL;
 	int rs =-1;
 	for (i = 0; i < list_size(bloque->nodosbloque); i++) {
 		nb = NULL;
@@ -1043,7 +1043,9 @@ t_list* distribuir_copias(int partes){
 	t_nodo* nodo = NULL;
 	t_bloque* bloque = NULL;
 
+	log_trace(logger, "procesando copia 1");
 	copia1 = cargar_copia_uno(partes);
+	log_trace(logger, "fin proceso copia 1");
 
 	t_archivo_nodo_bloque* anbc1;
 	t_archivo_nodo_bloque* anbc2;
@@ -1055,7 +1057,7 @@ t_list* distribuir_copias(int partes){
 	//int pos = 0;//init 0 para que el mod sea el max
 	//ordeno
 	list_sort(fs.nodos, (void*)ordenar_por_menor_cant_bloques_libres);
-
+	log_trace(logger, "creando copia 2 y 3");
 	for (i = 0; i < partes; i++, pos--) {
 		if(pos==-1)//si vuelve a cero lo reinicializo
 			pos = list_size(fs.nodos)-1;
@@ -1165,8 +1167,11 @@ t_list* fs_importar_archivo(char* archivo) {
 		return NULL;
 	}
 
+	t_list* copias = NULL;
+	log_trace(logger, "distribuyendo las copias\n");
+	copias = distribuir_copias(partes);
+	log_trace(logger, "fin distribucion de copias\n");
 
-	t_list* copias = distribuir_copias(partes);
 	if(copias == NULL){
 		log_trace(logger, "no se pudieron distribuir las copias");
 		return NULL;

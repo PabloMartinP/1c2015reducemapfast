@@ -65,32 +65,7 @@ bool nodo_esta_activo(t_nodo_base* nb){
 	return on;
 }
 
-//bool nodo_esta_vivo(t_nodo* nodo){
-bool nodo_esta_vivo(char* ip, int puerto){
-	bool on ;
-	//obtengo un socket cliente para ver si responde
-	//int fd = client_socket(nodo->ip, nodo->puerto);
-	int fd = client_socket(ip, puerto);
 
-	//le mando handshake a ver si me responde el HOLA
-	t_msg* msg = argv_message(NODO_HOLA, 0);
-	enviar_mensaje(fd, msg);
-	destroy_message(msg);
-	msg = recibir_mensaje(fd);
-
-	//si responde NODO_HOLA esta activo
-	if (msg == NULL) {
-		on = false;
-	} else {
-		on = msg->header.id == NODO_HOLA;
-		destroy_message(msg);
-	}
-
-	//enviar_mensaje_nodo_close(fd);
-
-
-	return on;
-}
 
 /*
  * envio un mensaje de desconexion

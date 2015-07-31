@@ -1,24 +1,7 @@
 
 #include "procesoNodo.h"
-void     INThandler(int);
+//void     INThandler(int);
 int contador_ftok=0;//para inicializar el semaforo(?)
-
-void  INThandler(int sig)
-{
-	exit(-1);
-     /*char  c;
-
-     signal(sig, SIG_IGN);
-
-     printf("OUCH, did you hit Ctrl-C?\n"
-            "Do you really want to quit? [y/n] ");
-     c = getchar();
-     if (c == 'y' || c == 'Y')
-          exit(0);
-     else
-          signal(SIGINT, INThandler);
-          */
-}
 
 int main(int argc, char *argv[]) {
 	//por param le tiene que llegar el tamaño del archivo data.bin
@@ -30,7 +13,7 @@ int main(int argc, char *argv[]) {
 	probar_conexion_fs();
 
 
-    signal(SIGINT, INThandler);
+    //signal(SIGINT, INThandler);
 
 	signal(SIGCHLD, SIG_IGN);
 	//inicio el server para atender las peticiones del fs

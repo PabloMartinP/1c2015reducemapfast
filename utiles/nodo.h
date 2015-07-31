@@ -91,7 +91,7 @@ bool nodo_base_igual_a(t_nodo_base nb, t_nodo_base otro_nb);
 //bool nodo_base_igual_a(t_nodo_base nb, t_nodo_base otro_nb);
 
 //bool nodo_esta_vivo(t_nodo* nodo);
-bool nodo_esta_vivo(char* ip, int puerto);
+
 
 
 #endif /* NODO_H_ */

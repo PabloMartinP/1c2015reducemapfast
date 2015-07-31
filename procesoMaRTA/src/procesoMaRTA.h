@@ -1002,7 +1002,7 @@ int  obtener_numero_copia_disponible_para_map(t_list* nodos_bloque, t_job* job){
 		for (n_copia = 0; n_copia <3; n_copia++) {//o tambien list_size(nodos_Bloque)
 			anb = list_get(nodos_bloque, n_copia);//tomo 1, despues el 2, luego el 3, porque en la c1 hay mas probab que esten la mayoria de los bloques
 			log_trace(logger, "Copia numero: %d, nodo_id: %d, %s:%d", n_copia+1, anb->base->id, anb->base->red.ip, anb->base->red.puerto);
-			if (nodo_esta_vivo(anb->base->red.ip, anb->base->red.puerto)) {
+			if (nodo_esta_activo(anb->base)) {
 				copia_cant_veces_usada[n_copia] = marta_contar_nodo(anb->base->id, job);
 				log_trace(logger, "Nodo id:%d, %s:%d Disponible - cant-vces-usado-marta(actual): %d", anb->base->id, anb->base->red.ip, anb->base->red.puerto, copia_cant_veces_usada[n_copia]);
 				return n_copia;//devuelvo directamente el resultado

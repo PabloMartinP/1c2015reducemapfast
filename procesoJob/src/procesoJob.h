@@ -167,7 +167,7 @@ int funcionMapping(t_map* map){
 		return -1;
 	}
 
-	printf("____________nuevo Sock %d map:%d\n", fd, map->info->id);
+	//printf("____________nuevo Sock %d map:%d\n", fd, map->info->id);
 	//envio esto para que entre en el select del MAPPER y espera que recibir un mensaje_map
 	msg = argv_message(JOB_MAPPER, 0);
 	rs = enviar_mensaje(fd, msg);

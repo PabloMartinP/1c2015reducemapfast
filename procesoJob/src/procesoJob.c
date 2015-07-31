@@ -34,9 +34,9 @@ int main(int argc, char *argv[]) {
 	/* cleanup semaphores */
 	sem_destroy (&sem);
 
-	/*//desconecto al nodo
-	int socket = client_socket("192.168.1.39", 6001);
-	t_msg* msg = argv_message(123, 0);
+	//desconecto al nodo
+	/*int socket = client_socket("192.168.1.37", 6001);
+	t_msg* msg = argv_message(-1, 0);
 	enviar_mensaje(socket, msg);
 	destroy_message(msg);
 	close(socket);*/

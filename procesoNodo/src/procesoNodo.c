@@ -519,10 +519,10 @@ int aplicar_map_system(int n_bloque, char* script_map, char* filename_result, pt
 
 	char* result_order = NULL;
 	result_order = string_from_format("%s/%s", NODO_DIRTEMP(), filename_result);
-	printf("%s\n", result_order);
+	//printf("%s\n", result_order);
 	char* map_system = string_from_format("cat %s | %s | LC_ALL=C sort > %s", filename_block, script_map, result_order);
 
-	printf("%s \n", map_system);
+	//printf("%s", map_system);
 
 
 	st = system(map_system);

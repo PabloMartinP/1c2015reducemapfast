@@ -562,7 +562,7 @@ int aplicar_map_system(int n_bloque, char* script_map, char* filename_result, pt
 
 
 
-	//remove(filename_block);
+	remove(filename_block);
 	FREE_NULL(filename_block);
 	FREE_NULL(map_system);
 	FREE_NULL(result_order);
@@ -1031,7 +1031,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		pthread_mutex_unlock(&mutex);
 
 		//borro archivosz
-		//remove(filename_script);
+		remove(filename_script);
 		free(filename_script);
 
 		//aviso al job el resultado

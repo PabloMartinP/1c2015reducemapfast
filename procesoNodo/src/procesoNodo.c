@@ -1024,7 +1024,7 @@ int procesar_mensaje(int fd, t_msg* msg) {
 		pthread_mutex_unlock(&mutex);
 
 		//borro archivosz
-		remove(filename_script);
+		//remove(filename_script);
 		free(filename_script);
 
 		//aviso al job el resultado

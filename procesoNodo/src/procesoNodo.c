@@ -124,6 +124,7 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 			void _request_file_to_nodo(t_files_reduce* fr) {
 				fdred[i] = client_socket(fr->ip, fr->puerto);
 				if(fdred[i]<0){
+					perror("client_sock");
 					//marco como error
 					rs = -1;
 					return;
@@ -317,7 +318,9 @@ int aplicar_reduce_ok(t_list* files_reduces, char*script_reduce,	char* filename_
 				close(fdred[i]);
 			//borro fdred
 			//free(fdred);
-			FREE_NULL(fdred);
+			if(cant_red_files>0){
+				FREE_NULL(fdred);
+			}
 
 			FREE_NULL(keys);
 			for (i = 0; i < cant_total_files; i++) {
@@ -508,17 +511,21 @@ int aplicar_map_system(int n_bloque, char* script_map, char* filename_result, pt
 		perror("file");
 		return -1;
 	}
-	char* bloque = getBloque(n_bloque);
-	//////////////////////////////////////////////
-	size_t len = strlen(bloque);
-	if (bloque[len - 1] != '\n') {
-		len += 1;
-		bloque[len] = '\0';
-		bloque[len - 1] = '\n';
-	}
-	/////////////////////////////////////////////
+	char* bloque = NULL;
+	bloque = getBloque(n_bloque);
+
 	st = fwrite(bloque, strlen(bloque), 1, file_block);
 
+	/////////////////////////////////////////////
+	size_t len = strlen(bloque);
+	if (bloque[len - 1] != '\n') {
+		st = fwrite("\n", 1, 1, file_block);
+		/*len += 1;
+		bloque[len] = '\0';
+		bloque[len - 1] = '\n';
+		*/
+	}
+	/////////////////////////////////////////////
 
 	if(st!=1){
 		perror("write-------------------__");
@@ -1359,8 +1366,11 @@ void incicar_server_sin_select() {
 				} else {
 					//printf("genero nuevo thread el sock%d\n", smsg->socket);
 				}
+				/*
+				if(smsg->msg->header.id == JOB_MAPPER || smsg->msg->header.id == JOB_REDUCER){
+					usleep(100000);
+				}*/
 				pthread_detach(thread);
-				usleep(100000);
 			} else {
 				//log_info(logger, "No se requere hilo ");
 				//si no requiere hilo

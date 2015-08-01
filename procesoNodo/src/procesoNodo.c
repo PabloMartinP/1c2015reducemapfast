@@ -497,6 +497,12 @@ int aplicar_map_system(int n_bloque, char* script_map, char* filename_result, pt
 	int st ;
 	char* filename_block = NULL;
 	filename_block = string_from_format("%s/bloque_%d_%s", NODO_DIRTEMP(), n_bloque, filename_result);
+	char* result_order = NULL;
+	result_order = string_from_format("%s/%s", NODO_DIRTEMP(), filename_result);
+		//printf("%s\n", result_order);
+	char* map_system = NULL;
+	map_system = string_from_format("cat %s | %s | LC_ALL=C sort > %s ", filename_block, script_map, result_order);
+
 	FILE* file_block = txt_open_for_append(filename_block);
 	if(file_block==NULL){
 		perror("file");
@@ -520,14 +526,11 @@ int aplicar_map_system(int n_bloque, char* script_map, char* filename_result, pt
 	}
 	fclose(file_block);
 
-	char* result_order = NULL;
-	result_order = string_from_format("%s/%s", NODO_DIRTEMP(), filename_result);
-	//printf("%s\n", result_order);
-	char* map_system = string_from_format("cat %s | %s | LC_ALL=C sort > %s ", filename_block, script_map, result_order);
+
 
 	//printf("%s", map_system);
-	//system(map_system);
-
+	system(map_system);
+/*
 	st = -2;
 	pid_t pid;
 	pid = fork();
@@ -548,7 +551,7 @@ int aplicar_map_system(int n_bloque, char* script_map, char* filename_result, pt
 	{
 		//printf("error on fork!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
 		return -1;
-	}
+	}*/
 
 
 
@@ -1340,10 +1343,11 @@ void incicar_server_sin_select() {
 		//recibo el mensaje para saber si es algo para lanzar hilo
 		smsg->msg = recibir_mensaje(smsg->socket);
 
+		/*
 		if(smsg->msg->header.id==-1){
 			destroy_message(smsg->msg);close(smsg->socket);FREE_NULL(smsg);printf("saliendoooooooooooooooooooooooooooo\n");
 			break;
-		}
+		}*/
 		if (smsg->msg == NULL) {
 			perror("recibir_msgggg");
 			printf("reccc msj %d\n", smsg->socket);
@@ -1356,7 +1360,7 @@ void incicar_server_sin_select() {
 					//printf("genero nuevo thread el sock%d\n", smsg->socket);
 				}
 				pthread_detach(thread);
-
+				usleep(100000);
 			} else {
 				//log_info(logger, "No se requere hilo ");
 				//si no requiere hilo

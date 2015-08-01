@@ -924,7 +924,8 @@ t_list* cargar_copia_uno(int partes){
 			nodo = list_get(fs.nodos, n_nodo);
 			cant_bloques_libres = nodo_cant_bloques_libres(nodo);
 			n_nodo++;
-		} while (!nodo_esta_activo(nodo->base));
+		//} while (!nodo_esta_activo(nodo->base));
+		} while (!nodo->conectado);
 
 		//cant_bloques_libres= 1;
 		for (i=0; c_partes < partes && i < cant_bloques_libres; i++, c_partes++) {
@@ -987,7 +988,7 @@ t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_nodo(t_nodo_base* otro_nb, in
 			nodo_get = (pos_inicial) % list_size(fs.nodos);
 			nodo = list_get(fs.nodos, nodo_get);
 			pos_inicial++;;
-		} while (!nodo_esta_activo(nodo->base) || nodo_cant_bloques_libres(nodo)<=0 || nodo_cant_bloques_requerido_para_copia(nodo)<=0);
+		} while (!nodo->conectado || nodo_cant_bloques_libres(nodo)<=0 || nodo_cant_bloques_requerido_para_copia(nodo)<=0);
 
 		pos--;
 		encontro_nodo = !nodo_base_igual_a(*(nodo->base), *(otro_nb)) ;
@@ -1013,7 +1014,7 @@ t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_dos_nodos(t_nodo_base* un_nb,
 			nodo_get = (pos_inicial) % list_size(fs.nodos);
 			nodo = list_get(fs.nodos, nodo_get);
 			pos_inicial++;
-		}while(!nodo_esta_activo(nodo->base) || nodo_cant_bloques_libres(nodo)<=0 || nodo_cant_bloques_requerido_para_copia(nodo)<=0);
+		}while(!nodo->conectado || nodo_cant_bloques_libres(nodo)<=0 || nodo_cant_bloques_requerido_para_copia(nodo)<=0);
 
 		pos--;
 		encontro_nodo = !nodo_base_igual_a(*(nodo->base), *otro_nb) && !nodo_base_igual_a(*(nodo->base), *un_nb);
@@ -1027,8 +1028,23 @@ t_nodo_base* obtener_nodo_mas_cargado_y_distinto_a_dos_nodos(t_nodo_base* un_nb,
 	return nodo->base;
 }
 
+void chequear_conexion_nodos(){
+
+	void _nodo_chequear_conexion(t_nodo* nodo){
+		if(!nodo_esta_activo(nodo->base)){
+			nodo->conectado = false;
+			log_trace(logger, "nodo %s desconectado?", nodo_base_to_string(nodo->base));
+		}else{
+			nodo->conectado = true	;
+		}
+	}
+
+	list_iterate(fs.nodos, (void*)_nodo_chequear_conexion);
+}
 
 t_list* distribuir_copias(int partes){
+
+	chequear_conexion_nodos();
 
 	if(list_size(fs.nodos)==0)
 		return NULL;
